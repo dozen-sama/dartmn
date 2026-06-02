@@ -172,6 +172,8 @@ export interface Database {
           point_draw: number
           point_lost: number
           win_points_are_legs: boolean
+          tournament_type: "open" | "league" | "national" | "club" | "friendly"
+          platform_fee: number
           created_at: string
           updated_at: string
         }
@@ -530,6 +532,66 @@ export interface Database {
           guest_id?: string | null
           status?: "waiting" | "ongoing" | "completed"
           match_id?: string | null
+        }
+        Relationships: []
+      }
+      achievements: {
+        Row: {
+          key: string
+          name: string
+          description: string
+          icon: string
+          category: string
+          sort_order: number
+        }
+        Insert: {
+          key: string
+          name: string
+          description: string
+          icon: string
+          category?: string
+          sort_order?: number
+        }
+        Update: { name?: string; description?: string; icon?: string; sort_order?: number }
+        Relationships: []
+      }
+      player_achievements: {
+        Row: {
+          id: string
+          player_id: string
+          achievement_key: string
+          earned_at: string
+        }
+        Insert: {
+          id?: string
+          player_id: string
+          achievement_key: string
+          earned_at?: string
+        }
+        Update: Record<string, never>
+        Relationships: []
+      }
+      player_subscriptions: {
+        Row: {
+          id: string
+          player_id: string
+          status: "active" | "cancelled" | "expired"
+          started_at: string
+          expires_at: string
+          amount: number
+          payment_id: string | null
+        }
+        Insert: {
+          id?: string
+          player_id: string
+          status?: "active" | "cancelled" | "expired"
+          expires_at: string
+          amount?: number
+          payment_id?: string | null
+        }
+        Update: {
+          status?: "active" | "cancelled" | "expired"
+          expires_at?: string
         }
         Relationships: []
       }

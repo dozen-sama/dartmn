@@ -85,21 +85,13 @@ function CheckoutForm() {
       setStep("paid")
       toast.success("Төлбөр амжилттай!")
 
-      // Activate subscription
+      // Activate subscription — call server action via API
       if (type === "player" && userId) {
-        const expires = new Date()
-        expires.setMonth(expires.getMonth() + 1)
-        await supabase.from("player_subscriptions").upsert({
-          player_id: userId,
-          status: "active",
-          expires_at: expires.toISOString(),
-          amount: total,
-          payment_id: qrData.transaction_id,
+        await fetch("/api/subscriptions/activate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ player_id: userId, transaction_id: qrData.transaction_id }),
         })
-        await supabase.from("profiles").update({
-          is_premium: true,
-          premium_expires_at: expires.toISOString(),
-        }).eq("id", userId)
       }
 
       setTimeout(() => router.push("/profile"), 2000)
