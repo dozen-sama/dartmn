@@ -11,6 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { buttonVariants } from "@/components/ui/button"
+import Link from "next/link"
 import { Separator } from "@/components/ui/separator"
 import { createClient } from "@/lib/supabase/client"
 import { mn } from "@/locales/mn"
@@ -101,6 +103,34 @@ export function PlayLobby({ profile, activeRooms }: Props) {
           {mn.play.title}
         </h1>
         <p className="text-muted-foreground text-sm mt-0.5">Дэлхийн дурын тоглогчтой онлайнаар тоглох</p>
+      </div>
+
+      {/* ── ХАМТДАА ТОГЛОХ — featured section ── */}
+      <div className="rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/10 via-card to-card overflow-hidden">
+        <div className="p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="flex-1 space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">🏠</span>
+              <h2 className="text-lg font-bold">Хамтдаа тоглох</h2>
+              <Badge className="bg-green-500/15 text-green-400 border-green-500/30 text-xs">Шинэ</Badge>
+            </div>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Нэг өрөөнд байгаа найзуудтайгаа <strong className="text-foreground">нэг телефон дээр</strong> тоглоно.
+              Код шаардахгүй — тоглогч бүр оноо оруулаад дараагийн хүнд дамжуулна.
+            </p>
+            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground pt-1">
+              <span className="flex items-center gap-1 bg-secondary/50 rounded-full px-2.5 py-1">✓ 1v1, 2v2, 3v3</span>
+              <span className="flex items-center gap-1 bg-secondary/50 rounded-full px-2.5 py-1">✓ Багаар тоглох</span>
+              <span className="flex items-center gap-1 bg-secondary/50 rounded-full px-2.5 py-1">✓ Интернэт шаардахгүй</span>
+              <span className="flex items-center gap-1 bg-secondary/50 rounded-full px-2.5 py-1">✓ Checkout hint</span>
+            </div>
+          </div>
+          <Link href="/play/together"
+            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm glow-primary hover:bg-primary/90 transition-all shrink-0">
+            <Users className="h-5 w-5" />
+            Хамтдаа тоглох
+          </Link>
+        </div>
       </div>
 
       {/* How it works info */}
