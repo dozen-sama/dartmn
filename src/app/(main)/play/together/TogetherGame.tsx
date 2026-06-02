@@ -158,7 +158,7 @@ export function TogetherGame() {
 
     // Bull finish check
     if (bullRequired && isCheckout && !isBullInput) {
-      toast.error("⚠️ Bull Finish шаарддаг! Зөвхөн 50 (Bull) эсвэл 25 (Half)")
+      toast.error("⚠️ Bull-off (хязгаарт хүрмэгц)! Зөвхөн 50 (Bull) эсвэл 25 (Half)")
       setInput("")
       return
     }
@@ -227,7 +227,7 @@ export function TogetherGame() {
             <BullOff
               players={bullPlayers}
               onSelect={onBullOffSelect}
-              title="Хэн Bull-д хамгийн ойр шидэв?"
+              purpose="start"
             />
           </CardContent>
         </Card>
@@ -333,7 +333,7 @@ export function TogetherGame() {
                 <label className="flex items-start gap-2 cursor-pointer pl-4">
                   <input type="checkbox" checked={bullFinishAtLimit} onChange={e => setBullFinishAtLimit(e.target.checked)} className="mt-0.5 accent-primary" />
                   <div>
-                    <span className="text-sm">🎯 Bull Finish шаарддаг</span>
+                    <span className="text-sm">🎯 Bull-off (хязгаарт хүрмэгц)</span>
                     <p className="text-[10px] text-muted-foreground">Limit-т хүрмэгц зөвхөн Bull(50)/Half(25) финиш</p>
                   </div>
                 </label>

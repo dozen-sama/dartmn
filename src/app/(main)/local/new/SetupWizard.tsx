@@ -513,7 +513,7 @@ export function SetupWizard() {
               {limitRoundsEnabled && (
                 <div className="pl-4">
                   <Chk checked={bullFinishAtLimit} onChange={setBullFinishAtLimit}
-                    label="🎯 Limit-т хүрмэгц Bull Finish шаарддаг"
+                    label="🎯 Limit-т хүрмэгц Bull-off (хязгаарт хүрмэгц)"
                     sub="Хязгаарын round-д зөвхөн Bull (50) эсвэл Half Bull (25) финиш хийж болно" />
                 </div>
               )}

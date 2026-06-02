@@ -138,7 +138,7 @@ export function Scoreboard() {
                 setActivePlayer(starterId === p1Id ? 0 : 1)
                 setShowBullOff(false)
               }}
-              title="Хэн Bull-д хамгийн ойр шидэв?"
+              purpose="start"
             />
           </CardContent>
         </Card>
@@ -146,22 +146,15 @@ export function Scoreboard() {
     )
   }
 
-  // Bull finish required: limit round-д хүрвэл зөвхөн 50/25 оноо
-  const isAtLimit = session.limitRounds !== null && visitRound >= session.limitRounds
-  const bullFinishRequired = isAtLimit && (session as any).bullFinishAtLimit === true
-  const isBullScore = parseInt(input) === 50 || parseInt(input) === 25
+  // Limit round-д хүрмэгц bull-off хийнэ
+  const isAtLimit = session.limitRounds !== null && visitRound > session.limitRounds
+  const bullOffAtLimit = isAtLimit && (session as any).bullFinishAtLimit === true
+  const [showLimitBullOff, setShowLimitBullOff] = useState(false)
 
   function submitScore() {
     const score = parseInt(input)
     if (isNaN(score) || score < 0 || score > 180) return
     if (isBust) { toast.error("Bust! Оноо хэтэрсэн"); setInput(""); return }
-
-    // Bull finish шаардлага
-    if (bullFinishRequired && isCheckoutScore && !isBullScore) {
-      toast.error("⚠️ Round хязгаарт хүрсэн — зөвхөн Bull (50/25) финиш хийх боломжтой!")
-      setInput("")
-      return
-    }
 
     recordThrow(sessionId, matchId, currentLegIndex, activePlayerId, score, dartsUsed)
 
@@ -183,11 +176,35 @@ export function Scoreboard() {
     } else {
       // Turn switches — next player's visit
       setActivePlayer((prev) => (prev === 0 ? 1 : 0))
-      // Both players completed → round++
-      if (activePlayer === 1) setVisitRound(r => r + 1)
+      // Both players completed one visit → round++
+      if (activePlayer === 1) {
+        const newRound = visitRound + 1
+        setVisitRound(newRound)
+        // Limit-д хүрмэгц bull-off
+        if (bullOffAtLimit || (session.limitRounds !== null && newRound > session.limitRounds && (session as any).bullFinishAtLimit)) {
+          setShowLimitBullOff(true)
+        }
+      }
     }
     setInput("")
-    setDartsUsed(1)  // next visit starts from dart 1
+    setDartsUsed(1)
+  }
+
+  // Limit bull-off: хожигч сонгох
+  function handleLimitBullOff(winnerId: string) {
+    setShowLimitBullOff(false)
+    completeLeg(sessionId, matchId, currentLegIndex, winnerId)
+    const newP1Legs = match!.player1Legs + (winnerId === p1Id ? 1 : 0)
+    const newP2Legs = match!.player2Legs + (winnerId === p2Id ? 1 : 0)
+    if (newP1Legs >= legsToWin || newP2Legs >= legsToWin) {
+      completeMatch(sessionId, matchId, winnerId)
+      toast.success(`🏆 ${playerMap[winnerId]?.name} тэмцэнд ялав!`)
+      router.push(`/local/${sessionId}`)
+      return
+    }
+    toast.success(`Leg — ${playerMap[winnerId]?.name} хожлоо! (Bull-off)`)
+    setActivePlayer(winnerId === p1Id ? 1 : 0)
+    setVisitRound(1)
   }
 
   function handleManualWin(playerId: string) {
@@ -195,6 +212,38 @@ export function Scoreboard() {
     completeMatch(sessionId, matchId, playerId)
     toast.success(`${playerMap[playerId]?.name} ялагч боллоо`)
     router.push(`/local/${sessionId}`)
+  }
+
+  // Limit bull-off screen
+  if (showLimitBullOff && p1 && p2) {
+    return (
+      <div className="max-w-sm mx-auto space-y-4 pt-4">
+        <div className="flex items-center gap-3">
+          <div>
+            <p className="font-bold text-sm">Round хязгаарт хүрлээ!</p>
+            <p className="text-xs text-muted-foreground">
+              Round {visitRound}/{session.limitRounds} · {p1.name} vs {p2.name}
+            </p>
+          </div>
+        </div>
+        <Card className="border-destructive/30 bg-destructive/5">
+          <CardContent className="p-4 pb-2">
+            <p className="text-xs text-destructive font-medium text-center">
+              ⚠️ Хэн ч финишлаагүй — Bull-off-оор хожигчийг тодорхойлно
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="border-border/50 bg-card/80">
+          <CardContent className="p-5">
+            <BullOff
+              players={[{ id: p1Id, name: p1.name }, { id: p2Id, name: p2.name }]}
+              onSelect={handleLimitBullOff}
+              purpose="win"
+            />
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -227,13 +276,19 @@ export function Scoreboard() {
         </div>
       </div>
 
-      {/* Bull finish warning */}
-      {bullFinishRequired && (
-        <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2">
+      {/* Bull-off warning — limit ойртож байна */}
+      {session.limitRounds && (session as any).bullFinishAtLimit && visitRound >= session.limitRounds - 1 && (
+        <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-3 py-2">
           <span className="text-lg">🎯</span>
           <div>
-            <p className="text-xs font-bold text-destructive">Bull Finish шаардлагатай!</p>
-            <p className="text-[10px] text-muted-foreground">Round хязгаарт хүрсэн — зөвхөн Bull (50) эсвэл Half Bull (25) финиш хийх боломжтой</p>
+            <p className="text-xs font-bold text-yellow-400">
+              {visitRound >= session.limitRounds ? "Bull-off раунд!" : `Bull-off ойртож байна (${session.limitRounds - visitRound} раунд үлдсэн)`}
+            </p>
+            <p className="text-[10px] text-muted-foreground">
+              {visitRound >= session.limitRounds
+                ? "Энэ visit-ийн дараа Bull-off хийж хожигчийг тодорхойлно"
+                : "Хязгаарт хүрэхэд финишлаагүй бол Bull-off хийнэ"}
+            </p>
           </div>
         </div>
       )}

@@ -504,7 +504,7 @@ export function SessionView() {
                         <label className="flex items-start gap-2 cursor-pointer pl-4">
                           <input type="checkbox" checked={editBullFinish} onChange={(e) => setEditBullFinish(e.target.checked)} className="mt-0.5 accent-primary" />
                           <div>
-                            <span className="text-sm">🎯 Bull Finish шаарддаг</span>
+                            <span className="text-sm">🎯 Bull-off (хязгаарт хүрмэгц)</span>
                             <p className="text-[10px] text-muted-foreground">Limit-т хүрмэгц зөвхөн Bull(50)/Half(25) финиш</p>
                           </div>
                         </label>
