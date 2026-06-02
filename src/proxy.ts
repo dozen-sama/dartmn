@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -28,12 +28,16 @@ export async function middleware(request: NextRequest) {
   const isAuthRoute = request.nextUrl.pathname.startsWith("/login") ||
     request.nextUrl.pathname.startsWith("/register")
 
-  const isProtectedRoute = request.nextUrl.pathname.startsWith("/dashboard") ||
+  const isProtectedRoute =
+    request.nextUrl.pathname.startsWith("/dashboard") ||
     request.nextUrl.pathname.startsWith("/tournaments") ||
     request.nextUrl.pathname.startsWith("/leagues") ||
     request.nextUrl.pathname.startsWith("/play") ||
     request.nextUrl.pathname.startsWith("/clubs") ||
     request.nextUrl.pathname.startsWith("/profile") ||
+    request.nextUrl.pathname.startsWith("/local") ||
+    request.nextUrl.pathname.startsWith("/stats") ||
+    request.nextUrl.pathname.startsWith("/ratings") ||
     request.nextUrl.pathname.startsWith("/admin")
 
   if (!user && isProtectedRoute) {

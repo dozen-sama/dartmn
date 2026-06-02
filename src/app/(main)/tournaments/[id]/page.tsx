@@ -4,6 +4,8 @@ import { notFound } from "next/navigation"
 import { TournamentDetail } from "./TournamentDetail"
 import { Profile, Tournament, TournamentRegistration } from "@/types/database"
 
+export const dynamic = "force-dynamic"
+
 type TournamentWithRelations = Tournament & {
   profiles: { id: string; display_name: string; username: string; avatar_url: string | null } | null
   clubs: { id: string; name: string; logo_url: string | null } | null
