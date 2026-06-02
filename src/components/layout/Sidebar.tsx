@@ -29,9 +29,7 @@ interface SidebarProps {
 
 const navItems = [
   { href: "/dashboard", label: mn.nav.home, icon: LayoutDashboard },
-  { href: "/local", label: "Local тоглолт", icon: Target },
-  { href: "/tournaments", label: mn.nav.tournaments, icon: Trophy },
-  { href: "/leagues", label: mn.nav.leagues, icon: Star },
+  { href: "/tournaments", label: "Тэмцээн", icon: Trophy },
   { href: "/play", label: mn.nav.play, icon: Monitor, badge: "LIVE" },
   { href: "/ratings", label: mn.nav.ratings, icon: BarChart3 },
   { href: "/calendar", label: "Календарь", icon: Calendar },

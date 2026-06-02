@@ -103,6 +103,36 @@ export function PlayLobby({ profile, activeRooms }: Props) {
         <p className="text-muted-foreground text-sm mt-0.5">Дэлхийн дурын тоглогчтой онлайнаар тоглох</p>
       </div>
 
+      {/* How it works info */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {[
+          { icon: "🔗", title: "Өрөө үүсгэх", desc: "Code үүсгэж найздаа илгээнэ" },
+          { icon: "🎯", title: "Оноо оруулах", desc: "Тоглолт бүрийн дараа гараар оноо оруулна" },
+          { icon: "📊", title: "Realtime", desc: "Оноо, bracket шууд шинэчлэгдэнэ" },
+        ].map((item) => (
+          <div key={item.title} className="flex items-start gap-3 bg-secondary/30 rounded-lg px-3 py-2.5">
+            <span className="text-lg shrink-0">{item.icon}</span>
+            <div>
+              <p className="text-xs font-semibold">{item.title}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">{item.desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Camera notice */}
+      <div className="flex items-start gap-3 bg-yellow-500/5 border border-yellow-500/20 rounded-lg px-4 py-3">
+        <span className="text-lg shrink-0 mt-0.5">📷</span>
+        <div>
+          <p className="text-sm font-medium text-yellow-400">Камерийн дэмжлэг</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Одоогоор электрон дарт самбар болон камерийн автомат оноо уншилт хэрэгжаагүй байна.
+            Тоглогч бүр тоглолтынхоо дараа <strong className="text-foreground">гараар оноо оруулна</strong>.
+            Ирээдүйд e-dart board, DartCounter холболт нэмэгдэх болно.
+          </p>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* Create Room */}
         <Card className="border-border/50 bg-card/80">

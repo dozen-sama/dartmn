@@ -8,8 +8,8 @@ import { mn } from "@/locales/mn"
 
 const items = [
   { href: "/dashboard", label: mn.nav.home, icon: LayoutDashboard },
-  { href: "/tournaments", label: mn.nav.tournaments, icon: Trophy },
-  { href: "/local", label: "Local", icon: Target },
+  { href: "/tournaments", label: "Тэмцээн", icon: Trophy },
+  { href: "/tournaments/new", label: "Шинэ", icon: Target },
   { href: "/play", label: mn.nav.play, icon: Monitor },
   { href: "/ratings", label: mn.nav.ratings, icon: BarChart3 },
 ]
