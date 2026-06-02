@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import { useLocalGame } from "@/lib/local-game/store"
 import { LocalMatch, LocalPlayer } from "@/lib/local-game/types"
+import { BracketView } from "@/components/local-game/BracketView"
 import { toast } from "sonner"
 
 const BRACKET_LABELS: Record<string, string> = {
@@ -125,8 +126,12 @@ export function SessionView() {
         </Card>
       )}
 
-      <Tabs defaultValue="schedule">
-        <TabsList className="bg-secondary/50">
+      <Tabs defaultValue="bracket">
+        <TabsList className="bg-secondary/50 flex-wrap h-auto gap-1 p-1">
+          <TabsTrigger value="bracket">
+            <Trophy className="h-4 w-4 mr-1.5" />
+            Bracket
+          </TabsTrigger>
           <TabsTrigger value="schedule">
             <ListOrdered className="h-4 w-4 mr-1.5" />
             Хуваарь
@@ -142,6 +147,11 @@ export function SessionView() {
             Тоглогчид
           </TabsTrigger>
         </TabsList>
+
+        {/* Bracket */}
+        <TabsContent value="bracket" className="mt-4">
+          <BracketView session={session} sessionId={sessionId} />
+        </TabsContent>
 
         {/* Schedule */}
         <TabsContent value="schedule" className="mt-4 space-y-4">
