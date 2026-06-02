@@ -84,6 +84,12 @@ export interface Database {
           is_verified: boolean
           club_score: number
           club_rank: number | null
+          tag: string | null
+          tagline: string | null
+          features: Json
+          social_discord: string | null
+          social_facebook: string | null
+          social_instagram: string | null
           created_at: string
           updated_at: string
         }
