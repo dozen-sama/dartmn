@@ -571,6 +571,33 @@ export interface Database {
         Update: Record<string, never>
         Relationships: []
       }
+      notifications: {
+        Row: {
+          id: string
+          user_id: string
+          type: string
+          title: string
+          body: string | null
+          is_read: boolean
+          link: string | null
+          icon: string | null
+          data: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          type: string
+          title: string
+          body?: string | null
+          is_read?: boolean
+          link?: string | null
+          icon?: string | null
+          data?: Json
+        }
+        Update: { is_read?: boolean }
+        Relationships: []
+      }
       player_subscriptions: {
         Row: {
           id: string
