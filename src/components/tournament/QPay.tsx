@@ -49,7 +49,7 @@ export function QPay({ tournamentId, playerId, amount, onSuccess }: QPayProps) {
 
   async function checkPayment() {
     if (!invoice) return
-    setStep("checking")
+    setStep("invoice" as any)
     const supabase = createClient()
     const { data } = await supabase
       .from("payment_transactions")
@@ -129,7 +129,7 @@ export function QPay({ tournamentId, playerId, amount, onSuccess }: QPayProps) {
           )}
 
           <Button onClick={checkPayment} variant="outline" className="w-full border-blue-500/30 text-blue-400 hover:bg-blue-500/10">
-            {step === "checking" ? (
+            {(step as string) === "checking" ? (
               <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Шалгаж байна...</>
             ) : (
               <><RefreshCw className="h-4 w-4 mr-2" />Төлбөр шалгах</>

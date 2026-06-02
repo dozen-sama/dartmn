@@ -66,6 +66,14 @@ export interface Database {
           highest_checkout?: number
           best_leg?: number
           count_180?: number
+          matches_played?: number
+          matches_won?: number
+          tournament_wins?: number
+          is_premium?: boolean
+          premium_expires_at?: string | null
+          primary_club_id?: string | null
+          primary_club_logo?: string | null
+          primary_club_tag?: string | null
         }
         Relationships: []
       }
@@ -111,6 +119,12 @@ export interface Database {
           email?: string | null
           website?: string | null
           owner_id: string
+          tag?: string | null
+          tagline?: string | null
+          features?: Json
+          social_discord?: string | null
+          social_facebook?: string | null
+          social_instagram?: string | null
         }
         Update: {
           name?: string

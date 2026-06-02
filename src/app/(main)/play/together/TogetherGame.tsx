@@ -1,21 +1,23 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import {
-  ArrowLeft, Check, Delete, Loader2, Minus, Plus, RotateCcw, Users, Zap,
+  ArrowLeft, Check, Delete, Minus, Plus, RotateCcw, Users, Zap,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { getCheckout } from "@/lib/local-game/checkouts"
+import { useScoreboardKeyboard } from "@/hooks/useScoreboardKeyboard"
+import { BullOff } from "@/components/game/BullOff"
 import { toast } from "sonner"
 import Link from "next/link"
 import { buttonVariants } from "@/components/ui/button"
 
 type GameMode = "1v1" | "2v2" | "3v3" | "free"
 type GameFormat = "501" | "301" | "170"
-type Phase = "setup" | "game" | "finished"
+type Phase = "setup" | "bulloff" | "game" | "finished"
 
 interface Team {
   name: string
@@ -87,6 +89,11 @@ export function TogetherGame() {
   }
 
   function startGame() {
+    setPhase("bulloff")  // Bull-off эхлэнэ
+  }
+
+  function onBullOffSelect(starterTeamId: string) {
+    const starterIdx = teams.findIndex(t => t.name === starterTeamId)
     const gt: Team[] = teams.map(t => ({
       name: t.name,
       players: t.players.map((p, i) => p.trim() || `Тоглогч ${i + 1}`),
@@ -95,7 +102,7 @@ export function TogetherGame() {
       currentPlayer: 0,
     }))
     setGameTeams(gt)
-    setActiveTeam(0)
+    setActiveTeam(starterIdx >= 0 ? starterIdx : 0)
     setInput("")
     setLegs([])
     setWinner(null)
@@ -120,6 +127,20 @@ export function TogetherGame() {
     if (parseInt(next) > 180) return
     setInput(next)
   }
+
+  // Keyboard shortcuts — computer дээр оноо оруулах
+  const kbInput = useCallback((d: string) => {
+    setInput(p => { const next = p + d; return parseInt(next) > 180 ? p : next })
+  }, [])
+  const kbDelete = useCallback(() => setInput(p => p.slice(0, -1)), [])
+  const kbClear = useCallback(() => setInput(""), [])
+  useScoreboardKeyboard({
+    onInput: kbInput,
+    onDelete: kbDelete,
+    onClear: kbClear,
+    onSubmit: submit,
+    enabled: phase === "game",
+  })
 
   function submit() {
     if (!active) return
@@ -168,6 +189,35 @@ export function TogetherGame() {
     setPhase("setup")
     setGameTeams([])
     setWinner(null)
+  }
+
+  // ── BULL-OFF SCREEN ───────────────────────────────────
+  if (phase === "bulloff") {
+    const bullPlayers = teams.map(t => ({
+      id: t.name,
+      name: t.players[0]?.trim() || t.name,
+      teamName: teams.length > 1 && t.players.length > 1 ? t.name : undefined,
+    }))
+    return (
+      <div className="max-w-sm mx-auto space-y-4">
+        <div className="flex items-center gap-3">
+          <button onClick={() => setPhase("setup")}
+            className="text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <h1 className="text-lg font-bold">Bull-off</h1>
+        </div>
+        <Card className="border-border/50 bg-card/80">
+          <CardContent className="p-5">
+            <BullOff
+              players={bullPlayers}
+              onSelect={onBullOffSelect}
+              title="Хэн Bull-д хамгийн ойр шидэв?"
+            />
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   // ── SETUP SCREEN ───────────────────────────────────────
@@ -368,7 +418,11 @@ export function TogetherGame() {
           <div className="flex-1 text-center">
             <p className="text-xs text-muted-foreground">{format} · BO{bestOf}</p>
           </div>
-          <Badge className="bg-primary/15 text-primary border-primary/30 pulse-live text-xs">LIVE</Badge>
+          <div className="flex items-center gap-1.5">
+            <kbd className="hidden sm:inline text-[9px] border border-border/50 rounded px-1 py-0.5 bg-secondary/50 text-muted-foreground">0-9</kbd>
+            <kbd className="hidden sm:inline text-[9px] border border-border/50 rounded px-1 py-0.5 bg-secondary/50 text-muted-foreground">↵</kbd>
+            <Badge className="bg-primary/15 text-primary border-primary/30 pulse-live text-xs">LIVE</Badge>
+          </div>
         </div>
 
         {/* Scores */}

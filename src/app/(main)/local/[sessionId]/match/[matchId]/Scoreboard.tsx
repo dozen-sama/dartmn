@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { ArrowLeft, Check, Delete, Trophy, Zap } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { useLocalGame } from "@/lib/local-game/store"
 import { getCheckout } from "@/lib/local-game/checkouts"
+import { useScoreboardKeyboard } from "@/hooks/useScoreboardKeyboard"
+import { BullOff } from "@/components/game/BullOff"
 import { toast } from "sonner"
 
 const KEYPAD = [
@@ -36,6 +38,7 @@ export function Scoreboard() {
   const [dartsUsed, setDartsUsed] = useState(3)
   const [confirmWinner, setConfirmWinner] = useState<string | null>(null)
   const [showCheckoutHint, setShowCheckoutHint] = useState(true)
+  const [showBullOff, setShowBullOff] = useState(true)  // show bull-off before match
 
   const match = session?.matches.find((m) => m.id === matchId)
 
@@ -96,6 +99,52 @@ export function Scoreboard() {
     setInput(String(score))
   }
 
+  // Keyboard input — computer дээр ашиглахад
+  const kbInput = useCallback((d: string) => {
+    setInput(p => { const next = p + d; return parseInt(next) > 180 ? p : next })
+  }, [])
+  useScoreboardKeyboard({
+    onInput: kbInput,
+    onDelete: useCallback(() => setInput(p => p.slice(0, -1)), []),
+    onClear: useCallback(() => setInput(""), []),
+    onSubmit: submitScore,
+    enabled: !showBullOff,
+  })
+
+  // Bull-off screen
+  if (showBullOff && p1 && p2) {
+    const players = [
+      { id: p1Id, name: p1.name },
+      { id: p2Id, name: p2.name },
+    ]
+    return (
+      <div className="max-w-sm mx-auto space-y-4 pt-4">
+        <div className="flex items-center gap-3">
+          <button onClick={() => router.push(`/local/${sessionId}`)}
+            className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-8 w-8")}>
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+          <div>
+            <p className="font-semibold text-sm">{p1.name} vs {p2.name}</p>
+            <p className="text-xs text-muted-foreground">{session.format} · First to {session.firstTo}</p>
+          </div>
+        </div>
+        <Card className="border-border/50 bg-card/80">
+          <CardContent className="p-5">
+            <BullOff
+              players={players}
+              onSelect={(starterId) => {
+                setActivePlayer(starterId === p1Id ? 0 : 1)
+                setShowBullOff(false)
+              }}
+              title="Хэн Bull-д хамгийн ойр шидэв?"
+            />
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   function submitScore() {
     const score = parseInt(input)
     if (isNaN(score) || score < 0 || score > 180) return
@@ -147,7 +196,10 @@ export function Scoreboard() {
             {session.format.toUpperCase()} · BO{session.firstTo} · Leg {currentLegIndex + 1}/{session.firstTo}
           </p>
         </div>
-        <Badge variant="outline" className="text-xs border-primary/30 text-primary pulse-live">LIVE</Badge>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <kbd className="hidden sm:inline text-[9px] border border-border/50 rounded px-1 py-0.5 bg-secondary/50 text-muted-foreground">0-9 ↵</kbd>
+          <Badge variant="outline" className="text-xs border-primary/30 text-primary pulse-live">LIVE</Badge>
+        </div>
       </div>
 
       {/* Score display */}

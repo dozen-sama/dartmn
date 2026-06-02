@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
     if (!error) {
       synced++
       // Check achievements
-      await supabase.rpc("check_achievements", { p_player_id: profileId })
+      await (supabase as any).rpc("check_achievements", { p_player_id: profileId })
     }
   }
 
