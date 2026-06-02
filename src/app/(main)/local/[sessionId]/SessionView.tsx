@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import {
@@ -28,6 +29,10 @@ export function SessionView() {
   const session = useLocalGame((s) => s.sessions[sessionId])
   const addSwissRound = useLocalGame((s) => s.addSwissRound)
   const advanceGroupsToKnockout = useLocalGame((s) => s.advanceGroupsToKnockout)
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
+  if (!mounted) return <div className="flex items-center justify-center py-20"><div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" /></div>
 
   if (!session) {
     return (

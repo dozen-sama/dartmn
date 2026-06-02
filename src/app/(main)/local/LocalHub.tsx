@@ -1,9 +1,11 @@
 "use client"
 
 import Link from "next/link"
+import { useEffect, useState } from "react"
 import { buttonVariants } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { useLocalGame } from "@/lib/local-game/store"
 import { Monitor, Plus, Target, Trash2, Trophy } from "lucide-react"
@@ -21,13 +23,30 @@ const BRACKET_LABELS: Record<string, string> = {
 export function LocalHub() {
   const getSummaries = useLocalGame((s) => s.getSummaries)
   const deleteSession = useLocalGame((s) => s.deleteSession)
-  const summaries = getSummaries()
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
+  const summaries = mounted ? getSummaries() : []
 
   function handleDelete(id: string, name: string) {
     if (confirm(`"${name}" тоглолтыг устгах уу?`)) {
       deleteSession(id)
       toast.success("Тоглолт устгагдлаа")
     }
+  }
+
+  if (!mounted) {
+    return (
+      <div className="max-w-2xl mx-auto space-y-5">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-9 w-36" />
+        </div>
+        <div className="space-y-3">
+          {[1,2,3].map((i) => <Skeleton key={i} className="h-20 w-full rounded-lg" />)}
+        </div>
+      </div>
+    )
   }
 
   return (

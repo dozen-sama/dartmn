@@ -52,7 +52,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
       .single(),
   ])
 
-  const clubName = (clubResult.data?.clubs as { name: string } | null)?.name ?? null
+  const clubName = (clubResult.data?.clubs as unknown as { name: string } | null)?.name ?? null
 
   return (
     <ProfileContent

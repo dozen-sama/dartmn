@@ -57,7 +57,7 @@ export const useLocalGame = create<LocalGameStore>()(
         }))
 
         let matches: LocalMatch[] = []
-        let groups = []
+        let groups: import("./types").LocalGroup[] = []
         let standings: Record<string, StandingRow> = {}
 
         switch (config.bracketType) {

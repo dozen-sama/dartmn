@@ -30,8 +30,9 @@ export function Scoreboard() {
   const completeLeg = useLocalGame((s) => s.completeLeg)
   const completeMatch = useLocalGame((s) => s.completeMatch)
 
+  const [mounted, setMounted] = useState(false)
   const [input, setInput] = useState("")
-  const [activePlayer, setActivePlayer] = useState<0 | 1>(0)  // 0=player1, 1=player2
+  const [activePlayer, setActivePlayer] = useState<0 | 1>(0)
   const [dartsUsed, setDartsUsed] = useState(3)
   const [confirmWinner, setConfirmWinner] = useState<string | null>(null)
   const [showCheckoutHint, setShowCheckoutHint] = useState(true)
@@ -39,10 +40,16 @@ export function Scoreboard() {
   const match = session?.matches.find((m) => m.id === matchId)
 
   useEffect(() => {
-    if (match && match.status === "pending") {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (mounted && match && match.status === "pending") {
       startMatch(sessionId, matchId)
     }
   }, [])
+
+  if (!mounted) return <div className="flex items-center justify-center py-20"><div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" /></div>
 
   if (!session || !match) {
     return <div className="text-center py-20 text-muted-foreground">Тоглолт олдсонгүй</div>
@@ -99,8 +106,8 @@ export function Scoreboard() {
     if (isCheckoutScore) {
       // Leg won
       completeLeg(sessionId, matchId, currentLegIndex, activePlayerId)
-      const newP1Legs = match.player1Legs + (activePlayerId === p1Id ? 1 : 0)
-      const newP2Legs = match.player2Legs + (activePlayerId === p2Id ? 1 : 0)
+      const newP1Legs = match!.player1Legs + (activePlayerId === p1Id ? 1 : 0)
+      const newP2Legs = match!.player2Legs + (activePlayerId === p2Id ? 1 : 0)
 
       if (newP1Legs >= legsToWin || newP2Legs >= legsToWin) {
         const winnerId = activePlayerId

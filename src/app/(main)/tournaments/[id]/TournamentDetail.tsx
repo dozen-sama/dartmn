@@ -21,6 +21,7 @@ import { createClient } from "@/lib/supabase/client"
 import { mn } from "@/locales/mn"
 import { Tournament, TournamentRegistration, Profile } from "@/types/database"
 import { formatCurrency, formatDateTime } from "@/lib/utils/format"
+import { OrganizerPanel } from "@/components/tournament/OrganizerPanel"
 
 type TournamentWithRelations = Tournament & {
   profiles: { id: string; display_name: string; username: string; avatar_url: string | null } | null
@@ -254,6 +255,11 @@ export function TournamentDetail({ tournament: t, registrations, currentUserId, 
             Bracket
           </TabsTrigger>
           <TabsTrigger value="rules">Дүрэм</TabsTrigger>
+          {isOrganizer && (
+            <TabsTrigger value="manage" className="text-primary data-[state=active]:bg-primary/15">
+              ⚙ Удирдах
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="players" className="mt-4">
@@ -323,6 +329,12 @@ export function TournamentDetail({ tournament: t, registrations, currentUserId, 
             </CardContent>
           </Card>
         </TabsContent>
+
+        {isOrganizer && (
+          <TabsContent value="manage" className="mt-4">
+            <OrganizerPanel tournament={t} registrations={registrations} />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   )
