@@ -127,7 +127,7 @@ export function SessionView() {
     && session.matches.filter((m) => m.round < 100 && m.player1Id !== "bye" && m.player2Id !== "bye").every((m) => m.status === "completed")
 
   function pName(id: string | "bye" | null): string {
-    if (!id) return "TBD"
+    if (!id) return "Тодорхойгүй"
     if (id === "bye") return "BYE"
     return playerMap[id]?.name ?? "?"
   }
@@ -140,23 +140,23 @@ export function SessionView() {
   }
 
   const phaseLabel: Record<string, string> = {
-    preparing: "Preparing",
-    accepting_entries: "Accepting entries",
-    making_bracket: "Making Bracket",
-    in_session: "In session",
-    completed: "Completed",
-    setup: "In session",
-    group_stage: "In session",
-    knockout: "In session",
+    preparing: "Бэлтгэл",
+    accepting_entries: "Бүртгэл",
+    making_bracket: "Bracket үүсгэж байна",
+    in_session: "Явагдаж байна",
+    completed: "Дууссан",
+    setup: "Явагдаж байна",
+    group_stage: "Явагдаж байна",
+    knockout: "Явагдаж байна",
   }
-  const currentPhaseLabel = phaseLabel[session.phase] ?? "In session"
+  const currentPhaseLabel = phaseLabel[session.phase] ?? "Явагдаж байна"
 
   return (
     <div className="max-w-3xl mx-auto space-y-5">
       {/* Header — n01дартс шиг */}
       <div className="flex items-center justify-between border-b border-border/50 pb-3">
         <Link href="/local" className="text-sm text-muted-foreground hover:text-foreground border border-border/60 px-3 py-1 rounded-md">
-          ← Return
+          ← Буцах
         </Link>
         <div className="text-center">
           <h1 className="font-bold text-base">{session.name}</h1>
@@ -269,14 +269,14 @@ export function SessionView() {
 
             const isKnockoutRound = round >= 100
             const roundLabel = isKnockoutRound
-              ? round === 99 ? "Grand Final"
-                : `Knockout Round ${round - 99}`
+              ? round === 99 ? "Их Финал"
+                : `Knockout шат ${round - 99}`
               : session.bracketType === "single_elimination" || session.bracketType === "double_elimination"
                 ? `Round ${round}`
                 : session.bracketType === "swiss"
                   ? `Swiss Round ${round}`
                   : session.bracketType === "groups_knockout" && round < 100
-                    ? "Group Stage"
+                    ? "Бүлгийн шат"
                     : `Round ${round}`
 
             return (
@@ -407,19 +407,19 @@ export function SessionView() {
             <CardContent className="p-5 space-y-5">
               <h2 className="font-bold flex items-center gap-2 text-primary">
                 <Settings className="h-4 w-4" />
-                Detail Setting
+                Дэлгэрэнгүй тохиргоо
               </h2>
 
               {/* Name */}
               <div className="space-y-1.5">
-                <Label>Competition Title</Label>
+                <Label>Тэмцээний нэр</Label>
                 <Input value={editName} onChange={(e) => setEditName(e.target.value)}
                   className="bg-secondary/50 border-border/60" />
               </div>
 
               {/* Match format */}
               <div className="space-y-2">
-                <Label>Match Format</Label>
+                <Label>Тоглолтын формат</Label>
                 <div className="flex items-end gap-3 flex-wrap">
                   <div className="flex flex-col items-center gap-1">
                     <span className="text-xs text-muted-foreground">First to</span>
@@ -484,7 +484,7 @@ export function SessionView() {
                     ))}
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={editLimitEnabled} onChange={(e) => setEditLimitEnabled(e.target.checked)} className="accent-primary" />
-                      <span className="text-sm">Limit Rounds</span>
+                      <span className="text-sm">Round хязгаар</span>
                     </label>
                     {editLimitEnabled && (
                       <Input type="number" value={editLimitRounds} onChange={(e) => setEditLimitRounds(parseInt(e.target.value) || 15)}
@@ -494,15 +494,15 @@ export function SessionView() {
                 </div>
               )}
 
-              {/* Point system */}
+              {/* Оноо тооцоо */}
               {(session.bracketType === "round_robin" || session.bracketType === "swiss" || session.bracketType === "groups_knockout") && (
                 <div className="space-y-2">
-                  <Label>Point System</Label>
+                  <Label>Оноо тооцоо</Label>
                   <div className="flex gap-6">
                     {[
-                      { label: "Won", val: editPointWon, set: setEditPointWon },
-                      { label: "Draw", val: editPointDraw, set: setEditPointDraw },
-                      { label: "Lost", val: editPointLost, set: setEditPointLost },
+                      { label: "Хожил", val: editPointWon, set: setEditPointWon },
+                      { label: "Тэнцэл", val: editPointDraw, set: setEditPointDraw },
+                      { label: "Хохирол", val: editPointLost, set: setEditPointLost },
                     ].map(({ label, val, set }) => (
                       <div key={label} className="flex flex-col items-center gap-1">
                         <span className="text-xs text-muted-foreground">{label}</span>
@@ -525,13 +525,13 @@ export function SessionView() {
 
               {/* Options */}
               <div className="space-y-2">
-                <Label>Competition Options</Label>
+                <Label>Тэмцээний нэмэлт тохиргоо</Label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {[
-                    { label: "Show average", val: editShowAvg, set: setEditShowAvg },
-                    { label: "Automatic complete", val: editAutoComplete, set: setEditAutoComplete },
-                    { label: "Participants can enter scores", val: editAllowParticipant, set: setEditAllowParticipant },
-                    { label: "Show index in entry list", val: editShowIndex, set: setEditShowIndex },
+                    { label: "Average харуулах", val: editShowAvg, set: setEditShowAvg },
+                    { label: "Автоматаар дуусгах", val: editAutoComplete, set: setEditAutoComplete },
+                    { label: "Оролцогч бүр оноо оруулах боломжтой", val: editAllowParticipant, set: setEditAllowParticipant },
+                    { label: "Жагсаалтад дугаар харуулах", val: editShowIndex, set: setEditShowIndex },
                   ].map(({ label, val, set }) => (
                     <label key={label} className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={val} onChange={(e) => set(e.target.checked)} className="accent-primary" />
@@ -543,7 +543,7 @@ export function SessionView() {
 
               <Button onClick={saveSettings} className="w-full glow-primary">
                 <Save className="h-4 w-4 mr-1.5" />
-                Хадгалах (Done)
+                Хадгалах
               </Button>
             </CardContent>
           </Card>

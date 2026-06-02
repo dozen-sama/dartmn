@@ -55,7 +55,7 @@ export function BracketView({ session, sessionId }: Props) {
 
         {session.phase === "knockout" && (
           <section className="space-y-3">
-            <CollapsibleHeader title="Knockout Stage" />
+            <CollapsibleHeader title="Knockout шат" />
             <EliminationBracket
               matches={[...koMatches, ...(finalMatch ? [finalMatch] : [])]}
               playerMap={playerMap}
@@ -332,7 +332,7 @@ function MatchSlot({ match: m, playerMap, sessionId, compact = false }: {
   compact?: boolean
 }) {
   function pName(id: string | "bye" | null) {
-    if (!id) return "TBD"
+    if (!id) return "Тодорхойгүй"
     if (id === "bye") return "BYE"
     return playerMap[id]?.name ?? "?"
   }

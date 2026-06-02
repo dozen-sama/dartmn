@@ -45,7 +45,7 @@ export function BracketEditor({ session, sessionId }: Props) {
   const playerMap = Object.fromEntries(session.players.map((p) => [p.id, p]))
   const allPlayers = session.players
 
-  // Concurrent matches per group (stored in session as any)
+  // Concurrent matches бүлэгт (stored in session as any)
   const concurrentMap: Record<string, number> = (session as any).concurrentMatchesPerGroup ?? {}
 
   function handleAutoAssign() {
@@ -130,7 +130,7 @@ export function BracketEditor({ session, sessionId }: Props) {
 
                     {/* Concurrent matches */}
                     <div className="flex items-center gap-3 pt-2 border-t border-border/30">
-                      <span className="text-xs text-muted-foreground flex-1">Number of matches at any one time</span>
+                      <span className="text-xs text-muted-foreground flex-1">Нэгэн зэрэг явагдах тоглолт</span>
                       <div className="flex items-center">
                         <button
                           type="button"
@@ -164,7 +164,7 @@ export function BracketEditor({ session, sessionId }: Props) {
         <section className="space-y-4">
           <div className="flex items-center gap-2">
             <Trophy className="h-4 w-4 text-[oklch(0.78_0.16_85)]" />
-            <h3 className="font-bold text-sm">Knockout Stage</h3>
+            <h3 className="font-bold text-sm">Knockout шат</h3>
           </div>
 
           {/* Auto-assign controls */}
@@ -173,14 +173,14 @@ export function BracketEditor({ session, sessionId }: Props) {
               <Button size="sm" onClick={handleAutoAssign}
                 className="bg-blue-500 hover:bg-blue-600 text-white border-0 h-7 text-xs">
                 <RotateCcw className="h-3 w-3 mr-1.5" />
-                Assignment from round robin
+                Round Robin-аас хуваарилах
               </Button>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span>Number of going to final</span>
+                <span>Финалд гарах тоо</span>
                 <Badge variant="outline" className="border-primary/30 text-primary">
                   Top {session.groupAdvance}
                 </Badge>
-                <span>per group</span>
+                <span>бүлэгт</span>
               </div>
             </div>
           )}
@@ -242,7 +242,7 @@ export function BracketEditor({ session, sessionId }: Props) {
                                 <span className="text-xs font-semibold text-[oklch(0.78_0.16_85)] truncate">
                                   {match.winnerId
                                     ? playerMap[match.winnerId]?.name ?? "?"
-                                    : "TBD"}
+                                    : "Тодорхойгүй"}
                                 </span>
                               </div>
                             </div>
@@ -296,7 +296,7 @@ export function BracketEditor({ session, sessionId }: Props) {
 
           {/* Round 1 slot editor */}
           <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">Round 1-ийн тоглогчдыг гараар тохируулах</p>
+            <p className="text-xs text-muted-foreground">Round 1-д тоглогчдыг гараар тохируулна</p>
             {koMatches.filter((m) => m.round === Math.min(...koRounds)).map((match, i) => (
               <Card key={match.id} className="border-border/50 bg-card/80">
                 <CardContent className="flex items-center gap-3 p-3">
@@ -343,7 +343,7 @@ function KnockoutSlotEditor({ match, players, onAssignP1, onAssignP2 }: {
         {isDone ? (
           <span className={cn("text-xs font-medium flex-1 truncate",
             match.winnerId === match.player1Id ? "text-green-400 font-bold" : "text-muted-foreground")}>
-            {match.player1Id ? playerMap[match.player1Id]?.name ?? "?" : "TBD"}
+            {match.player1Id ? playerMap[match.player1Id]?.name ?? "?" : "Тодорхойгүй"}
           </span>
         ) : (
           <PlayerSelect
@@ -358,7 +358,7 @@ function KnockoutSlotEditor({ match, players, onAssignP1, onAssignP2 }: {
         {isDone ? (
           <span className={cn("text-xs font-medium flex-1 truncate",
             match.winnerId === match.player2Id ? "text-green-400 font-bold" : "text-muted-foreground")}>
-            {match.player2Id ? playerMap[match.player2Id]?.name ?? "?" : "TBD"}
+            {match.player2Id ? playerMap[match.player2Id]?.name ?? "?" : "Тодорхойгүй"}
           </span>
         ) : (
           <PlayerSelect

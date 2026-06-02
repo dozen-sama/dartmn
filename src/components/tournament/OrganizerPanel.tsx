@@ -259,7 +259,7 @@ export function OrganizerPanel({ tournament, registrations }: Props) {
               className={cn(buttonVariants({ variant: "default", size: "sm" }), "glow-primary justify-center")}
             >
               <Edit2 className="h-3.5 w-3.5 mr-1.5" />
-              Edit Bracket & Settings
+              Bracket болон тохиргоо засах
             </Link>
             <Button
               size="sm"

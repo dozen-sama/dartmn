@@ -18,10 +18,10 @@ import { toast } from "sonner"
 
 // ── Step indicator ────────────────────────────────────────────────
 const PHASES: { key: string; label: string }[] = [
-  { key: "type", label: "Type" },
-  { key: "settings", label: "Settings" },
-  { key: "players", label: "Players" },
-  { key: "bracket", label: "Make Bracket" },
+  { key: "type", label: "Төрөл" },
+  { key: "settings", label: "Тохиргоо" },
+  { key: "players", label: "Тоглогчид" },
+  { key: "bracket", label: "Bracket үүсгэх" },
 ]
 
 type Step = "type" | "settings" | "players" | "bracket" | "bracket-making"
@@ -30,8 +30,8 @@ type CompFormat = BracketType | "rr_ko" | "rr_ko2"
 const COMPETITION_FORMATS: { value: BracketType | "rr_ko" | "rr_ko2"; label: string }[] = [
   { value: "single_elimination", label: "Single Elimination" },
   { value: "double_elimination", label: "Double Elimination" },
-  { value: "groups_knockout", label: "Round Robin + Knockout Stage" },
-  { value: "rr_ko2", label: "Round Robin + Knockout Stage x 2" },
+  { value: "groups_knockout", label: "Round Robin + Knockout шат" },
+  { value: "rr_ko2", label: "Round Robin + Knockout шат x 2" },
   { value: "round_robin", label: "Round Robin (matches only)" },
   { value: "swiss", label: "Swiss" },
 ]
@@ -249,11 +249,11 @@ export function SetupWizard() {
         {/* Header — n01дартс шиг */}
         <div className="flex items-center justify-between border-b border-border/50 pb-3">
           <button onClick={() => setStep("players")} className="text-sm text-muted-foreground hover:text-foreground border border-border/60 px-3 py-1 rounded-md">
-            ← Return
+            ← Буцах
           </button>
           <div className="text-center">
             <h1 className="font-bold">{session.name}</h1>
-            <p className="text-xs text-muted-foreground">(Making Bracket)</p>
+            <p className="text-xs text-muted-foreground">(Bracket үүсгэж байна)</p>
           </div>
           <button onClick={handleDone}
             className="text-sm font-semibold bg-green-600 hover:bg-green-700 text-white px-4 py-1.5 rounded-md transition-colors">
@@ -261,7 +261,7 @@ export function SetupWizard() {
           </button>
         </div>
 
-        <p className="text-xs text-muted-foreground text-center">Тоглогчдыг тохируулаад Done дарна уу</p>
+        <p className="text-xs text-muted-foreground text-center">Тоглогчдыг тохируулаад Дуусгах товч дарна уу</p>
 
         <BracketEditor session={session} sessionId={createdId} />
 
@@ -272,7 +272,7 @@ export function SetupWizard() {
           </button>
           <button onClick={handleDone}
             className="flex-1 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold">
-            Next (In session) →
+            Next (Явагдаж байна) →
           </button>
         </div>
       </div>
@@ -284,12 +284,12 @@ export function SetupWizard() {
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border/50 pb-3">
         <Link href="/local" className="text-sm text-muted-foreground hover:text-foreground border border-border/60 px-3 py-1 rounded-md">
-          ← Return
+          ← Буцах
         </Link>
         <div className="text-center">
           <h1 className="font-bold">Setting</h1>
           <p className="text-xs text-muted-foreground">
-            {step === "type" ? "" : step === "settings" ? "(Preparing)" : step === "players" ? "(Accepting entries)" : "(Making Bracket)"}
+            {step === "type" ? "" : step === "settings" ? "(Бэлтгэл)" : step === "players" ? "(Бүртгэл)" : "(Bracket үүсгэж байна)"}
           </p>
         </div>
         {step !== "type" && (
@@ -303,13 +303,13 @@ export function SetupWizard() {
       {/* Phase progress */}
       {step !== "type" && (
         <div className="text-sm text-muted-foreground space-y-0.5 border-b border-border/40 pb-3">
-          <p className="font-medium text-xs uppercase tracking-wide">Flow of competition</p>
+          <p className="font-medium text-xs uppercase tracking-wide">Тэмцээний явц</p>
           {[
-            { n: 1, label: "Competition settings", active: step === "settings" },
-            { n: 2, label: "Accepting entries — Add players manually", active: step === "players" },
-            { n: 3, label: "Making Bracket — Make bracket", active: step === "bracket" },
-            { n: 4, label: "In session" },
-            { n: 5, label: "Completed" },
+            { n: 1, label: "Тэмцээний тохиргоо", active: step === "settings" },
+            { n: 2, label: "Бүртгэл — Тоглогч гараар нэмэх", active: step === "players" },
+            { n: 3, label: "Bracket үүсгэх", active: step === "bracket" },
+            { n: 4, label: "Явагдаж байна" },
+            { n: 5, label: "Дууссан" },
           ].map((ph) => (
             <p key={ph.n} className={cn("text-xs", ph.active ? "text-primary font-semibold" : "")}>
               {ph.n}. {ph.label}
@@ -322,12 +322,12 @@ export function SetupWizard() {
       {step === "type" && (
         <div className="space-y-6">
           <div>
-            <p className="text-sm font-medium mb-3">Select a competition type.</p>
+            <p className="text-sm font-medium mb-3">Тэмцээний төрлийг сонгоно уу.</p>
             <div className="flex flex-wrap gap-2">
-              {["Darts", "Soft-tip Darts", "Cricket", "Others"].map((t) => (
+              {["Дартс", "Soft-tip Дартс", "Cricket", "Бусад"].map((t) => (
                 <button key={t} type="button"
                   className={cn("px-4 py-2 rounded-full border-2 text-sm font-medium transition-all",
-                    t === "Darts" ? "border-primary bg-primary/15 text-primary" : "border-border/50 text-muted-foreground hover:border-border")}>
+                    t === "Дартс" ? "border-primary bg-primary/15 text-primary" : "border-border/50 text-muted-foreground hover:border-border")}>
                   {t}
                 </button>
               ))}
@@ -335,7 +335,7 @@ export function SetupWizard() {
           </div>
 
           <div>
-            <p className="text-sm font-medium mb-3">Select a competition format.</p>
+            <p className="text-sm font-medium mb-3">Тэмцээний форматыг сонгоно уу.</p>
             <div className="flex flex-wrap gap-2">
               {COMPETITION_FORMATS.map((f) => (
                 <button key={f.value} type="button" onClick={() => setCompFormat(f.value as BracketType)}
@@ -360,7 +360,7 @@ export function SetupWizard() {
                 Team game
               </button>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">For doubles tournaments, select Single game and list two names per player.</p>
+            <p className="text-xs text-muted-foreground mt-1">Doubles тэмцээнд 'Ганцаарчилсан' сонгоод нэр дор хоёр нэр бичнэ.</p>
           </div>
 
           <button onClick={() => setStep("settings")}
@@ -370,24 +370,24 @@ export function SetupWizard() {
         </div>
       )}
 
-      {/* ── STEP 2: Settings (Preparing) ── */}
+      {/* ── STEP 2: Settings (Бэлтгэл) ── */}
       {step === "settings" && (
         <div className="space-y-0 divide-y divide-border/40">
-          {/* Competition Setting */}
+          {/* Тэмцээний тохиргоо */}
           <div className="py-4 space-y-3">
-            <p className="text-sm font-semibold">Competition Setting</p>
+            <p className="text-sm font-semibold">Тэмцээний тохиргоо</p>
             <div className="space-y-1.5">
-              <Label className="text-sm">Competition Title *</Label>
+              <Label className="text-sm">Тэмцээний нэр *</Label>
               <Input value={name} onChange={(e) => setName(e.target.value)}
                 className="bg-secondary/50 border-border/60" autoFocus />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-sm">Join Password *</Label>
+              <Label className="text-sm">Join нууц үг *</Label>
               <Input value={joinPassword} onChange={(e) => setJoinPassword(e.target.value)}
                 placeholder="password" className="bg-secondary/50 border-border/60 w-48" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-sm">Competition Details</Label>
+              <Label className="text-sm">Тэмцээний тайлбар</Label>
               <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4}
                 className="w-full rounded-md bg-secondary/50 border border-border/60 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring resize-none" />
             </div>
@@ -400,16 +400,16 @@ export function SetupWizard() {
               <div className="pl-4 space-y-3">
                 <div className="flex items-center gap-4">
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Number of Groups</Label>
+                    <Label className="text-xs text-muted-foreground">Бүлгийн тоо</Label>
                     <Num value={rrGroups} onChange={setRRGroups} min={1} max={16} />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Number of players per Group</Label>
+                    <Label className="text-xs text-muted-foreground">Бүлэгт тоглогчийн тоо</Label>
                     <Num value={rrPlayersPerGroup} onChange={setRRPlayersPerGroup} min={2} max={20} />
                   </div>
                 </div>
                 <div className="text-xs text-primary/80 font-medium">
-                  = {rrGroups * rrPlayersPerGroup} players total · {rrGroups} groups of {rrPlayersPerGroup}
+                  = {rrGroups * rrPlayersPerGroup} нийт тоглогч · {rrGroups} бүлэг тус бүрт {rrPlayersPerGroup}
                 </div>
               </div>
             </div>
@@ -424,7 +424,7 @@ export function SetupWizard() {
                   <span className="text-sm text-muted-foreground">First to</span>
                   <Num value={rrFirstTo} onChange={setRRFirstTo} min={1} max={11} />
                   <span className="text-sm text-muted-foreground">Legs</span>
-                  <Chk checked={rrEnableDraw} onChange={setRREnableDraw} label="Enable Draw" />
+                  <Chk checked={rrEnableDraw} onChange={setRREnableDraw} label="Draw зөвшөөрөх" />
                 </div>
               )}
               <Radio checked={rrMatchType === "sets"} onChange={() => setRRMatchType("sets")} label="Limit Sets" />
@@ -437,18 +437,18 @@ export function SetupWizard() {
                   <span className="text-sm text-muted-foreground">Legs</span>
                 </div>
               )}
-              <Radio checked={rrMatchType === "schedule"} onChange={() => setRRMatchType("schedule")} label="Schedule" />
+              <Radio checked={rrMatchType === "schedule"} onChange={() => setRRMatchType("schedule")} label="Хуваарь" />
             </div>
           )}
 
-          {/* Start Score + Limit Rounds */}
+          {/* Start Score + Round хязгаар */}
           <div className="py-4 space-y-3">
             <div className="space-y-1">
               <Label className="text-sm">Start Score</Label>
               <Num value={startScore} onChange={setStartScore} min={101} max={1001} />
             </div>
             <div className="flex items-center gap-3">
-              <Chk checked={limitRoundsEnabled} onChange={setLimitRoundsEnabled} label="Limit Rounds" />
+              <Chk checked={limitRoundsEnabled} onChange={setLimitRoundsEnabled} label="Round хязгаар" />
               {limitRoundsEnabled && <Num value={limitRounds} onChange={setLimitRounds} min={1} max={50} />}
             </div>
           </div>
@@ -461,13 +461,13 @@ export function SetupWizard() {
                 <div className="pl-4 space-y-3">
                   <div className="flex items-center gap-3">
                     <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Number of players</Label>
+                      <Label className="text-xs text-muted-foreground">Тоглогчийн тоо</Label>
                       <select value={seNumPlayers} onChange={(e) => setSENumPlayers(parseInt(e.target.value))}
                         className="h-8 border border-border/60 rounded-md bg-secondary/50 px-2 text-sm">
                         {[2, 4, 8, 16, 32, 64].map((n) => <option key={n} value={n}>{n}</option>)}
                       </select>
                     </div>
-                    <Chk checked={se3rdPlace} onChange={setSE3rdPlace} label="3rd place match" />
+                    <Chk checked={se3rdPlace} onChange={setSE3rdPlace} label="3-р байрны тоглолт" />
                   </div>
 
                   <Radio checked={koMatchType === "legs"} onChange={() => setKOMatchType("legs")} label="Limit Legs" />
@@ -488,19 +488,19 @@ export function SetupWizard() {
                       <span className="text-sm text-muted-foreground">Legs</span>
                     </div>
                   )}
-                  <Radio checked={koMatchType === "schedule"} onChange={() => setKOMatchType("schedule")} label="Schedule" />
+                  <Radio checked={koMatchType === "schedule"} onChange={() => setKOMatchType("schedule")} label="Хуваарь" />
                 </div>
               )}
               <Chk checked={hasSE2} onChange={setHasSE2} label="Single Elimination 2" />
               <Chk checked={hasDE} onChange={setHasDE} label="Double Elimination" />
-              <Chk checked={hasStepladder} onChange={setHasStepladder} label="Matches (Stepladder)" />
+              <Chk checked={hasStepladder} onChange={setHasStepladder} label="Тоглолт (Stepladder)" />
             </div>
           )}
 
-          {/* Point system for RR */}
+          {/* Оноо тооцоо for RR */}
           {(compFormat === "groups_knockout" || compFormat === "round_robin") && (
             <div className="py-4 space-y-2">
-              <p className="text-sm font-medium">Point system</p>
+              <p className="text-sm font-medium">Оноо тооцоо</p>
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2"><span className="text-xs text-muted-foreground w-8">Won</span><Num value={pointWon} onChange={setPointWon} min={0} max={10} /></div>
                 <div className="flex items-center gap-2"><span className="text-xs text-muted-foreground w-8">Draw</span><Num value={pointDraw} onChange={setPointDraw} min={0} max={10} /></div>
@@ -513,7 +513,7 @@ export function SetupWizard() {
           <div className="pt-4 space-y-2">
             <button onClick={() => toast.success("Тохиргоо хадгалагдлаа")}
               className="w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm">
-              Save Competition Setting
+              Save Тэмцээний тохиргоо
             </button>
             <div className="flex gap-2">
               <button onClick={() => setStep("type")}
@@ -522,37 +522,37 @@ export function SetupWizard() {
               </button>
               <button onClick={() => { if (!name.trim()) { toast.error("Тэмцээний нэр оруулна уу"); return } setStep("players") }}
                 className="flex-1 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm">
-                Next (Accepting entries)
+                Next (Бүртгэл)
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── STEP 3: Players (Accepting entries) ── */}
+      {/* ── STEP 3: Players (Бүртгэл) ── */}
       {step === "players" && (
         <div className="space-y-0 divide-y divide-border/40">
-          {/* Competition URL */}
+          {/* Тэмцээний холбоос */}
           <div className="py-4 space-y-2">
-            <p className="text-sm font-medium">Competition URL</p>
+            <p className="text-sm font-medium">Тэмцээний холбоос</p>
             <div className="flex items-center gap-2">
               <Input value={`${typeof window !== "undefined" ? window.location.origin : ""}/local/join/${joinCode}`}
                 readOnly className="bg-secondary/30 border-border/60 text-xs" />
               <button onClick={() => { navigator.clipboard.writeText(joinCode); toast.success("Join Code хуулагдлаа") }}
                 className="shrink-0 px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium flex items-center gap-1">
-                <Copy className="h-3 w-3" /> Copy
+                <Copy className="h-3 w-3" /> Хуулах
               </button>
             </div>
-            {joinPassword && <p className="text-xs text-muted-foreground">Join Password: <span className="font-semibold text-foreground">{joinPassword}</span></p>}
+            {joinPassword && <p className="text-xs text-muted-foreground">Join нууц үг: <span className="font-semibold text-foreground">{joinPassword}</span></p>}
           </div>
 
-          {/* Entry List */}
+          {/* Тоглогчдын жагсаалт */}
           <div className="py-4 space-y-3">
-            <p className="text-sm font-medium">Entry List</p>
+            <p className="text-sm font-medium">Тоглогчдын жагсаалт</p>
             <div className="space-y-1.5">
               <Chk checked={allowParticipantScore} onChange={setAllowParticipantScore}
-                label="Do not select player when join (Participants can enter scores for all players)" />
-              <Chk checked={showIndex} onChange={setShowIndex} label="Show index in entry list" />
+                label="Нэвтрэхэд тоглогч сонгохгүй (Оролцогч бүр оноо оруулах боломжтой)" />
+              <Chk checked={showIndex} onChange={setShowIndex} label="Жагсаалтад дугаар харуулах" />
             </div>
 
             {/* Player list */}
@@ -583,22 +583,22 @@ export function SetupWizard() {
                 onKeyDown={(e) => e.key === "Enter" && addPlayer()} />
               <button onClick={() => addPlayer()}
                 className="shrink-0 px-3 h-8 rounded-md border border-border/60 text-sm hover:bg-secondary">
-                Add Player
+                Тоглогч нэмэх
               </button>
             </div>
 
             <div className="flex gap-3">
               <button onClick={() => setShowBatch(!showBatch)}
                 className="flex-1 py-2 rounded-md border border-border/60 text-sm hover:bg-secondary">
-                Batch Add
+                Олноор нэмэх
               </button>
               <button onClick={exportCSV}
                 className="flex items-center gap-1 px-3 py-2 rounded-md border border-border/60 text-xs hover:bg-secondary text-muted-foreground">
-                <Download className="h-3 w-3" /> Export CSV
+                <Download className="h-3 w-3" /> CSV татах
               </button>
               <button onClick={() => fileRef.current?.click()}
                 className="flex items-center gap-1 px-3 py-2 rounded-md border border-border/60 text-xs hover:bg-secondary text-muted-foreground">
-                <Upload className="h-3 w-3" /> Import CSV
+                <Upload className="h-3 w-3" /> CSV оруулах
               </button>
               <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={importCSV} />
             </div>
@@ -615,14 +615,14 @@ export function SetupWizard() {
               </div>
             )}
 
-            <p className="text-xs text-muted-foreground">Please share the tournament URL when accepting entries.</p>
+            <p className="text-xs text-muted-foreground">Тэмцээнд бүртгүүлэх холбоосыг хуваалцана уу.</p>
           </div>
 
           {/* Buttons */}
           <div className="pt-4 space-y-2">
             <button onClick={() => toast.success("Entry list хадгалагдлаа")}
               className="w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm">
-              Save Entry List
+              Save Тоглогчдын жагсаалт
             </button>
             <div className="flex gap-2">
               <button onClick={() => setStep("settings")}
@@ -631,7 +631,7 @@ export function SetupWizard() {
               </button>
               <button onClick={() => setStep("bracket-making")}
                 className="flex-1 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm">
-                Next (Making Bracket)
+                Next (Bracket үүсгэж байна)
               </button>
             </div>
           </div>
@@ -643,13 +643,13 @@ export function SetupWizard() {
         <div className="space-y-4">
           {/* URL */}
           <div className="space-y-2">
-            <p className="text-sm font-medium">Competition URL</p>
+            <p className="text-sm font-medium">Тэмцээний холбоос</p>
             <div className="flex items-center gap-2">
               <Input value={`${typeof window !== "undefined" ? window.location.origin : ""}/local/join/${joinCode}`}
                 readOnly className="bg-secondary/30 border-border/60 text-xs" />
               <button onClick={() => { navigator.clipboard.writeText(joinCode); toast.success("Хуулагдлаа") }}
                 className="shrink-0 px-3 py-1.5 rounded-md bg-blue-600 text-white text-xs flex items-center gap-1">
-                <Copy className="h-3 w-3" /> Copy
+                <Copy className="h-3 w-3" /> Хуулах
               </button>
             </div>
           </div>
@@ -667,7 +667,7 @@ export function SetupWizard() {
             </button>
             <button onClick={handleMakeBracket}
               className="flex-1 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm">
-              Next (In session) →
+              Next (Явагдаж байна) →
             </button>
           </div>
         </div>

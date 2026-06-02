@@ -120,7 +120,7 @@ export function CreateTournamentForm({ userId, clubs }: Props) {
   const [bracketType, setBracketType] = useState<"single_elimination" | "double_elimination" | "round_robin" | "swiss">("single_elimination")
   const [maxPlayers, setMaxPlayers] = useState(16)
 
-  // Point system (RR/Swiss)
+  // Оноо тооцоо (RR/Swiss)
   const [pointWon, setPointWon] = useState(2)
   const [pointDraw, setPointDraw] = useState(1)
   const [pointLost, setPointLost] = useState(0)
@@ -235,17 +235,17 @@ export function CreateTournamentForm({ userId, clubs }: Props) {
             <Trophy className="h-5 w-5 text-primary" />
             Тэмцээн үүсгэх
           </h1>
-          <p className="text-muted-foreground text-sm">Detail Setting</p>
+          <p className="text-muted-foreground text-sm">Дэлгэрэнгүй тохиргоо</p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-3">
 
         {/* ── COMPETITION SETTING ── */}
-        <Section title="Competition Setting">
+        <Section title="Тэмцээний тохиргоо">
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label>Competition Title <span className="text-primary">*</span></Label>
+              <Label>Тэмцээний нэр <span className="text-primary">*</span></Label>
               <Input value={name} onChange={(e) => setName(e.target.value)}
                 placeholder="Монголын нээлттэй чемпионат 2026"
                 className="bg-secondary/50 border-border/60" />
@@ -253,7 +253,7 @@ export function CreateTournamentForm({ userId, clubs }: Props) {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Join Password</Label>
+                <Label>Join нууц үг</Label>
                 <div className="relative">
                   <Input type={showPassword ? "text" : "password"} value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -285,14 +285,14 @@ export function CreateTournamentForm({ userId, clubs }: Props) {
                   className="bg-secondary/50 border-border/60" />
               </div>
               <div className="space-y-1.5">
-                <Label>Registration Deadline</Label>
+                <Label>Бүртгэлийн дедлайн</Label>
                 <Input type="datetime-local" value={regDeadline} onChange={(e) => setRegDeadline(e.target.value)}
                   className="bg-secondary/50 border-border/60" />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label>Competition Details</Label>
+              <Label>Тэмцээний тайлбар</Label>
               <textarea value={description} onChange={(e) => setDescription(e.target.value)}
                 rows={3} placeholder="Тэмцээний дэлгэрэнгүй мэдээлэл..."
                 className="w-full rounded-md bg-secondary/50 border border-border/60 px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none" />
@@ -305,7 +305,7 @@ export function CreateTournamentForm({ userId, clubs }: Props) {
                   placeholder="DartMN Клуб, УБ" className="bg-secondary/50 border-border/60" />
               </div>
               <div className="space-y-1.5">
-                <Label>Title Image URL</Label>
+                <Label>Баннер зурагны холбоос</Label>
                 <Input value={titleImageUrl} onChange={(e) => setTitleImageUrl(e.target.value)}
                   placeholder="https://..." className="bg-secondary/50 border-border/60" />
               </div>
@@ -331,7 +331,7 @@ export function CreateTournamentForm({ userId, clubs }: Props) {
         <Section title="Game Setting">
           {/* Format */}
           <div className="space-y-1.5">
-            <Label>Available game types</Label>
+            <Label>Тоглолтын төрөл</Label>
             <div className="flex gap-2 flex-wrap">
               {FORMAT_OPTIONS.map((f) => (
                 <button key={f.value} type="button" onClick={() => handleFormatChange(f.value)}
@@ -345,7 +345,7 @@ export function CreateTournamentForm({ userId, clubs }: Props) {
 
           {/* First to / Sets / Legs */}
           <div className="space-y-2">
-            <Label>Match Format</Label>
+            <Label>Тоглолтын формат</Label>
             <div className="flex items-center gap-3 flex-wrap">
               <Stepper value={firstTo} onChange={setFirstTo} min={1} max={11} label="First to" />
               <div className="flex items-center gap-2 mt-4">
@@ -361,7 +361,7 @@ export function CreateTournamentForm({ userId, clubs }: Props) {
             </div>
           </div>
 
-          {/* Start Score + Limit Rounds */}
+          {/* Start Score + Round хязгаар */}
           {(format === "501" || format === "301") && (
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
@@ -379,7 +379,7 @@ export function CreateTournamentForm({ userId, clubs }: Props) {
 
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2">
-                  <Label>Limit Rounds</Label>
+                  <Label>Round хязгаар</Label>
                   <input type="checkbox" checked={limitRoundsEnabled} onChange={(e) => setLimitRoundsEnabled(e.target.checked)} className="accent-primary" />
                 </div>
                 {limitRoundsEnabled && (
@@ -396,7 +396,7 @@ export function CreateTournamentForm({ userId, clubs }: Props) {
         </Section>
 
         {/* ── BRACKET TYPE ── */}
-        <Section title="Bracket Type">
+        <Section title="Bracket төрөл">
           <div className="space-y-2">
             {BRACKET_OPTIONS.map((bt) => (
               <label key={bt.value} className={cn(
@@ -417,7 +417,7 @@ export function CreateTournamentForm({ userId, clubs }: Props) {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Number of players</Label>
+              <Label>Тоглогчийн тоо</Label>
               <Select value={String(maxPlayers)} onValueChange={(v) => v && setMaxPlayers(parseInt(v))}>
                 <SelectTrigger className="bg-secondary/50 border-border/60">
                   <SelectValue />
@@ -447,19 +447,19 @@ export function CreateTournamentForm({ userId, clubs }: Props) {
 
         {/* ── POINT SYSTEM (RR/Swiss) ── */}
         {(bracketType === "round_robin" || bracketType === "swiss") && (
-          <Section title="Point System">
+          <Section title="Оноо тооцоо">
             <div className="grid grid-cols-3 gap-4">
-              <Stepper value={pointWon} onChange={setPointWon} min={0} max={10} label="Won" />
-              <Stepper value={pointDraw} onChange={setPointDraw} min={0} max={10} label="Draw" />
-              <Stepper value={pointLost} onChange={setPointLost} min={0} max={10} label="Lost" />
+              <Stepper value={pointWon} onChange={setPointWon} min={0} max={10} label="Хожил" />
+              <Stepper value={pointDraw} onChange={setPointDraw} min={0} max={10} label="Тэнцэл" />
+              <Stepper value={pointLost} onChange={setPointLost} min={0} max={10} label="Хохирол" />
             </div>
-            <CheckRow label="Win points are legs" checked={winPointsAreLegs} onChange={setWinPointsAreLegs}
-              sub="Оноог хожигдсон/хожсон leg-ийн тоогоор тооцно" />
+            <CheckRow label="Оноог leg-ийн тоогоор тооцох" checked={winPointsAreLegs} onChange={setWinPointsAreLegs}
+              sub="Оноог хожсон leg-ийн тоогоор тооцно" />
           </Section>
         )}
 
         {/* ── COMPETITION OPTIONS ── */}
-        <Section title="Competition Options">
+        <Section title="Тэмцээний нэмэлт тохиргоо">
           {/* Public / Private */}
           <div className="grid grid-cols-2 gap-3 mb-2">
             <button type="button" onClick={() => setIsPrivate(false)}
@@ -483,15 +483,15 @@ export function CreateTournamentForm({ userId, clubs }: Props) {
           </div>
 
           <div className="space-y-3">
-            <CheckRow label="Show average" checked={showAverage} onChange={setShowAverage} />
-            <CheckRow label="Automatic complete"  checked={autoComplete} onChange={setAutoComplete}
+            <CheckRow label="Average харуулах" checked={showAverage} onChange={setShowAverage} />
+            <CheckRow label="Автоматаар дуусгах"  checked={autoComplete} onChange={setAutoComplete}
               sub="Бүх leg дуусахад тоглолт автоматаар дуусна" />
-            <CheckRow label="Confirm opponent when starting" checked={confirmOpponent} onChange={setConfirmOpponent} />
+            <CheckRow label="Тоглолт эхлэхэд өрсөлдөгчийг баталгаажуулах" checked={confirmOpponent} onChange={setConfirmOpponent} />
             <CheckRow label="Loser First" checked={loserFirst} onChange={setLoserFirst}
               sub="Leg хожигдсон тоглогч дараагийн leg-ийг эхэлнэ" />
-            <CheckRow label="Do not select player when join (Participants can enter scores for all players)"
+            <CheckRow label="Нэвтрэхэд тоглогч сонгохгүй (Оролцогч бүр оноо оруулах боломжтой)"
               checked={allowParticipantScore} onChange={setAllowParticipantScore} />
-            <CheckRow label="Show index in entry list" checked={showIndex} onChange={setShowIndex} />
+            <CheckRow label="Жагсаалтад дугаар харуулах" checked={showIndex} onChange={setShowIndex} />
           </div>
         </Section>
 
@@ -502,7 +502,7 @@ export function CreateTournamentForm({ userId, clubs }: Props) {
           </Link>
           <Button type="submit" className="flex-1 glow-primary" size="lg" disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Тэмцээн үүсгэх (Done)
+            Тэмцээн үүсгэх
           </Button>
         </div>
       </form>
