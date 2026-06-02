@@ -10,6 +10,7 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
+import { Edit } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
@@ -161,6 +162,13 @@ export function TournamentDetail({ tournament: t, registrations, currentUserId, 
               <Button variant="outline" size="sm" onClick={handleShare} className="border-border/60">
                 <Share2 className="h-4 w-4" />
               </Button>
+              {isOrganizer && (
+                <Link href={`/tournaments/${t.id}/edit`}
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), "border-primary/30 text-primary hover:bg-primary/10")}>
+                  <Edit className="h-3.5 w-3.5 mr-1.5" />
+                  Засах
+                </Link>
+              )}
               {canRegister && !isOrganizer && (
                 <Button
                   size="sm"

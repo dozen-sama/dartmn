@@ -218,12 +218,29 @@ export interface Database {
           start_date?: string
           end_date?: string | null
           registration_deadline?: string | null
+          club_id?: string | null
           location?: string | null
           banner_url?: string | null
           rules?: string | null
           join_code?: string | null
           password?: string | null
           is_private?: boolean
+          format?: "501" | "301" | "cricket" | "cutthroat"
+          bracket_type?: "single_elimination" | "double_elimination" | "round_robin" | "swiss"
+          first_to?: number
+          sets_enabled?: boolean
+          legs_per_set?: number
+          limit_rounds?: number | null
+          loser_first?: boolean
+          show_average?: boolean
+          auto_complete?: boolean
+          confirm_opponent?: boolean
+          allow_participant_score?: boolean
+          show_index?: boolean
+          point_won?: number
+          point_draw?: number
+          point_lost?: number
+          win_points_are_legs?: boolean
         }
         Relationships: []
       }
