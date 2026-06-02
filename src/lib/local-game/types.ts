@@ -16,6 +16,9 @@ export interface LocalPlayer {
   id: string
   name: string
   seed: number
+  profileId?: string | null      // DartMN user ID (холбогдсон бол)
+  profileUsername?: string | null // @username
+  avatarUrl?: string | null
 }
 
 export interface LegThrow {

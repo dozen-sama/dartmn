@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import {
-  ArrowLeft, ChevronRight, Edit2, ListOrdered, Minus, Plus, RotateCcw,
+  ArrowLeft, ChevronRight, Edit2, ListOrdered, Loader2, Minus, Plus, RotateCcw,
   Save, Settings, Trophy, Users, Zap,
 } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -208,15 +208,18 @@ export function SessionView() {
       </div>
 
 
-      {/* Winner banner */}
+      {/* Winner banner + Sync stats */}
       {session.status === "completed" && session.winnerId && (
         <Card className="border-[oklch(0.78_0.16_85)]/40 bg-[oklch(0.78_0.16_85)]/5">
-          <CardContent className="flex items-center gap-4 p-5">
-            <Trophy className="h-10 w-10 text-[oklch(0.78_0.16_85)]" />
-            <div>
-              <p className="text-sm text-muted-foreground">Ялагч</p>
-              <p className="text-2xl font-bold text-[oklch(0.78_0.16_85)]">{pName(session.winnerId)}</p>
+          <CardContent className="p-5 space-y-3">
+            <div className="flex items-center gap-4">
+              <Trophy className="h-10 w-10 text-[oklch(0.78_0.16_85)]" />
+              <div>
+                <p className="text-sm text-muted-foreground">Ялагч</p>
+                <p className="text-2xl font-bold text-[oklch(0.78_0.16_85)]">{pName(session.winnerId)}</p>
+              </div>
             </div>
+            <SyncStatsButton session={session} />
           </CardContent>
         </Card>
       )}
@@ -550,6 +553,49 @@ export function SessionView() {
         </TabsContent>
       </Tabs>
     </div>
+  )
+}
+
+// Stats sync component
+function SyncStatsButton({ session }: { session: import("@/lib/local-game/types").LocalSession }) {
+  const [syncing, setSyncing] = useState(false)
+  const [synced, setSynced] = useState(false)
+
+  const linkedCount = session.players.filter((p) => p.profileId).length
+
+  if (linkedCount === 0) return (
+    <p className="text-xs text-muted-foreground">
+      DartMN акаунттай холбогдсон тоглогч байхгүй тул stats хадгалагдахгүй.
+    </p>
+  )
+
+  if (synced) return (
+    <p className="text-xs text-green-400">✓ {linkedCount} тоглогчийн stats шинэчлэгдлээ</p>
+  )
+
+  async function handleSync() {
+    setSyncing(true)
+    try {
+      const res = await fetch("/api/local/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session }),
+      })
+      const { synced: n } = await res.json()
+      setSynced(true)
+      import("sonner").then(({ toast }) => toast.success(`${n} тоглогчийн stats шинэчлэгдлээ!`))
+    } catch {
+      import("sonner").then(({ toast }) => toast.error("Stats sync амжилтгүй"))
+    }
+    setSyncing(false)
+  }
+
+  return (
+    <button onClick={handleSync} disabled={syncing}
+      className="flex items-center gap-2 text-xs text-primary hover:text-primary/80 transition-colors disabled:opacity-50">
+      {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+      {syncing ? "Stats шинэчилж байна..." : `${linkedCount} DartMN тоглогчийн stats шинэчлэх`}
+    </button>
   )
 }
 

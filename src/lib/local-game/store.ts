@@ -47,7 +47,7 @@ interface LocalGameStore {
     playersPerGroup: number
     groupsCount: number
     groupAdvance: number
-    players: { name: string }[]
+    players: { name: string; profileId?: string | null; profileUsername?: string | null; avatarUrl?: string | null }[]
     startWithPhase?: SessionPhase
   }) => string
 
@@ -94,6 +94,9 @@ export const useLocalGame = create<LocalGameStore>()(
           id: playerId(),
           name: p.name,
           seed: i + 1,
+          profileId: p.profileId ?? null,
+          profileUsername: p.profileUsername ?? null,
+          avatarUrl: p.avatarUrl ?? null,
         }))
 
         let matches: LocalMatch[] = []

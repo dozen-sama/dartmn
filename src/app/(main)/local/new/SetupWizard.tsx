@@ -1,20 +1,32 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useRef, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import {
-  Check, ChevronDown, ChevronUp, Copy, Download, Minus, Plus, RefreshCw, Upload, Users,
+  AtSign, Check, ChevronDown, ChevronUp, Copy, Download,
+  Minus, Plus, RefreshCw, Search, Upload, UserCheck, Users, X,
 } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { useLocalGame } from "@/lib/local-game/store"
 import { BracketType, GameFormat, SessionPhase } from "@/lib/local-game/types"
 import { BracketEditor } from "@/components/local-game/BracketEditor"
+import { createClient } from "@/lib/supabase/client"
 import Link from "next/link"
 import { toast } from "sonner"
+
+interface PlayerEntry {
+  name: string
+  profileId?: string | null
+  profileUsername?: string | null
+  avatarUrl?: string | null
+  isLinked?: boolean
+}
 
 // ── Step indicator ────────────────────────────────────────────────
 const PHASES: { key: string; label: string }[] = [
@@ -131,12 +143,50 @@ export function SetupWizard() {
   const [showIndex, setShowIndex] = useState(true)
 
   // Step 3: Players
-  const [players, setPlayers] = useState<{ name: string }[]>([{ name: "" }, { name: "" }])
+  const [players, setPlayers] = useState<PlayerEntry[]>([{ name: "" }, { name: "" }])
   const [newPlayerName, setNewPlayerName] = useState("")
   const [batchText, setBatchText] = useState("")
   const [showBatch, setShowBatch] = useState(false)
 
+  // @username search state
+  const [searchQuery, setSearchQuery] = useState("")
+  const [searchResults, setSearchResults] = useState<{ id: string; username: string; display_name: string; avatar_url: string | null; rating_points: number }[]>([])
+  const [searching, setSearching] = useState(false)
+  const [showSearch, setShowSearch] = useState(false)
+
   const validPlayers = players.filter((p) => p.name.trim())
+
+  // Search DartMN profiles by username
+  const searchProfiles = useCallback(async (q: string) => {
+    if (q.length < 2) { setSearchResults([]); return }
+    setSearching(true)
+    const supabase = createClient()
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, username, display_name, avatar_url, rating_points")
+      .ilike("username", `%${q.replace("@", "")}%`)
+      .limit(5)
+    setSearchResults(data ?? [])
+    setSearching(false)
+  }, [])
+
+  function addLinkedPlayer(profile: { id: string; username: string; display_name: string; avatar_url: string | null; rating_points: number }) {
+    // Check if already added
+    if (players.some((p) => p.profileId === profile.id)) {
+      toast.error(`@${profile.username} аль хэдийн нэмэгдсэн байна`)
+      return
+    }
+    setPlayers((prev) => [...prev, {
+      name: profile.display_name,
+      profileId: profile.id,
+      profileUsername: profile.username,
+      avatarUrl: profile.avatar_url,
+      isLinked: true,
+    }])
+    setSearchQuery("")
+    setSearchResults([])
+    setShowSearch(false)
+  }
 
   function addPlayer(nm?: string) {
     const n = (nm ?? newPlayerName).trim() || `Тоглогч ${players.length + 1}`
@@ -148,7 +198,12 @@ export function SetupWizard() {
     setPlayers((prev) => { const next = [...prev]; const j = i + d; if (j < 0 || j >= next.length) return prev; [next[i], next[j]] = [next[j], next[i]]; return next })
   }
   function updatePlayer(i: number, val: string) {
-    setPlayers((prev) => prev.map((p, idx) => idx === i ? { name: val } : p))
+    setPlayers((prev) => prev.map((p, idx) => idx === i ? { ...p, name: val } : p))
+  }
+  function unlinkPlayer(i: number) {
+    setPlayers((prev) => prev.map((p, idx) => idx === i
+      ? { name: p.name, profileId: null, profileUsername: null, avatarUrl: null, isLinked: false }
+      : p))
   }
   function batchAdd() {
     const names = batchText.split("\n").map((s) => s.trim()).filter(Boolean)
@@ -556,19 +611,47 @@ export function SetupWizard() {
             </div>
 
             {/* Player list */}
-            <div className="space-y-1.5 max-h-52 overflow-y-auto">
+            <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
               {players.map((p, i) => (
-                <div key={i} className="flex items-center gap-2">
+                <div key={i} className={cn(
+                  "flex items-center gap-2 rounded-lg border px-2 py-1.5 transition-colors",
+                  p.isLinked ? "border-primary/30 bg-primary/5" : "border-transparent"
+                )}>
                   {showIndex && <span className="text-xs text-muted-foreground w-5 text-right shrink-0">{i + 1}</span>}
                   <div className="flex flex-col gap-0 shrink-0">
                     <button onClick={() => movePlayer(i, -1)} disabled={i === 0} className="disabled:opacity-20 text-muted-foreground hover:text-foreground"><ChevronUp className="h-2.5 w-2.5" /></button>
                     <button onClick={() => movePlayer(i, 1)} disabled={i === players.length - 1} className="disabled:opacity-20 text-muted-foreground hover:text-foreground"><ChevronDown className="h-2.5 w-2.5" /></button>
                   </div>
-                  <Input value={p.name} onChange={(e) => updatePlayer(i, e.target.value)}
-                    placeholder={`Тоглогч ${i + 1}`}
-                    className="flex-1 h-8 text-sm bg-secondary/50 border-border/60" />
+
+                  {/* Linked player: avatar + name */}
+                  {p.isLinked ? (
+                    <div className="flex-1 flex items-center gap-2 min-w-0">
+                      <Avatar className="h-6 w-6 shrink-0">
+                        <AvatarImage src={p.avatarUrl ?? undefined} />
+                        <AvatarFallback className="text-[9px] bg-primary/20">{p.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{p.name}</p>
+                        <p className="text-[10px] text-primary">@{p.profileUsername}</p>
+                      </div>
+                      <Badge variant="outline" className="text-[9px] border-primary/30 text-primary shrink-0">
+                        <UserCheck className="h-2.5 w-2.5 mr-0.5" />DartMN
+                      </Badge>
+                    </div>
+                  ) : (
+                    <Input value={p.name} onChange={(e) => updatePlayer(i, e.target.value)}
+                      placeholder={`Тоглогч ${i + 1}`}
+                      className="flex-1 h-8 text-sm bg-secondary/50 border-border/60" />
+                  )}
+
+                  {p.isLinked && (
+                    <button onClick={() => unlinkPlayer(i)} title="Холболт таслах"
+                      className="text-muted-foreground hover:text-destructive p-1 shrink-0">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                   <button onClick={() => removePlayer(i)} disabled={players.length <= 2}
-                    className="disabled:opacity-20 text-muted-foreground hover:text-destructive p-1">
+                    className="disabled:opacity-20 text-muted-foreground hover:text-destructive p-1 shrink-0">
                     <Minus className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -576,15 +659,64 @@ export function SetupWizard() {
             </div>
 
             {/* Add controls */}
-            <div className="flex gap-2">
-              <Input value={newPlayerName} onChange={(e) => setNewPlayerName(e.target.value)}
-                placeholder="Тоглогч нэмэх..."
-                className="flex-1 h-8 text-sm bg-secondary/50 border-border/60"
-                onKeyDown={(e) => e.key === "Enter" && addPlayer()} />
-              <button onClick={() => addPlayer()}
-                className="shrink-0 px-3 h-8 rounded-md border border-border/60 text-sm hover:bg-secondary">
-                Тоглогч нэмэх
-              </button>
+            <div className="space-y-2">
+              {/* Guest player */}
+              <div className="flex gap-2">
+                <Input value={newPlayerName} onChange={(e) => setNewPlayerName(e.target.value)}
+                  placeholder="Зочин тоглогч нэмэх..."
+                  className="flex-1 h-8 text-sm bg-secondary/50 border-border/60"
+                  onKeyDown={(e) => e.key === "Enter" && addPlayer()} />
+                <button onClick={() => addPlayer()}
+                  className="shrink-0 px-3 h-8 rounded-md border border-border/60 text-sm hover:bg-secondary whitespace-nowrap">
+                  + Нэмэх
+                </button>
+              </div>
+
+              {/* DartMN account search */}
+              <div className="space-y-1.5">
+                <button onClick={() => setShowSearch(!showSearch)}
+                  className={cn("flex items-center gap-1.5 text-xs font-medium transition-colors",
+                    showSearch ? "text-primary" : "text-muted-foreground hover:text-foreground")}>
+                  <AtSign className="h-3.5 w-3.5" />
+                  DartMN хэрэглэгч холбох (stats хөтлөгдөнө)
+                </button>
+
+                {showSearch && (
+                  <div className="space-y-1.5">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                      <Input
+                        value={searchQuery}
+                        onChange={(e) => {
+                          setSearchQuery(e.target.value)
+                          searchProfiles(e.target.value)
+                        }}
+                        placeholder="@username хайх..."
+                        className="pl-8 h-8 text-sm bg-secondary/50 border-primary/30"
+                      />
+                    </div>
+                    {searching && <p className="text-xs text-muted-foreground">Хайж байна...</p>}
+                    {searchResults.length > 0 && (
+                      <div className="rounded-lg border border-border/50 bg-card overflow-hidden">
+                        {searchResults.map((profile) => (
+                          <button key={profile.id} onClick={() => addLinkedPlayer(profile)}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-secondary/50 transition-colors text-left border-b border-border/30 last:border-0">
+                            <Avatar className="h-7 w-7 shrink-0">
+                              <AvatarImage src={profile.avatar_url ?? undefined} />
+                              <AvatarFallback className="text-[10px] bg-secondary">{profile.display_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{profile.display_name}</p>
+                              <p className="text-xs text-muted-foreground">@{profile.username} · {profile.rating_points} pts</p>
+                            </div>
+                            <span className="text-xs text-primary shrink-0">+ Нэмэх</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="flex gap-3">

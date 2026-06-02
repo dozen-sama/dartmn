@@ -120,15 +120,58 @@ export function PlayLobby({ profile, activeRooms }: Props) {
         ))}
       </div>
 
-      {/* Camera notice */}
-      <div className="flex items-start gap-3 bg-yellow-500/5 border border-yellow-500/20 rounded-lg px-4 py-3">
-        <span className="text-lg shrink-0 mt-0.5">📷</span>
-        <div>
-          <p className="text-sm font-medium text-yellow-400">Камерийн дэмжлэг</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Одоогоор электрон дарт самбар болон камерийн автомат оноо уншилт хэрэгжаагүй байна.
-            Тоглогч бүр тоглолтынхоо дараа <strong className="text-foreground">гараар оноо оруулна</strong>.
-            Ирээдүйд e-dart board, DartCounter холболт нэмэгдэх болно.
+      {/* Upcoming features notice */}
+      <div className="rounded-xl border border-primary/20 bg-primary/5 overflow-hidden">
+        <div className="px-4 py-2.5 bg-primary/10 border-b border-primary/20">
+          <p className="text-sm font-semibold flex items-center gap-2">
+            🚀 Удахгүй нэмэгдэх
+          </p>
+        </div>
+        <div className="px-4 py-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {[
+            {
+              icon: "📷",
+              title: "Камерийн оноо уншилт",
+              desc: "Телефоны камераар дартын онооны хэсгийг автоматаар таниж оноог оруулна. E-dart board холболт.",
+              status: "Хөгжүүлж байна",
+            },
+            {
+              icon: "🎮",
+              title: "Real-time multiplayer",
+              desc: "Хоёр тоглогч нэгэн зэрэг оноо оруулж, шууд харилцах. WebRTC-д суурилсан.",
+              status: "Төлөвлөгдсөн",
+            },
+            {
+              icon: "🏟️",
+              title: "Online тэмцээн",
+              desc: "Олон тоглогчтой online тэмцээн. Автомат bracket, live standings.",
+              status: "Төлөвлөгдсөн",
+            },
+            {
+              icon: "📊",
+              title: "Статистик шинжилгээ",
+              desc: "Тоглолт бүрийн нарийн статистик, checkout heat map, throw analysis.",
+              status: "Судалж байна",
+            },
+          ].map((f) => (
+            <div key={f.title} className="flex items-start gap-3">
+              <span className="text-xl shrink-0">{f.icon}</span>
+              <div>
+                <div className="flex items-center gap-2 mb-0.5">
+                  <p className="text-xs font-semibold">{f.title}</p>
+                  <span className="text-[10px] text-muted-foreground border border-border/40 rounded px-1.5 py-0.5">
+                    {f.status}
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">{f.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="px-4 py-2.5 border-t border-primary/20 bg-secondary/10">
+          <p className="text-[11px] text-muted-foreground">
+            💡 Одоогоор тоглогчид <strong className="text-foreground">гараар оноо оруулна</strong>.
+            Платформ хөгжихийн хэрээр шинэ боломжууд нэмэгдэх болно. Санал хүсэлтээ хуваалцаарай!
           </p>
         </div>
       </div>
