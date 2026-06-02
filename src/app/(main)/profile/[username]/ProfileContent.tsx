@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils"
 import { getTier } from "@/lib/rating"
 import { TierBadge } from "@/components/rating/TierBadge"
 import { PlayerCard } from "@/components/player/PlayerCard"
+import { PlayerAvatar } from "@/components/player/PlayerAvatar"
 import { AchievementTooltip, Achievement } from "@/components/achievements/AchievementBadge"
 
 interface Props {
@@ -71,12 +72,14 @@ export function ProfileContent({ profile: p, isOwner, clubName, recentMatches, t
         <CardContent className="px-5 pb-5">
           {/* Avatar row */}
           <div className="flex items-end justify-between -mt-10 mb-4">
-            <Avatar className="h-20 w-20 border-4 border-background">
-              <AvatarImage src={p.avatar_url ?? undefined} />
-              <AvatarFallback className="bg-primary/20 text-primary text-2xl font-bold">
-                {p.display_name.slice(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
+            <PlayerAvatar
+              displayName={p.display_name}
+              avatarUrl={p.avatar_url}
+              clubLogoUrl={p.primary_club_logo}
+              clubTag={p.primary_club_tag}
+              size="xl"
+              className="border-4 border-background rounded-full"
+            />
             {isOwner ? (
               <Link href="/settings/profile" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "border-border/60")}>
                 <Edit className="h-4 w-4 mr-1.5" />
@@ -179,6 +182,7 @@ export function ProfileContent({ profile: p, isOwner, clubName, recentMatches, t
               profile={p}
               achievements={achievementsWithDates}
               earnedKeys={earnedKeys}
+              clubName={clubName}
             />
             <p className="text-xs text-muted-foreground text-center">
               Screenshot хийж найзуудтайгаа хуваалцаарай

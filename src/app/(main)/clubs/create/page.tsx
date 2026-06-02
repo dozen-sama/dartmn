@@ -64,7 +64,7 @@ export default function CreateClubPage() {
         email: form.email || null,
         website: form.website || null,
         owner_id: user.id,
-        features: [],
+        features: [] as any,
       })
       .select("id")
       .single()

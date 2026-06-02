@@ -93,6 +93,8 @@ export interface Database {
           social_discord: string | null
           social_facebook: string | null
           social_instagram: string | null
+          subscription_plan: "basic" | "pro" | "enterprise" | null
+          subscription_expires_at: string | null
           created_at: string
           updated_at: string
         }
@@ -121,6 +123,14 @@ export interface Database {
           email?: string | null
           website?: string | null
           is_verified?: boolean
+          tag?: string | null
+          tagline?: string | null
+          features?: Json
+          social_discord?: string | null
+          social_facebook?: string | null
+          social_instagram?: string | null
+          subscription_plan?: "basic" | "pro" | "enterprise" | null
+          subscription_expires_at?: string | null
         }
         Relationships: []
       }

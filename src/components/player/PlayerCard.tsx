@@ -15,9 +15,11 @@ interface PlayerCardProps {
     "id" | "username" | "display_name" | "avatar_url" | "rating_points"
     | "matches_played" | "matches_won" | "average_score" | "checkout_percentage"
     | "count_180" | "highest_checkout" | "tournament_wins" | "city" | "province"
+    | "primary_club_logo" | "primary_club_tag"
   >
   achievements: Achievement[]
   earnedKeys: string[]
+  clubName?: string | null
 }
 
 function StatBox({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
@@ -30,7 +32,7 @@ function StatBox({ label, value, sub }: { label: string; value: string | number;
   )
 }
 
-export function PlayerCard({ profile: p, achievements, earnedKeys }: PlayerCardProps) {
+export function PlayerCard({ profile: p, achievements, earnedKeys, clubName }: PlayerCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const [downloading, setDownloading] = useState(false)
 
@@ -112,22 +114,42 @@ export function PlayerCard({ profile: p, achievements, earnedKeys }: PlayerCardP
 
         {/* Avatar + Name */}
         <div className="relative px-5 pb-4 flex items-center gap-4">
-          <div className="relative">
-            <Avatar className="h-16 w-16 border-2 border-white/20">
-              {p.avatar_url && <AvatarFallback className="hidden" />}
-              <AvatarFallback className="bg-white/10 text-white text-xl font-bold">
-                {p.display_name.slice(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
+          {/* Avatar with club logo badge */}
+          <div className="relative shrink-0">
+            <div className="h-16 w-16 rounded-full border-2 border-white/20 bg-white/10 overflow-hidden flex items-center justify-center">
+              {p.avatar_url
+                ? <img src={p.avatar_url} alt={p.display_name} className="h-full w-full object-cover" />
+                : <span className="text-xl font-black text-white">{p.display_name.slice(0, 2).toUpperCase()}</span>
+              }
+            </div>
+            {/* Club logo badge */}
+            {p.primary_club_logo ? (
+              <div className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full border-2 border-slate-900 overflow-hidden bg-white">
+                <img src={p.primary_club_logo} alt="" className="h-full w-full object-cover" />
+              </div>
+            ) : p.primary_club_tag ? (
+              <div className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full border-2 border-slate-900 bg-primary flex items-center justify-center">
+                <span className="text-[9px] font-black text-white">{p.primary_club_tag.slice(0, 1)}</span>
+              </div>
+            ) : null}
           </div>
+
           <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-black truncate">{p.display_name}</h2>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {p.primary_club_tag && (
+                <span className="text-[10px] font-mono text-white/50">[{p.primary_club_tag}]</span>
+              )}
+              <h2 className="text-lg font-black truncate">{p.display_name}</h2>
+            </div>
             <p className="text-sm text-white/50">@{p.username}</p>
             {(p.province || p.city) && (
               <p className="text-[11px] text-white/40 flex items-center gap-1 mt-0.5">
                 <MapPin className="h-2.5 w-2.5" />
                 {[p.province, p.city].filter(Boolean).join(" · ")}
               </p>
+            )}
+            {clubName && (
+              <p className="text-[11px] text-white/40 mt-0.5">🏠 {clubName}</p>
             )}
           </div>
         </div>

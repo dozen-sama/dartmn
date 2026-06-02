@@ -4,7 +4,7 @@ import { useRef, useState } from "react"
 import Link from "next/link"
 import {
   ArrowLeft, Building2, Calendar, Check, Copy, Download,
-  Globe, Instagram, LogIn, MapPin, QrCode, Share2, Shield, Users,
+  Globe,  LogIn, MapPin, QrCode, Share2, Shield, Users,
 } from "lucide-react"
 import { QRCodeSVG } from "qrcode.react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -168,7 +168,7 @@ export function ClubShowcase({ club, members, tournaments }: Props) {
             {club.social_instagram && (
               <a href={`https://instagram.com/${club.social_instagram}`} target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-1.5 text-sm text-pink-400 bg-pink-500/10 rounded-lg px-3 py-2">
-                <Instagram className="h-3.5 w-3.5" />Instagram
+                📸 Instagram
               </a>
             )}
           </div>

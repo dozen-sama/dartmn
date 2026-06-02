@@ -119,10 +119,10 @@ export async function POST(req: NextRequest) {
     const { error } = await supabase
       .from("profiles")
       .update({
-        rating_points: Math.max(0, newRating),
-        matches_played: currentProfile.matches_played + stats.matchesPlayed,
-        matches_won: currentProfile.matches_won + stats.matchesWon,
-        tournament_wins: currentProfile.tournament_wins + (isTournamentWinner ? 1 : 0),
+        rating_points: Math.max(0, newRating) as any,
+        matches_played: (currentProfile.matches_played + stats.matchesPlayed) as any,
+        matches_won: (currentProfile.matches_won + stats.matchesWon) as any,
+        tournament_wins: (currentProfile.tournament_wins + (isTournamentWinner ? 1 : 0)) as any,
       })
       .eq("id", profileId)
 
