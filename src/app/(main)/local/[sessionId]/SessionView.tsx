@@ -4,11 +4,14 @@ import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import {
-  ArrowLeft, ChevronRight, ListOrdered, RotateCcw, Trophy, Users, Zap,
+  ArrowLeft, ChevronRight, ListOrdered, Minus, Plus, RotateCcw,
+  Save, Settings, Trophy, Users, Zap,
 } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import { useLocalGame } from "@/lib/local-game/store"
@@ -30,8 +33,72 @@ export function SessionView() {
   const session = useLocalGame((s) => s.sessions[sessionId])
   const addSwissRound = useLocalGame((s) => s.addSwissRound)
   const advanceGroupsToKnockout = useLocalGame((s) => s.advanceGroupsToKnockout)
+  const updateSession = useLocalGame((s) => s.updateSession)
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
+
+  // Edit state — initialized after mount (uses session values)
+  const [editName, setEditName] = useState("")
+  const [editFirstTo, setEditFirstTo] = useState(2)
+  const [editSetsEnabled, setEditSetsEnabled] = useState(false)
+  const [editLegsPerSet, setEditLegsPerSet] = useState(3)
+  const [editDoubleOut, setEditDoubleOut] = useState(true)
+  const [editDoubleIn, setEditDoubleIn] = useState(false)
+  const [editLoserFirst, setEditLoserFirst] = useState(false)
+  const [editLimitEnabled, setEditLimitEnabled] = useState(false)
+  const [editLimitRounds, setEditLimitRounds] = useState(15)
+  const [editShowAvg, setEditShowAvg] = useState(true)
+  const [editAutoComplete, setEditAutoComplete] = useState(true)
+  const [editAllowParticipant, setEditAllowParticipant] = useState(false)
+  const [editShowIndex, setEditShowIndex] = useState(true)
+  const [editPointWon, setEditPointWon] = useState(2)
+  const [editPointDraw, setEditPointDraw] = useState(1)
+  const [editPointLost, setEditPointLost] = useState(0)
+  const [settingsInitialized, setSettingsInitialized] = useState(false)
+
+  useEffect(() => {
+    if (session && !settingsInitialized) {
+      setEditName(session.name)
+      setEditFirstTo(session.firstTo)
+      setEditSetsEnabled(session.setsEnabled)
+      setEditLegsPerSet(session.legsPerSet)
+      setEditDoubleOut(session.doubleOut)
+      setEditDoubleIn(session.doubleIn)
+      setEditLoserFirst(session.loserFirst)
+      setEditLimitEnabled(!!session.limitRounds)
+      setEditLimitRounds(session.limitRounds ?? 15)
+      setEditShowAvg(session.showAverage)
+      setEditAutoComplete(session.autoComplete)
+      setEditAllowParticipant(session.allowParticipantScore)
+      setEditShowIndex(session.showIndex)
+      setEditPointWon(session.pointWon)
+      setEditPointDraw(session.pointDraw)
+      setEditPointLost(session.pointLost)
+      setSettingsInitialized(true)
+    }
+  }, [session, settingsInitialized])
+
+  function saveSettings() {
+    if (!editName.trim()) return toast.error("Нэр оруулна уу")
+    updateSession(sessionId, {
+      name: editName.trim(),
+      firstTo: editFirstTo,
+      setsEnabled: editSetsEnabled,
+      legsPerSet: editLegsPerSet,
+      doubleOut: editDoubleOut,
+      doubleIn: editDoubleIn,
+      loserFirst: editLoserFirst,
+      limitRounds: editLimitEnabled ? editLimitRounds : null,
+      showAverage: editShowAvg,
+      autoComplete: editAutoComplete,
+      allowParticipantScore: editAllowParticipant,
+      showIndex: editShowIndex,
+      pointWon: editPointWon,
+      pointDraw: editPointDraw,
+      pointLost: editPointLost,
+    })
+    toast.success("Тохиргоо хадгалагдлаа")
+  }
 
   if (!mounted) return <div className="flex items-center justify-center py-20"><div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" /></div>
 
@@ -145,6 +212,10 @@ export function SessionView() {
           <TabsTrigger value="players">
             <Users className="h-4 w-4 mr-1.5" />
             Тоглогчид
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="ml-auto">
+            <Settings className="h-4 w-4 mr-1.5" />
+            Засах
           </TabsTrigger>
         </TabsList>
 
@@ -289,6 +360,154 @@ export function SessionView() {
                   </div>
                 )
               })}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Settings / Edit */}
+        <TabsContent value="settings" className="mt-4">
+          <Card className="border-primary/20 bg-card/80">
+            <CardContent className="p-5 space-y-5">
+              <h2 className="font-bold flex items-center gap-2 text-primary">
+                <Settings className="h-4 w-4" />
+                Detail Setting
+              </h2>
+
+              {/* Name */}
+              <div className="space-y-1.5">
+                <Label>Competition Title</Label>
+                <Input value={editName} onChange={(e) => setEditName(e.target.value)}
+                  className="bg-secondary/50 border-border/60" />
+              </div>
+
+              {/* Match format */}
+              <div className="space-y-2">
+                <Label>Match Format</Label>
+                <div className="flex items-end gap-3 flex-wrap">
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-xs text-muted-foreground">First to</span>
+                    <div className="flex items-center">
+                      <button type="button" onClick={() => setEditFirstTo((n) => Math.max(1, n - 1))}
+                        className="h-8 w-8 border border-border/60 rounded-l-md flex items-center justify-center hover:bg-secondary">
+                        <Minus className="h-3 w-3" />
+                      </button>
+                      <div className="h-8 w-12 flex items-center justify-center border-y border-border/60 bg-secondary/50 text-sm font-bold">{editFirstTo}</div>
+                      <button type="button" onClick={() => setEditFirstTo((n) => Math.min(11, n + 1))}
+                        className="h-8 w-8 border border-border/60 rounded-r-md flex items-center justify-center hover:bg-secondary">
+                        <Plus className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <button type="button" onClick={() => setEditSetsEnabled(!editSetsEnabled)}
+                      className={cn("px-3 py-1.5 rounded-lg border-2 text-sm font-semibold transition-all",
+                        editSetsEnabled ? "border-primary bg-primary/15 text-primary" : "border-border/50 text-muted-foreground hover:border-border")}>
+                      Sets
+                    </button>
+                    <span className="text-muted-foreground">/</span>
+                    {editSetsEnabled ? (
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="text-xs text-muted-foreground">Legs/set</span>
+                        <div className="flex items-center">
+                          <button type="button" onClick={() => setEditLegsPerSet((n) => Math.max(1, n - 1))}
+                            className="h-8 w-8 border border-border/60 rounded-l-md flex items-center justify-center hover:bg-secondary">
+                            <Minus className="h-3 w-3" />
+                          </button>
+                          <div className="h-8 w-12 flex items-center justify-center border-y border-border/60 bg-secondary/50 text-sm font-bold">{editLegsPerSet}</div>
+                          <button type="button" onClick={() => setEditLegsPerSet((n) => Math.min(11, n + 1))}
+                            className="h-8 w-8 border border-border/60 rounded-r-md flex items-center justify-center hover:bg-secondary">
+                            <Plus className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-muted-foreground font-medium mb-5">Legs</span>
+                    )}
+                  </div>
+                </div>
+                <p className="text-xs text-primary/80">
+                  {editSetsEnabled ? `First to ${editFirstTo} sets · ${editLegsPerSet} legs/set` : `First to ${editFirstTo} legs`}
+                </p>
+              </div>
+
+              {/* Rules */}
+              {(session.format === "501" || session.format === "301" || session.format === "170" || session.format === "121") && (
+                <div className="space-y-2">
+                  <Label>Дүрэм</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {[
+                      { label: "Double out", val: editDoubleOut, set: setEditDoubleOut },
+                      { label: "Double in", val: editDoubleIn, set: setEditDoubleIn },
+                      { label: "Loser First", val: editLoserFirst, set: setEditLoserFirst },
+                    ].map(({ label, val, set }) => (
+                      <label key={label} className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={val} onChange={(e) => set(e.target.checked)} className="accent-primary" />
+                        <span className="text-sm">{label}</span>
+                      </label>
+                    ))}
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={editLimitEnabled} onChange={(e) => setEditLimitEnabled(e.target.checked)} className="accent-primary" />
+                      <span className="text-sm">Limit Rounds</span>
+                    </label>
+                    {editLimitEnabled && (
+                      <Input type="number" value={editLimitRounds} onChange={(e) => setEditLimitRounds(parseInt(e.target.value) || 15)}
+                        min={1} max={50} className="h-7 w-20 text-xs bg-secondary/50 border-border/60" />
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Point system */}
+              {(session.bracketType === "round_robin" || session.bracketType === "swiss" || session.bracketType === "groups_knockout") && (
+                <div className="space-y-2">
+                  <Label>Point System</Label>
+                  <div className="flex gap-6">
+                    {[
+                      { label: "Won", val: editPointWon, set: setEditPointWon },
+                      { label: "Draw", val: editPointDraw, set: setEditPointDraw },
+                      { label: "Lost", val: editPointLost, set: setEditPointLost },
+                    ].map(({ label, val, set }) => (
+                      <div key={label} className="flex flex-col items-center gap-1">
+                        <span className="text-xs text-muted-foreground">{label}</span>
+                        <div className="flex items-center">
+                          <button type="button" onClick={() => set(Math.max(0, val - 1))}
+                            className="h-7 w-7 border border-border/60 rounded-l-md flex items-center justify-center hover:bg-secondary text-xs">
+                            <Minus className="h-2.5 w-2.5" />
+                          </button>
+                          <div className="h-7 w-10 flex items-center justify-center border-y border-border/60 bg-secondary/50 text-sm font-bold">{val}</div>
+                          <button type="button" onClick={() => set(Math.min(10, val + 1))}
+                            className="h-7 w-7 border border-border/60 rounded-r-md flex items-center justify-center hover:bg-secondary text-xs">
+                            <Plus className="h-2.5 w-2.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Options */}
+              <div className="space-y-2">
+                <Label>Competition Options</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {[
+                    { label: "Show average", val: editShowAvg, set: setEditShowAvg },
+                    { label: "Automatic complete", val: editAutoComplete, set: setEditAutoComplete },
+                    { label: "Participants can enter scores", val: editAllowParticipant, set: setEditAllowParticipant },
+                    { label: "Show index in entry list", val: editShowIndex, set: setEditShowIndex },
+                  ].map(({ label, val, set }) => (
+                    <label key={label} className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={val} onChange={(e) => set(e.target.checked)} className="accent-primary" />
+                      <span className="text-sm">{label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <Button onClick={saveSettings} className="w-full glow-primary">
+                <Save className="h-4 w-4 mr-1.5" />
+                Хадгалах (Done)
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>

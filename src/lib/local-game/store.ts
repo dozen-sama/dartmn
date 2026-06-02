@@ -40,6 +40,11 @@ interface LocalGameStore {
   }) => string  // returns sessionId
 
   deleteSession: (id: string) => void
+  updateSession: (id: string, patch: Partial<Pick<LocalSession,
+    "name" | "firstTo" | "setsEnabled" | "legsPerSet" | "doubleOut" | "doubleIn"
+    | "loserFirst" | "limitRounds" | "showAverage" | "autoComplete"
+    | "allowParticipantScore" | "showIndex" | "pointWon" | "pointDraw" | "pointLost"
+  >>) => void
   getSummaries: () => SessionSummary[]
 
   // Match management
@@ -143,6 +148,19 @@ export const useLocalGame = create<LocalGameStore>()(
           const next = { ...s.sessions }
           delete next[id]
           return { sessions: next }
+        })
+      },
+
+      updateSession: (id, patch) => {
+        set((s) => {
+          const session = s.sessions[id]
+          if (!session) return s
+          return {
+            sessions: {
+              ...s.sessions,
+              [id]: { ...session, ...patch, updatedAt: new Date().toISOString() },
+            },
+          }
         })
       },
 
