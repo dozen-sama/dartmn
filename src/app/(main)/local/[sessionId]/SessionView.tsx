@@ -1,0 +1,331 @@
+"use client"
+
+import { useParams, useRouter } from "next/navigation"
+import Link from "next/link"
+import {
+  ArrowLeft, ChevronRight, ListOrdered, RotateCcw, Trophy, Users, Zap,
+} from "lucide-react"
+import { Button, buttonVariants } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { cn } from "@/lib/utils"
+import { useLocalGame } from "@/lib/local-game/store"
+import { LocalMatch, LocalPlayer } from "@/lib/local-game/types"
+import { toast } from "sonner"
+
+const BRACKET_LABELS: Record<string, string> = {
+  single_elimination: "Single Elimination",
+  double_elimination: "Double Elimination",
+  round_robin: "Round Robin",
+  groups_knockout: "Groups + Knockout",
+  swiss: "Swiss",
+}
+
+export function SessionView() {
+  const { sessionId } = useParams<{ sessionId: string }>()
+  const router = useRouter()
+  const session = useLocalGame((s) => s.sessions[sessionId])
+  const addSwissRound = useLocalGame((s) => s.addSwissRound)
+  const advanceGroupsToKnockout = useLocalGame((s) => s.advanceGroupsToKnockout)
+
+  if (!session) {
+    return (
+      <div className="text-center py-20">
+        <p className="text-muted-foreground">Тоглолт олдсонгүй</p>
+        <Link href="/local" className={cn(buttonVariants({ variant: "outline" }), "mt-4")}>Буцах</Link>
+      </div>
+    )
+  }
+
+  const playerMap = Object.fromEntries(session.players.map((p) => [p.id, p]))
+  const pendingMatches = session.matches.filter((m) => m.status === "pending" && m.player1Id && m.player2Id && m.player1Id !== "bye" && m.player2Id !== "bye")
+  const ongoingMatches = session.matches.filter((m) => m.status === "ongoing")
+  const completedMatches = session.matches.filter((m) => m.status === "completed")
+
+  const rounds = [...new Set(session.matches.map((m) => m.round))].sort((a, b) => a - b)
+  const allCurrentRoundDone = session.bracketType === "swiss"
+    ? pendingMatches.filter((m) => m.round === Math.max(...session.matches.map((m) => m.round))).length === 0
+    : false
+
+  const groupStageComplete = session.bracketType === "groups_knockout"
+    && session.phase === "group_stage"
+    && session.matches.filter((m) => m.round < 100 && m.player1Id !== "bye" && m.player2Id !== "bye").every((m) => m.status === "completed")
+
+  function pName(id: string | "bye" | null): string {
+    if (!id) return "TBD"
+    if (id === "bye") return "BYE"
+    return playerMap[id]?.name ?? "?"
+  }
+
+  function matchStatusColor(m: LocalMatch) {
+    if (m.status === "completed") return "bg-green-500/10 border-green-500/20"
+    if (m.status === "ongoing") return "bg-primary/10 border-primary/20"
+    if (!m.player1Id || !m.player2Id) return "bg-secondary/30 border-border/20 opacity-50"
+    return "bg-card/80 border-border/40 hover:border-border card-hover"
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-5">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <Link href="/local" className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-8 w-8 mt-0.5")}>
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+          <div>
+            <h1 className="text-xl font-bold">{session.name}</h1>
+            <div className="flex flex-wrap items-center gap-2 mt-1">
+              <Badge variant="outline" className="text-xs border-border/60">{session.format.toUpperCase()}</Badge>
+              <Badge variant="outline" className="text-xs border-border/60">{BRACKET_LABELS[session.bracketType]}</Badge>
+              <Badge variant="outline" className="text-xs border-border/60">BO{session.bestOf}</Badge>
+              {session.status === "active" ? (
+                <Badge className="text-xs bg-primary/15 text-primary border-primary/30 pulse-live">Явагдаж байна</Badge>
+              ) : (
+                <Badge className="text-xs bg-green-500/15 text-green-400 border-green-500/30">Дууссан</Badge>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Swiss: add round */}
+        {session.bracketType === "swiss" && allCurrentRoundDone && session.status === "active" && (
+          <Button size="sm" variant="outline" className="border-primary/30 text-primary hover:bg-primary/10 shrink-0"
+            onClick={() => { addSwissRound(sessionId); toast.success("Шинэ Swiss round нэмэгдлээ") }}>
+            <RotateCcw className="h-4 w-4 mr-1.5" />
+            Дараагийн round
+          </Button>
+        )}
+
+        {/* Groups → Knockout */}
+        {groupStageComplete && (
+          <Button size="sm" className="glow-primary shrink-0"
+            onClick={() => { advanceGroupsToKnockout(sessionId); toast.success("Knockout шат эхэллээ!") }}>
+            <ChevronRight className="h-4 w-4 mr-1.5" />
+            Knockout эхлүүлэх
+          </Button>
+        )}
+      </div>
+
+      {/* Winner banner */}
+      {session.status === "completed" && session.winnerId && (
+        <Card className="border-[oklch(0.78_0.16_85)]/40 bg-[oklch(0.78_0.16_85)]/5">
+          <CardContent className="flex items-center gap-4 p-5">
+            <Trophy className="h-10 w-10 text-[oklch(0.78_0.16_85)]" />
+            <div>
+              <p className="text-sm text-muted-foreground">Ялагч</p>
+              <p className="text-2xl font-bold text-[oklch(0.78_0.16_85)]">{pName(session.winnerId)}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Tabs defaultValue="schedule">
+        <TabsList className="bg-secondary/50">
+          <TabsTrigger value="schedule">
+            <ListOrdered className="h-4 w-4 mr-1.5" />
+            Хуваарь
+          </TabsTrigger>
+          {(session.bracketType === "round_robin" || session.bracketType === "swiss" || session.bracketType === "groups_knockout") && (
+            <TabsTrigger value="standings">
+              <Trophy className="h-4 w-4 mr-1.5" />
+              Байрлал
+            </TabsTrigger>
+          )}
+          <TabsTrigger value="players">
+            <Users className="h-4 w-4 mr-1.5" />
+            Тоглогчид
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Schedule */}
+        <TabsContent value="schedule" className="mt-4 space-y-4">
+          {rounds.map((round) => {
+            const roundMatches = session.matches.filter((m) => m.round === round)
+            if (roundMatches.length === 0) return null
+
+            const isKnockoutRound = round >= 100
+            const roundLabel = isKnockoutRound
+              ? round === 99 ? "Grand Final"
+                : `Knockout Round ${round - 99}`
+              : session.bracketType === "single_elimination" || session.bracketType === "double_elimination"
+                ? `Round ${round}`
+                : session.bracketType === "swiss"
+                  ? `Swiss Round ${round}`
+                  : session.bracketType === "groups_knockout" && round < 100
+                    ? "Group Stage"
+                    : `Round ${round}`
+
+            return (
+              <div key={round}>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{roundLabel}</p>
+                <div className="space-y-2">
+                  {roundMatches.map((match) => {
+                    const canClick = match.status !== "completed"
+                      && match.player1Id && match.player1Id !== "bye"
+                      && match.player2Id && match.player2Id !== "bye"
+
+                    return (
+                      <div key={match.id} className={cn("rounded-lg border p-3 transition-all", matchStatusColor(match))}>
+                        <div className="flex items-center gap-3">
+                          {/* Player 1 */}
+                          <div className={cn("flex-1 text-right", match.winnerId === match.player1Id && "font-bold text-green-400")}>
+                            <p className="text-sm truncate">{pName(match.player1Id)}</p>
+                            {match.status === "completed" && (
+                              <p className="text-xl font-bold score-display">{match.player1Legs}</p>
+                            )}
+                          </div>
+
+                          {/* VS / Score */}
+                          <div className="flex flex-col items-center shrink-0 w-20">
+                            {match.status === "pending" && <p className="text-xs text-muted-foreground">VS</p>}
+                            {match.status === "ongoing" && (
+                              <div className="flex items-center gap-1">
+                                <span className="text-lg font-bold score-display text-primary">{match.player1Legs}</span>
+                                <span className="text-muted-foreground">:</span>
+                                <span className="text-lg font-bold score-display text-primary">{match.player2Legs}</span>
+                              </div>
+                            )}
+                            {match.status === "completed" && (
+                              <p className="text-xs text-muted-foreground">FINAL</p>
+                            )}
+                            {canClick && (
+                              <Link
+                                href={`/local/${sessionId}/match/${match.id}`}
+                                className={cn(buttonVariants({ size: "sm" }), "mt-1 text-xs glow-primary")}
+                              >
+                                {match.status === "ongoing" ? <><Zap className="h-3 w-3 mr-1" />Үргэлжлэх</> : "Тоглох →"}
+                              </Link>
+                            )}
+                          </div>
+
+                          {/* Player 2 */}
+                          <div className={cn("flex-1 text-left", match.winnerId === match.player2Id && "font-bold text-green-400")}>
+                            <p className="text-sm truncate">{pName(match.player2Id)}</p>
+                            {match.status === "completed" && (
+                              <p className="text-xl font-bold score-display">{match.player2Legs}</p>
+                            )}
+                          </div>
+                        </div>
+                        {match.player1Id === "bye" || match.player2Id === "bye" ? (
+                          <p className="text-center text-xs text-muted-foreground mt-1">BYE</p>
+                        ) : null}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
+        </TabsContent>
+
+        {/* Standings */}
+        <TabsContent value="standings" className="mt-4">
+          {session.bracketType === "groups_knockout" ? (
+            <div className="space-y-4">
+              {session.groups.map((group) => (
+                <Card key={group.id} className="border-border/50 bg-card/80">
+                  <CardHeader className="pb-2 pt-4 px-4">
+                    <CardTitle className="text-sm">{group.name}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <StandingsTable
+                      playerIds={group.playerIds}
+                      standings={session.standings}
+                      playerMap={playerMap}
+                      advanceCount={session.groupAdvance}
+                    />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card className="border-border/50 bg-card/80">
+              <CardContent className="p-0">
+                <StandingsTable
+                  playerIds={session.players.map((p) => p.id)}
+                  standings={session.standings}
+                  playerMap={playerMap}
+                />
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Players */}
+        <TabsContent value="players" className="mt-4">
+          <Card className="border-border/50 bg-card/80">
+            <CardContent className="p-0">
+              {session.players.map((p, i) => {
+                const stats = session.standings[p.id]
+                const wr = stats && stats.played > 0 ? Math.round((stats.won / stats.played) * 100) : 0
+                return (
+                  <div key={p.id} className="flex items-center gap-3 px-4 py-3 border-b border-border/30 last:border-0">
+                    <span className="text-sm font-bold w-5 text-center text-muted-foreground">{p.seed}</span>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{p.name}</p>
+                      {stats && stats.played > 0 && (
+                        <p className="text-xs text-muted-foreground">{stats.won}W {stats.lost}L · {wr}% WR</p>
+                      )}
+                    </div>
+                    {session.winnerId === p.id && (
+                      <Trophy className="h-4 w-4 text-[oklch(0.78_0.16_85)]" />
+                    )}
+                  </div>
+                )
+              })}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  )
+}
+
+function StandingsTable({ playerIds, standings, playerMap, advanceCount }: {
+  playerIds: string[]
+  standings: Record<string, import("@/lib/local-game/types").StandingRow>
+  playerMap: Record<string, LocalPlayer>
+  advanceCount?: number
+}) {
+  const rows = playerIds
+    .map((id) => standings[id])
+    .filter(Boolean)
+    .sort((a, b) => b.points - a.points || b.legsWon - a.legsLost)
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-border/50">
+            {["#", "Тоглогч", "T", "W", "L", "Leg+", "Leg-", "Pts"].map((h) => (
+              <th key={h} className="text-left text-xs text-muted-foreground font-medium px-3 py-2 whitespace-nowrap">{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={row.playerId} className={cn(
+              "border-b border-border/20 last:border-0",
+              advanceCount && i < advanceCount ? "bg-green-500/5" : ""
+            )}>
+              <td className="px-3 py-2.5 text-muted-foreground">{i + 1}</td>
+              <td className="px-3 py-2.5 font-medium">
+                <div className="flex items-center gap-1.5">
+                  {advanceCount && i < advanceCount && <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />}
+                  {playerMap[row.playerId]?.name ?? "?"}
+                </div>
+              </td>
+              <td className="px-3 py-2.5 score-display">{row.played}</td>
+              <td className="px-3 py-2.5 score-display text-green-400">{row.won}</td>
+              <td className="px-3 py-2.5 score-display text-destructive">{row.lost}</td>
+              <td className="px-3 py-2.5 score-display">{row.legsWon}</td>
+              <td className="px-3 py-2.5 score-display">{row.legsLost}</td>
+              <td className="px-3 py-2.5 font-bold score-display text-primary">{row.points}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}

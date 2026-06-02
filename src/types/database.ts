@@ -14,6 +14,7 @@ export interface Database {
           gender: "male" | "female" | "other" | null
           date_of_birth: string | null
           city: string | null
+          province: string | null
           bio: string | null
           role: "player" | "club_admin" | "admin"
           rating_points: number
@@ -23,6 +24,7 @@ export interface Database {
           average_score: number
           checkout_percentage: number
           highest_checkout: number
+          best_leg: number
           count_180: number
           created_at: string
           updated_at: string
@@ -37,6 +39,7 @@ export interface Database {
           gender?: "male" | "female" | "other" | null
           date_of_birth?: string | null
           city?: string | null
+          province?: string | null
           bio?: string | null
           role?: "player" | "club_admin" | "admin"
         }
@@ -49,12 +52,14 @@ export interface Database {
           gender?: "male" | "female" | "other" | null
           date_of_birth?: string | null
           city?: string | null
+          province?: string | null
           bio?: string | null
           role?: "player" | "club_admin" | "admin"
           rating_points?: number
           average_score?: number
           checkout_percentage?: number
           highest_checkout?: number
+          best_leg?: number
           count_180?: number
         }
         Relationships: []
@@ -146,6 +151,9 @@ export interface Database {
           location: string | null
           banner_url: string | null
           rules: string | null
+          join_code: string | null
+          password: string | null
+          is_private: boolean
           created_at: string
           updated_at: string
         }
@@ -168,6 +176,9 @@ export interface Database {
           location?: string | null
           banner_url?: string | null
           rules?: string | null
+          join_code?: string | null
+          password?: string | null
+          is_private?: boolean
         }
         Update: {
           name?: string
@@ -182,6 +193,9 @@ export interface Database {
           location?: string | null
           banner_url?: string | null
           rules?: string | null
+          join_code?: string | null
+          password?: string | null
+          is_private?: boolean
         }
         Relationships: []
       }

@@ -122,7 +122,7 @@ export function PlayLobby({ profile, activeRooms }: Props) {
                 <SelectContent>
                   <SelectItem value="501">501</SelectItem>
                   <SelectItem value="301">301</SelectItem>
-                  <SelectItem value="cricket">Крикет</SelectItem>
+                  <SelectItem value="cricket">Cricket</SelectItem>
                 </SelectContent>
               </Select>
             </div>

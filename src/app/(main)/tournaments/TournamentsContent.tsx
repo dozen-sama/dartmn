@@ -30,13 +30,13 @@ const statusBadge: Record<Tournament["status"], { label: string; class: string }
 const formatLabel: Record<string, string> = {
   "501": "501",
   "301": "301",
-  cricket: "Крикет",
-  cutthroat: "Катроат",
+  cricket: "Cricket",
+  cutthroat: "Cutthroat",
 }
 
 const typeLabel: Record<string, string> = {
-  singles: "Ганцаарчилсан",
-  doubles: "Хосоор",
+  singles: "Singles",
+  doubles: "Doubles",
   team: "Багаар",
 }
 

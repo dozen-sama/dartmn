@@ -2,16 +2,16 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BarChart3, Building2, LayoutDashboard, Monitor, Trophy } from "lucide-react"
+import { BarChart3, LayoutDashboard, Monitor, Target, Trophy } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { mn } from "@/locales/mn"
 
 const items = [
   { href: "/dashboard", label: mn.nav.home, icon: LayoutDashboard },
   { href: "/tournaments", label: mn.nav.tournaments, icon: Trophy },
+  { href: "/local", label: "Local", icon: Target },
   { href: "/play", label: mn.nav.play, icon: Monitor },
   { href: "/ratings", label: mn.nav.ratings, icon: BarChart3 },
-  { href: "/clubs", label: mn.nav.clubs, icon: Building2 },
 ]
 
 export function BottomNav() {
