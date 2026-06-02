@@ -12,10 +12,11 @@ import { Profile } from "@/types/database"
 import { formatNumber, formatAverage } from "@/lib/utils/format"
 import { getTier, TIERS } from "@/lib/rating"
 import { PROVINCE_NAMES as MONGOLIAN_PROVINCES } from "@/lib/provinces"
+import { PlayerAvatar } from "@/components/player/PlayerAvatar"
 import { TierBadge } from "@/components/rating/TierBadge"
 import { cn } from "@/lib/utils"
 
-type PlayerRow = Pick<Profile, "id" | "username" | "display_name" | "avatar_url" | "rating_points" | "matches_played" | "matches_won" | "average_score" | "count_180" | "highest_checkout" | "city" | "province">
+type PlayerRow = Pick<Profile, "id" | "username" | "display_name" | "avatar_url" | "rating_points" | "matches_played" | "matches_won" | "average_score" | "count_180" | "highest_checkout" | "city" | "province" | "primary_club_logo" | "primary_club_tag">
 
 type ClubRow = {
   id: string
@@ -85,12 +86,18 @@ function PlayerRow({ player, rank, showProvince = false }: { player: PlayerRow; 
         rank === 1 ? "text-yellow-400" : rank === 2 ? "text-slate-400" : rank === 3 ? "text-amber-700" : "text-muted-foreground")}>
         {rank}
       </span>
-      <Avatar className="h-8 w-8 shrink-0">
-        <AvatarImage src={player.avatar_url ?? undefined} />
-        <AvatarFallback className="text-xs bg-secondary">{player.display_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-      </Avatar>
+      <PlayerAvatar
+        displayName={player.display_name}
+        avatarUrl={player.avatar_url}
+        clubLogoUrl={player.primary_club_logo}
+        clubTag={player.primary_club_tag}
+        size="md"
+      />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
+          {player.primary_club_tag && (
+            <span className="text-[10px] font-mono text-primary/70 shrink-0">[{player.primary_club_tag}]</span>
+          )}
           <p className="text-sm font-medium truncate">{player.display_name}</p>
           <TierBadge rating={player.rating_points} size="sm" />
         </div>

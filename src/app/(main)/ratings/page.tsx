@@ -12,7 +12,7 @@ export default async function RatingsPage() {
   const [playersResult, clubsResult] = await Promise.all([
     supabase
       .from("profiles")
-      .select("id, username, display_name, avatar_url, rating_points, matches_played, matches_won, average_score, count_180, highest_checkout, city, province")
+      .select("id, username, display_name, avatar_url, rating_points, matches_played, matches_won, average_score, count_180, highest_checkout, city, province, primary_club_logo, primary_club_tag")
       .order("rating_points", { ascending: false })
       .limit(200),
     supabase

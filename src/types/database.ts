@@ -28,6 +28,9 @@ export interface Database {
           count_180: number
           is_premium: boolean
           premium_expires_at: string | null
+          primary_club_id: string | null
+          primary_club_logo: string | null
+          primary_club_tag: string | null
           created_at: string
           updated_at: string
         }

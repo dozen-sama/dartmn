@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { ImageUpload } from "@/components/ui/image-upload"
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
@@ -26,6 +27,8 @@ export default function ClubEditPage() {
   const [city, setCity] = useState("")
   const [website, setWebsite] = useState("")
   const [features, setFeatures] = useState<string[]>([""])
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
+  const [coverUrl, setCoverUrl] = useState<string | null>(null)
   const [discord, setDiscord] = useState("")
   const [facebook, setFacebook] = useState("")
   const [instagram, setInstagram] = useState("")
@@ -47,6 +50,8 @@ export default function ClubEditPage() {
       setDescription(data.description ?? "")
       setCity(data.city ?? "")
       setWebsite(data.website ?? "")
+      setLogoUrl(data.logo_url ?? null)
+      setCoverUrl(data.cover_url ?? null)
       setFeatures(Array.isArray(data.features) && data.features.length > 0 ? data.features : [""])
       setDiscord(data.social_discord ?? "")
       setFacebook(data.social_facebook ?? "")
@@ -70,6 +75,8 @@ export default function ClubEditPage() {
       description: description || null,
       city: city || null,
       website: website || null,
+      logo_url: logoUrl,
+      cover_url: coverUrl,
       features: features.filter(Boolean),
       social_discord: discord || null,
       social_facebook: facebook || null,
@@ -100,6 +107,50 @@ export default function ClubEditPage() {
       </div>
 
       <div className="space-y-4">
+        {/* Images */}
+        <Card className="border-border/50 bg-card/80">
+          <CardHeader className="pb-3"><CardTitle className="text-sm">Зурагнууд</CardTitle></CardHeader>
+          <CardContent className="space-y-5">
+            {/* Logo + Cover side by side */}
+            <div className="flex items-start gap-6 flex-wrap">
+              <ImageUpload
+                value={logoUrl}
+                onChange={setLogoUrl}
+                bucket="clubs"
+                path={`${id}/logo`}
+                shape="square"
+                label="Клубын лого"
+                hint="Тоглогчийн нэрний хажууд харагдана"
+              />
+              <div className="flex-1 min-w-[200px]">
+                <ImageUpload
+                  value={coverUrl}
+                  onChange={setCoverUrl}
+                  bucket="clubs"
+                  path={`${id}/cover`}
+                  shape="wide"
+                  label="Cover зураг"
+                  hint="Showcase болон клубын хуудасны дэвсгэр зураг"
+                />
+              </div>
+            </div>
+            {/* Preview */}
+            {(logoUrl || coverUrl) && (
+              <div className="flex items-center gap-3 bg-secondary/30 rounded-lg p-3">
+                {logoUrl && (
+                  <div className="h-10 w-10 rounded-lg overflow-hidden border border-border/50 shrink-0">
+                    <img src={logoUrl} alt="лого" className="h-full w-full object-cover" />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">{name || "Клубын нэр"}</p>
+                  {tag && <span className="text-xs font-mono text-primary">[{tag}]</span>}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Basic */}
         <Card className="border-border/50 bg-card/80">
           <CardHeader className="pb-3"><CardTitle className="text-sm">Үндсэн мэдээлэл</CardTitle></CardHeader>
