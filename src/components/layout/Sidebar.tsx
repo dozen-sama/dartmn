@@ -37,6 +37,7 @@ const navItems = [
   { href: "/calendar", label: "Календарь", icon: Calendar },
   { href: "/clubs", label: mn.nav.clubs, icon: Building2 },
   { href: "/stats", label: mn.nav.stats, icon: BarChart3 },
+  { href: "/pricing", label: "Subscription", icon: CreditCard },
 ]
 
 const adminItems = [

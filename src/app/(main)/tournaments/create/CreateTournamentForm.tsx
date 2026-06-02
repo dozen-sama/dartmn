@@ -434,6 +434,22 @@ export function CreateTournamentForm({ userId, clubs }: Props) {
               <Input type="number" min={0} value={entryFee}
                 onChange={(e) => setEntryFee(parseInt(e.target.value) || 0)}
                 className="bg-secondary/50 border-border/60" />
+              {entryFee > 0 && (
+                <div className="text-xs text-muted-foreground bg-secondary/30 rounded-md px-2.5 py-1.5 space-y-0.5">
+                  <div className="flex justify-between">
+                    <span>Тоглогч төлөх дүн</span>
+                    <span className="font-medium">{entryFee.toLocaleString()}₮</span>
+                  </div>
+                  <div className="flex justify-between text-primary/70">
+                    <span>+ Платформын шимтгэл</span>
+                    <span>1,000₮</span>
+                  </div>
+                  <div className="flex justify-between font-semibold border-t border-border/40 pt-1 mt-1">
+                    <span>Нийт</span>
+                    <span className="text-primary">{(entryFee + 1000).toLocaleString()}₮</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
