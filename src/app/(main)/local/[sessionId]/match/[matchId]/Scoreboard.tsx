@@ -35,11 +35,13 @@ export function Scoreboard() {
   const [mounted, setMounted] = useState(false)
   const [input, setInput] = useState("")
   const [activePlayer, setActivePlayer] = useState<0 | 1>(0)
-  const [dartsUsed, setDartsUsed] = useState(1)  // current dart in visit (1, 2, 3)
+  const [dartsUsed, setDartsUsed] = useState(1)
   const [confirmWinner, setConfirmWinner] = useState<string | null>(null)
   const [showCheckoutHint, setShowCheckoutHint] = useState(true)
   const [showBullOff, setShowBullOff] = useState(true)
-  const [visitRound, setVisitRound] = useState(1)  // current round/visit number
+  const [visitRound, setVisitRound] = useState(1)
+  // ⚠️ Hooks must be at top level — conditionals below cannot contain hooks
+  const [showLimitBullOff, setShowLimitBullOff] = useState(false)
 
   const match = session?.matches.find((m) => m.id === matchId)
 
@@ -147,9 +149,8 @@ export function Scoreboard() {
   }
 
   // Limit round-д хүрмэгц bull-off хийнэ
-  const isAtLimit = session.limitRounds !== null && visitRound > session.limitRounds
-  const bullOffAtLimit = isAtLimit && (session as any).bullFinishAtLimit === true
-  const [showLimitBullOff, setShowLimitBullOff] = useState(false)
+  const limitRounds = session?.limitRounds ?? null
+  const bullOffEnabled = (session as any)?.bullFinishAtLimit === true
 
   function submitScore() {
     const score = parseInt(input)
@@ -176,12 +177,12 @@ export function Scoreboard() {
     } else {
       // Turn switches — next player's visit
       setActivePlayer((prev) => (prev === 0 ? 1 : 0))
-      // Both players completed one visit → round++
+      // Хоёр тоглогч visit дуусгасан → round++
       if (activePlayer === 1) {
         const newRound = visitRound + 1
         setVisitRound(newRound)
-        // Limit-д хүрмэгц bull-off
-        if (bullOffAtLimit || (session.limitRounds !== null && newRound > session.limitRounds && (session as any).bullFinishAtLimit)) {
+        // Limit-д хүрмэгц bull-off trigger
+        if (bullOffEnabled && limitRounds !== null && newRound > limitRounds) {
           setShowLimitBullOff(true)
         }
       }
@@ -261,11 +262,11 @@ export function Scoreboard() {
               {session.format.toUpperCase()} · BO{session.firstTo} · Leg {currentLegIndex + 1}
             </p>
             {/* Round counter */}
-            {session.limitRounds && (
+            {limitRounds && (
               <span className={cn("text-xs font-semibold",
-                isAtLimit ? "text-destructive" : "text-muted-foreground")}>
-                Round {visitRound}/{session.limitRounds}
-                {isAtLimit && (session as any).bullFinishAtLimit && " 🎯"}
+                visitRound >= limitRounds ? "text-yellow-400" : "text-muted-foreground")}>
+                {visitRound}/{limitRounds} visit
+                {bullOffEnabled && visitRound >= limitRounds && " 🎯"}
               </span>
             )}
           </div>
@@ -277,17 +278,19 @@ export function Scoreboard() {
       </div>
 
       {/* Bull-off warning — limit ойртож байна */}
-      {session.limitRounds && (session as any).bullFinishAtLimit && visitRound >= session.limitRounds - 1 && (
+      {limitRounds && bullOffEnabled && visitRound >= limitRounds - 1 && (
         <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-3 py-2">
           <span className="text-lg">🎯</span>
           <div>
             <p className="text-xs font-bold text-yellow-400">
-              {visitRound >= session.limitRounds ? "Bull-off раунд!" : `Bull-off ойртож байна (${session.limitRounds - visitRound} раунд үлдсэн)`}
+              {visitRound >= limitRounds
+                ? `${visitRound}/${limitRounds} — Энэ visit-ийн дараа Bull-off!`
+                : `Bull-off ойртож байна — ${limitRounds - visitRound} visit үлдсэн`}
             </p>
             <p className="text-[10px] text-muted-foreground">
-              {visitRound >= session.limitRounds
-                ? "Энэ visit-ийн дараа Bull-off хийж хожигчийг тодорхойлно"
-                : "Хязгаарт хүрэхэд финишлаагүй бол Bull-off хийнэ"}
+              {visitRound >= limitRounds
+                ? "Финишлаагүй бол хоёулан Bull-д шидэж хамгийн ойр нь leg хожно"
+                : "Финишлаагүй бол Bull-off хийнэ"}
             </p>
           </div>
         </div>
