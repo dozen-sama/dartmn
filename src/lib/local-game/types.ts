@@ -1,7 +1,16 @@
 export type GameFormat = "501" | "301" | "170" | "121" | "cricket" | "cutthroat"
 export type BracketType = "single_elimination" | "double_elimination" | "round_robin" | "groups_knockout" | "swiss"
 export type MatchStatus = "pending" | "ongoing" | "completed"
-export type SessionPhase = "setup" | "group_stage" | "knockout" | "completed"
+
+// n01darts-style phase flow
+export type SessionPhase =
+  | "preparing"         // Step 2: settings
+  | "accepting_entries" // Step 3: adding players
+  | "making_bracket"    // Step 4: bracket editor
+  | "in_session"        // Step 5: tournament running
+  | "completed"
+  // legacy (backward compat)
+  | "setup" | "group_stage" | "knockout"
 
 export interface LocalPlayer {
   id: string
@@ -10,14 +19,14 @@ export interface LocalPlayer {
 }
 
 export interface LegThrow {
-  score: number        // оноо
-  remaining: number    // үлдсэн
-  darts: number        // хичнээн дарт хэрэглэсэн
+  score: number
+  remaining: number
+  darts: number
 }
 
 export interface LocalLeg {
   legNumber: number
-  throws: Record<string, LegThrow[]>  // playerId → throws
+  throws: Record<string, LegThrow[]>
   winnerId: string | null
   startedAt: string
 }
@@ -35,7 +44,7 @@ export interface LocalMatch {
   loserId: string | null
   status: MatchStatus
   legs: LocalLeg[]
-  isLosersBracket?: boolean   // double elimination
+  isLosersBracket?: boolean
   nextMatchId?: string | null
   nextLoserMatchId?: string | null
 }
@@ -59,23 +68,40 @@ export interface StandingRow {
 export interface LocalSession {
   id: string
   name: string
+  joinPassword: string
+  description: string
   createdAt: string
   updatedAt: string
 
-  // Game config
+  // Game format
   format: GameFormat
   startScore: number
-  firstTo: number             // first to N sets/legs
-  setsEnabled: boolean        // use sets
-  legsPerSet: number          // legs per set
+
+  // RR match format (Round Robin phase)
+  rrFirstTo: number
+  rrSetsEnabled: boolean
+  rrLegsPerSet: number
+  rrEnableDraw: boolean
+  rrSchedule: boolean
+
+  // KO match format (Knockout / SE phase)
+  firstTo: number           // legacy + KO
+  setsEnabled: boolean
+  legsPerSet: number
+
   doubleOut: boolean
   doubleIn: boolean
   loserFirst: boolean
-  limitRounds: number | null  // max rounds per leg
+  limitRounds: number | null
+  thirdPlaceMatch: boolean  // 3rd place match for SE
+
+  // Options
   showAverage: boolean
   autoComplete: boolean
   allowParticipantScore: boolean
   showIndex: boolean
+  enableDraw: boolean
+
   // Point system
   pointWon: number
   pointDraw: number
@@ -84,13 +110,17 @@ export interface LocalSession {
 
   // Bracket config
   bracketType: BracketType
-  groupsCount: number         // groups_knockout
-  groupAdvance: number        // groups_knockout: топ N гарна
+  playersPerGroup: number     // n01darts: players per group
+  groupsCount: number
+  groupAdvance: number
+
+  // Concurrent matches per group
+  concurrentMatchesPerGroup: Record<string, number>
 
   players: LocalPlayer[]
   matches: LocalMatch[]
   groups: LocalGroup[]
-  standings: Record<string, StandingRow>  // playerId → standing (RR / group)
+  standings: Record<string, StandingRow>
 
   phase: SessionPhase
   status: "active" | "completed"
@@ -103,6 +133,7 @@ export interface SessionSummary {
   format: GameFormat
   bracketType: BracketType
   playerCount: number
+  phase: SessionPhase
   status: "active" | "completed"
   createdAt: string
   winnerId: string | null

@@ -139,47 +139,74 @@ export function SessionView() {
     return "bg-card/80 border-border/40 hover:border-border card-hover"
   }
 
+  const phaseLabel: Record<string, string> = {
+    preparing: "Preparing",
+    accepting_entries: "Accepting entries",
+    making_bracket: "Making Bracket",
+    in_session: "In session",
+    completed: "Completed",
+    setup: "In session",
+    group_stage: "In session",
+    knockout: "In session",
+  }
+  const currentPhaseLabel = phaseLabel[session.phase] ?? "In session"
+
   return (
     <div className="max-w-3xl mx-auto space-y-5">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3">
-          <Link href="/local" className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-8 w-8 mt-0.5")}>
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-          <div>
-            <h1 className="text-xl font-bold">{session.name}</h1>
-            <div className="flex flex-wrap items-center gap-2 mt-1">
-              <Badge variant="outline" className="text-xs border-border/60">{session.format.toUpperCase()}</Badge>
-              <Badge variant="outline" className="text-xs border-border/60">{BRACKET_LABELS[session.bracketType]}</Badge>
-              <Badge variant="outline" className="text-xs border-border/60">BO{session.firstTo}</Badge>
-              {session.status === "active" ? (
-                <Badge className="text-xs bg-primary/15 text-primary border-primary/30 pulse-live">Явагдаж байна</Badge>
-              ) : (
-                <Badge className="text-xs bg-green-500/15 text-green-400 border-green-500/30">Дууссан</Badge>
-              )}
-            </div>
-          </div>
+      {/* Header — n01дартс шиг */}
+      <div className="flex items-center justify-between border-b border-border/50 pb-3">
+        <Link href="/local" className="text-sm text-muted-foreground hover:text-foreground border border-border/60 px-3 py-1 rounded-md">
+          ← Return
+        </Link>
+        <div className="text-center">
+          <h1 className="font-bold text-base">{session.name}</h1>
+          <p className="text-xs text-muted-foreground">({currentPhaseLabel})</p>
         </div>
+        <button onClick={() => updateSession(sessionId, {})}
+          className="text-sm border border-border/60 px-3 py-1 rounded-md text-muted-foreground hover:text-foreground">
+          Detail
+        </button>
+      </div>
 
-        {/* Swiss: add round */}
-        {session.bracketType === "swiss" && allCurrentRoundDone && session.status === "active" && (
-          <Button size="sm" variant="outline" className="border-primary/30 text-primary hover:bg-primary/10 shrink-0"
-            onClick={() => { addSwissRound(sessionId); toast.success("Шинэ Swiss round нэмэгдлээ") }}>
-            <RotateCcw className="h-4 w-4 mr-1.5" />
-            Дараагийн round
-          </Button>
-        )}
-
-        {/* Groups → Knockout */}
-        {groupStageComplete && (
-          <Button size="sm" className="glow-primary shrink-0"
-            onClick={() => { advanceGroupsToKnockout(sessionId); toast.success("Knockout шат эхэллээ!") }}>
-            <ChevronRight className="h-4 w-4 mr-1.5" />
-            Knockout эхлүүлэх
-          </Button>
+      {/* n01-style action buttons */}
+      <div className="space-y-2">
+        {/* Edit Bracket (green) — in session шатанд */}
+        {(session.phase === "in_session" || session.phase === "group_stage" || session.phase === "knockout" || session.phase === "setup") && session.status === "active" && (
+          <div className="space-y-2">
+            {/* Swiss: add round */}
+            {session.bracketType === "swiss" && allCurrentRoundDone && (
+              <Button size="sm" variant="outline" className="border-primary/30 text-primary hover:bg-primary/10 w-full"
+                onClick={() => { addSwissRound(sessionId); toast.success("Шинэ Swiss round нэмэгдлээ") }}>
+                <RotateCcw className="h-4 w-4 mr-1.5" />
+                Дараагийн round нэмэх
+              </Button>
+            )}
+            {/* Groups → Knockout */}
+            {groupStageComplete && (
+              <Button size="sm" className="glow-primary w-full"
+                onClick={() => { advanceGroupsToKnockout(sessionId); toast.success("Knockout шат эхэллээ!") }}>
+                <ChevronRight className="h-4 w-4 mr-1.5" />
+                Knockout эхлүүлэх
+              </Button>
+            )}
+          </div>
         )}
       </div>
+
+      {/* Old-style badges (compact) */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="outline" className="text-xs border-border/60">{session.format.toUpperCase()}</Badge>
+        <Badge variant="outline" className="text-xs border-border/60">{BRACKET_LABELS[session.bracketType]}</Badge>
+        <Badge variant="outline" className="text-xs border-border/60">
+          {session.setsEnabled ? `BO${session.firstTo}sets·${session.legsPerSet}L` : `BO${session.firstTo}`}
+        </Badge>
+        {session.status === "active" ? (
+          <Badge className="text-xs bg-primary/15 text-primary border-primary/30 pulse-live">Явагдаж байна</Badge>
+        ) : (
+          <Badge className="text-xs bg-green-500/15 text-green-400 border-green-500/30">Дууссан</Badge>
+        )}
+      </div>
+
 
       {/* Winner banner */}
       {session.status === "completed" && session.winnerId && (

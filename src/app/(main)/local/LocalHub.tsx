@@ -92,8 +92,12 @@ export function LocalHub() {
                       <h3 className="font-semibold truncate">{s.name}</h3>
                       {s.status === "completed" ? (
                         <Badge className="bg-green-500/15 text-green-400 border-green-500/30 text-xs shrink-0">Дууссан</Badge>
+                      ) : s.phase === "accepting_entries" ? (
+                        <Badge className="bg-blue-500/15 text-blue-400 border-blue-500/30 text-xs shrink-0">Accepting entries</Badge>
+                      ) : s.phase === "making_bracket" ? (
+                        <Badge className="bg-yellow-500/15 text-yellow-400 border-yellow-500/30 text-xs shrink-0">Making Bracket</Badge>
                       ) : (
-                        <Badge className="bg-primary/15 text-primary border-primary/30 text-xs shrink-0 pulse-live">Явагдаж байна</Badge>
+                        <Badge className="bg-primary/15 text-primary border-primary/30 text-xs shrink-0 pulse-live">In session</Badge>
                       )}
                     </div>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">

@@ -2,7 +2,7 @@ import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import {
   LocalSession, LocalPlayer, LocalMatch, LocalLeg, SessionSummary,
-  BracketType, GameFormat, StandingRow,
+  BracketType, GameFormat, StandingRow, SessionPhase,
 } from "./types"
 import {
   generateSingleElimination, generateDoubleElimination,
@@ -16,15 +16,25 @@ interface LocalGameStore {
   // Session management
   createSession: (config: {
     name: string
+    joinPassword: string
+    description: string
     format: GameFormat
     startScore: number
+    // RR format
+    rrFirstTo: number
+    rrSetsEnabled: boolean
+    rrLegsPerSet: number
+    rrEnableDraw: boolean
+    // KO format
     firstTo: number
     setsEnabled: boolean
     legsPerSet: number
     doubleOut: boolean
     doubleIn: boolean
     loserFirst: boolean
+    thirdPlaceMatch: boolean
     limitRounds: number | null
+    enableDraw: boolean
     showAverage: boolean
     autoComplete: boolean
     allowParticipantScore: boolean
@@ -34,16 +44,22 @@ interface LocalGameStore {
     pointLost: number
     winPointsAreLegs: boolean
     bracketType: BracketType
+    playersPerGroup: number
     groupsCount: number
     groupAdvance: number
     players: { name: string }[]
-  }) => string  // returns sessionId
+    startWithPhase?: SessionPhase
+  }) => string
 
   deleteSession: (id: string) => void
+  setPhase: (sessionId: string, phase: SessionPhase) => void
   updateSession: (id: string, patch: Partial<Pick<LocalSession,
-    "name" | "firstTo" | "setsEnabled" | "legsPerSet" | "doubleOut" | "doubleIn"
-    | "loserFirst" | "limitRounds" | "showAverage" | "autoComplete"
-    | "allowParticipantScore" | "showIndex" | "pointWon" | "pointDraw" | "pointLost"
+    "name" | "joinPassword" | "description"
+    | "rrFirstTo" | "rrSetsEnabled" | "rrLegsPerSet" | "rrEnableDraw"
+    | "firstTo" | "setsEnabled" | "legsPerSet" | "doubleOut" | "doubleIn"
+    | "loserFirst" | "thirdPlaceMatch" | "limitRounds" | "enableDraw"
+    | "showAverage" | "autoComplete" | "allowParticipantScore" | "showIndex"
+    | "pointWon" | "pointDraw" | "pointLost" | "winPointsAreLegs"
   >>) => void
 
   // Bracket editing
@@ -115,17 +131,26 @@ export const useLocalGame = create<LocalGameStore>()(
         const session: LocalSession = {
           id,
           name: config.name,
+          joinPassword: config.joinPassword,
+          description: config.description,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           format: config.format,
           startScore: config.startScore,
+          rrFirstTo: config.rrFirstTo,
+          rrSetsEnabled: config.rrSetsEnabled,
+          rrLegsPerSet: config.rrLegsPerSet,
+          rrEnableDraw: config.rrEnableDraw,
+          rrSchedule: false,
           firstTo: config.firstTo,
           setsEnabled: config.setsEnabled,
           legsPerSet: config.legsPerSet,
           doubleOut: config.doubleOut,
           doubleIn: config.doubleIn,
           loserFirst: config.loserFirst,
+          thirdPlaceMatch: config.thirdPlaceMatch,
           limitRounds: config.limitRounds,
+          enableDraw: config.enableDraw,
           showAverage: config.showAverage,
           autoComplete: config.autoComplete,
           allowParticipantScore: config.allowParticipantScore,
@@ -135,13 +160,15 @@ export const useLocalGame = create<LocalGameStore>()(
           pointLost: config.pointLost,
           winPointsAreLegs: config.winPointsAreLegs,
           bracketType: config.bracketType,
+          playersPerGroup: config.playersPerGroup,
           groupsCount: config.groupsCount,
           groupAdvance: config.groupAdvance,
+          concurrentMatchesPerGroup: {},
           players,
           matches,
           groups,
           standings,
-          phase: config.bracketType === "groups_knockout" ? "group_stage" : "setup",
+          phase: config.startWithPhase ?? "in_session",
           status: "active",
           winnerId: null,
         }
@@ -155,6 +182,14 @@ export const useLocalGame = create<LocalGameStore>()(
           const next = { ...s.sessions }
           delete next[id]
           return { sessions: next }
+        })
+      },
+
+      setPhase: (sessionId, phase) => {
+        set((s) => {
+          const session = s.sessions[sessionId]
+          if (!session) return s
+          return { sessions: { ...s.sessions, [sessionId]: { ...session, phase, updatedAt: new Date().toISOString() } } }
         })
       },
 
@@ -264,6 +299,7 @@ export const useLocalGame = create<LocalGameStore>()(
             format: s.format,
             bracketType: s.bracketType,
             playerCount: s.players.length,
+            phase: s.phase,
             status: s.status,
             createdAt: s.createdAt,
             winnerId: s.winnerId,
