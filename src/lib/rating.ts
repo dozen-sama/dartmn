@@ -47,29 +47,5 @@ export function calculateEloChange(playerRating: number, opponentRating: number,
   return Math.round(k * (actual - expected))
 }
 
-export const MONGOLIAN_PROVINCES = [
-  "Улаанбаатар",
-  "Архангай",
-  "Баян-Өлгий",
-  "Баянхонгор",
-  "Булган",
-  "Говь-Алтай",
-  "Говьсүмбэр",
-  "Дархан-Уул",
-  "Дорноговь",
-  "Дорнод",
-  "Дундговь",
-  "Завхан",
-  "Орхон",
-  "Өвөрхангай",
-  "Өмнөговь",
-  "Сүхбаатар",
-  "Сэлэнгэ",
-  "Төв",
-  "Увс",
-  "Ховд",
-  "Хөвсгөл",
-  "Хэнтий",
-] as const
-
-export type Province = typeof MONGOLIAN_PROVINCES[number]
+// Re-export from provinces.ts for convenience
+export { PROVINCE_NAMES as MONGOLIAN_PROVINCES } from "./provinces"

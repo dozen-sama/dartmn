@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowRight, BarChart3, Building2, CalendarCheck, Monitor, Target, Trophy, TrendingUp, Users, Zap } from "lucide-react"
+import { ArrowRight, BarChart3, Building2, CalendarCheck, MapPin, Monitor, Target, Trophy, TrendingUp, Users, Zap } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { buttonVariants } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -82,6 +82,19 @@ export function DashboardContent({ profile, todayTournaments, activeTournaments,
 
   return (
     <div className="space-y-6">
+      {/* Province prompt */}
+      {profile && !profile.province && (
+        <Link href="/settings/profile"
+          className="flex items-center gap-3 rounded-lg border border-yellow-500/30 bg-yellow-500/5 px-4 py-3 hover:bg-yellow-500/10 transition-colors">
+          <MapPin className="h-5 w-5 text-yellow-400 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-yellow-400">Аймгаа тохируулаарай</p>
+            <p className="text-xs text-muted-foreground">Аймгийн чансаанд орохын тулд профайлдаа аймгаа сонго</p>
+          </div>
+          <span className="text-xs text-yellow-400/70 shrink-0">Тохируулах →</span>
+        </Link>
+      )}
+
       {/* Hero */}
       {profile && (
         <div className="relative overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-r from-primary/10 via-card to-card p-5 sm:p-6">
