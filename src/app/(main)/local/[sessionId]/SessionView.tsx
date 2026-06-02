@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import {
-  ArrowLeft, ChevronRight, ListOrdered, Minus, Plus, RotateCcw,
+  ArrowLeft, ChevronRight, Edit2, ListOrdered, Minus, Plus, RotateCcw,
   Save, Settings, Trophy, Users, Zap,
 } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils"
 import { useLocalGame } from "@/lib/local-game/store"
 import { LocalMatch, LocalPlayer } from "@/lib/local-game/types"
 import { BracketView } from "@/components/local-game/BracketView"
+import { BracketEditor } from "@/components/local-game/BracketEditor"
 import { toast } from "sonner"
 
 const BRACKET_LABELS: Record<string, string> = {
@@ -213,15 +214,24 @@ export function SessionView() {
             <Users className="h-4 w-4 mr-1.5" />
             Тоглогчид
           </TabsTrigger>
-          <TabsTrigger value="settings" className="ml-auto">
+          <TabsTrigger value="edit-bracket">
+            <Edit2 className="h-4 w-4 mr-1.5" />
+            Edit Bracket
+          </TabsTrigger>
+          <TabsTrigger value="settings">
             <Settings className="h-4 w-4 mr-1.5" />
-            Засах
+            Тохиргоо
           </TabsTrigger>
         </TabsList>
 
         {/* Bracket */}
         <TabsContent value="bracket" className="mt-4">
           <BracketView session={session} sessionId={sessionId} />
+        </TabsContent>
+
+        {/* Edit Bracket */}
+        <TabsContent value="edit-bracket" className="mt-4">
+          <BracketEditor session={session} sessionId={sessionId} />
         </TabsContent>
 
         {/* Schedule */}

@@ -45,6 +45,13 @@ interface LocalGameStore {
     | "loserFirst" | "limitRounds" | "showAverage" | "autoComplete"
     | "allowParticipantScore" | "showIndex" | "pointWon" | "pointDraw" | "pointLost"
   >>) => void
+
+  // Bracket editing
+  movePlayerToGroup: (sessionId: string, playerId: string, targetGroupId: string) => void
+  assignBracketSlot: (sessionId: string, matchId: string, slot: "p1" | "p2", playerId: string | null) => void
+  autoAssignKnockout: (sessionId: string) => void
+  setConcurrentMatches: (sessionId: string, groupId: string, count: number) => void
+
   getSummaries: () => SessionSummary[]
 
   // Match management
@@ -159,6 +166,89 @@ export const useLocalGame = create<LocalGameStore>()(
             sessions: {
               ...s.sessions,
               [id]: { ...session, ...patch, updatedAt: new Date().toISOString() },
+            },
+          }
+        })
+      },
+
+      movePlayerToGroup: (sessionId, playerId, targetGroupId) => {
+        set((s) => {
+          const session = s.sessions[sessionId]
+          if (!session) return s
+          const groups = session.groups.map((g) => ({
+            ...g,
+            playerIds: g.id === targetGroupId
+              ? [...g.playerIds.filter((id) => id !== playerId), playerId]
+              : g.playerIds.filter((id) => id !== playerId),
+          }))
+          return { sessions: { ...s.sessions, [sessionId]: { ...session, groups, updatedAt: new Date().toISOString() } } }
+        })
+      },
+
+      assignBracketSlot: (sessionId, matchId, slot, playerId) => {
+        set((s) => {
+          const session = s.sessions[sessionId]
+          if (!session) return s
+          const matches = session.matches.map((m) => {
+            if (m.id !== matchId) return m
+            return slot === "p1"
+              ? { ...m, player1Id: playerId }
+              : { ...m, player2Id: playerId }
+          })
+          return { sessions: { ...s.sessions, [sessionId]: { ...session, matches, updatedAt: new Date().toISOString() } } }
+        })
+      },
+
+      autoAssignKnockout: (sessionId) => {
+        set((s) => {
+          const session = s.sessions[sessionId]
+          if (!session || session.bracketType !== "groups_knockout") return s
+
+          // Get top N from each group by standing
+          const advancing: string[] = []
+          for (const group of session.groups) {
+            const sorted = group.playerIds
+              .map((id) => session.standings[id])
+              .filter(Boolean)
+              .sort((a, b) => b.points - a.points || b.legsWon - a.legsLost)
+            advancing.push(...sorted.slice(0, session.groupAdvance).map((st) => st.playerId))
+          }
+
+          // Fill knockout round 1 slots
+          const koR1 = session.matches
+            .filter((m) => m.round >= 100 && m.round < 200)
+            .sort((a, b) => a.matchNumber - b.matchNumber)
+
+          let idx = 0
+          const matches = session.matches.map((m) => {
+            const isKoR1 = koR1.some((km) => km.id === m.id)
+            if (!isKoR1) return m
+            const p1 = advancing[idx++] ?? null
+            const p2 = advancing[idx++] ?? null
+            return { ...m, player1Id: p1, player2Id: p2 }
+          })
+
+          return {
+            sessions: {
+              ...s.sessions,
+              [sessionId]: { ...session, matches, phase: "knockout" as const, updatedAt: new Date().toISOString() },
+            },
+          }
+        })
+      },
+
+      setConcurrentMatches: (sessionId, groupId, count) => {
+        set((s) => {
+          const session = s.sessions[sessionId]
+          if (!session) return s
+          const concurrentMap: Record<string, number> = {
+            ...(session as any).concurrentMatchesPerGroup,
+            [groupId]: count,
+          }
+          return {
+            sessions: {
+              ...s.sessions,
+              [sessionId]: { ...session, concurrentMatchesPerGroup: concurrentMap, updatedAt: new Date().toISOString() },
             },
           }
         })

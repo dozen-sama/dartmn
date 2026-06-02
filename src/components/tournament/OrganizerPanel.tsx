@@ -4,9 +4,12 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import {
-  CheckCircle2, ChevronRight, GripVertical, Loader2,
+  CheckCircle2, ChevronRight, Edit2, GripVertical, Loader2,
   Play, Settings2, Trash2, Trophy, UserMinus, Users, XCircle,
 } from "lucide-react"
+import Link from "next/link"
+import { buttonVariants } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -243,10 +246,44 @@ export function OrganizerPanel({ tournament, registrations }: Props) {
         </CardContent>
       </Card>
 
-      {/* Quick info */}
-      <p className="text-xs text-muted-foreground text-center">
-        Seed тоог өөрчлөхөд bracket автоматаар шинэчлэгдэнэ
-      </p>
+      {/* Edit Bracket */}
+      <Card className="border-border/50 bg-card/80">
+        <CardContent className="p-4 space-y-3">
+          <h3 className="text-sm font-semibold flex items-center gap-2">
+            <Edit2 className="h-4 w-4" />
+            Bracket удирдлага
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <Link
+              href={`/tournaments/${tournament.id}/edit`}
+              className={cn(buttonVariants({ variant: "default", size: "sm" }), "glow-primary justify-center")}
+            >
+              <Edit2 className="h-3.5 w-3.5 mr-1.5" />
+              Edit Bracket & Settings
+            </Link>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+              onClick={async () => {
+                const supabase = (await import("@/lib/supabase/client")).createClient()
+                const { error } = await supabase
+                  .from("tournament_registrations")
+                  .update({ payment_status: "paid" })
+                  .eq("tournament_id", tournament.id)
+                  .eq("payment_status", "pending")
+                if (!error) toast.success("Бүх төлбөр баталгаажлаа")
+              }}
+            >
+              <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+              Бүгдийн төлбөр баталгаажуулах
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Seed тоог өөрчлөхөд bracket эрэмбэ шинэчлэгдэнэ
+          </p>
+        </CardContent>
+      </Card>
     </div>
   )
 }
