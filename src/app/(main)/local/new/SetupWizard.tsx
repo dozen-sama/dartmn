@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils"
 import { useLocalGame } from "@/lib/local-game/store"
 import { BracketType, GameFormat, SessionPhase } from "@/lib/local-game/types"
 import { BracketEditor } from "@/components/local-game/BracketEditor"
+import { VisitLimitPicker } from "@/components/game/VisitLimitPicker"
 import { createClient } from "@/lib/supabase/client"
 import Link from "next/link"
 import { toast } from "sonner"
@@ -498,26 +499,20 @@ export function SetupWizard() {
             </div>
           )}
 
-          {/* Start Score + Round хязгаар */}
+          {/* Start Score + Visit хязгаар */}
           <div className="py-4 space-y-3">
             <div className="space-y-1">
               <Label className="text-sm">Start Score</Label>
               <Num value={startScore} onChange={setStartScore} min={101} max={1001} />
             </div>
-            <div className="space-y-2">
-              <div className="flex items-center gap-3 flex-wrap">
-                <Chk checked={limitRoundsEnabled} onChange={(v) => { setLimitRoundsEnabled(v); if (!v) setBullFinishAtLimit(false) }} label="Round хязгаар" />
-                {limitRoundsEnabled && <Num value={limitRounds} onChange={setLimitRounds} min={1} max={50} />}
-                {limitRoundsEnabled && <span className="text-xs text-muted-foreground">round</span>}
-              </div>
-              {limitRoundsEnabled && (
-                <div className="pl-4">
-                  <Chk checked={bullFinishAtLimit} onChange={setBullFinishAtLimit}
-                    label="🎯 Limit-т хүрмэгц Bull-off (хязгаарт хүрмэгц)"
-                    sub="Хязгаарын round-д зөвхөн Bull (50) эсвэл Half Bull (25) финиш хийж болно" />
-                </div>
-              )}
-            </div>
+            <VisitLimitPicker
+              enabled={limitRoundsEnabled}
+              onToggle={(v) => { setLimitRoundsEnabled(v); if (!v) setBullFinishAtLimit(false) }}
+              value={limitRounds}
+              onChange={setLimitRounds}
+              bullOff={bullFinishAtLimit}
+              onBullOffToggle={setBullFinishAtLimit}
+            />
           </div>
 
           {/* SE / KO section */}

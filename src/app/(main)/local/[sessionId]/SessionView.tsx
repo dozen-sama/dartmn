@@ -18,6 +18,7 @@ import { useLocalGame } from "@/lib/local-game/store"
 import { LocalMatch, LocalPlayer } from "@/lib/local-game/types"
 import { BracketView } from "@/components/local-game/BracketView"
 import { BracketEditor } from "@/components/local-game/BracketEditor"
+import { VisitLimitPicker } from "@/components/game/VisitLimitPicker"
 import { toast } from "sonner"
 
 const BRACKET_LABELS: Record<string, string> = {
@@ -488,28 +489,14 @@ export function SessionView() {
                         <span className="text-sm">{label}</span>
                       </label>
                     ))}
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="checkbox" checked={editLimitEnabled} onChange={(e) => { setEditLimitEnabled(e.target.checked); if (!e.target.checked) setEditBullFinish(false) }} className="accent-primary" />
-                          <span className="text-sm">Round хязгаар</span>
-                        </label>
-                        {editLimitEnabled && (
-                          <Input type="number" value={editLimitRounds} onChange={(e) => setEditLimitRounds(parseInt(e.target.value) || 15)}
-                            min={1} max={50} className="h-7 w-16 text-xs bg-secondary/50 border-border/60" />
-                        )}
-                        {editLimitEnabled && <span className="text-xs text-muted-foreground">round</span>}
-                      </div>
-                      {editLimitEnabled && (
-                        <label className="flex items-start gap-2 cursor-pointer pl-4">
-                          <input type="checkbox" checked={editBullFinish} onChange={(e) => setEditBullFinish(e.target.checked)} className="mt-0.5 accent-primary" />
-                          <div>
-                            <span className="text-sm">🎯 Bull-off (хязгаарт хүрмэгц)</span>
-                            <p className="text-[10px] text-muted-foreground">Limit-т хүрмэгц зөвхөн Bull(50)/Half(25) финиш</p>
-                          </div>
-                        </label>
-                      )}
-                    </div>
+                    <VisitLimitPicker
+                      enabled={editLimitEnabled}
+                      onToggle={(v) => { setEditLimitEnabled(v); if (!v) setEditBullFinish(false) }}
+                      value={editLimitRounds}
+                      onChange={setEditLimitRounds}
+                      bullOff={editBullFinish}
+                      onBullOffToggle={setEditBullFinish}
+                    />
                   </div>
                 </div>
               )}

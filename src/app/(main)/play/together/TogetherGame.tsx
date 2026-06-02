@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils"
 import { getCheckout } from "@/lib/local-game/checkouts"
 import { useScoreboardKeyboard } from "@/hooks/useScoreboardKeyboard"
 import { BullOff } from "@/components/game/BullOff"
+import { VisitLimitPicker } from "@/components/game/VisitLimitPicker"
 import { toast } from "sonner"
 import Link from "next/link"
 import { buttonVariants } from "@/components/ui/button"
@@ -303,41 +304,16 @@ export function TogetherGame() {
               </label>
             </div>
 
-            {/* Round limit + Bull finish */}
-            <div className="border-t border-border/40 pt-3 space-y-2">
-              <div className="flex items-center gap-3 flex-wrap">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={limitRoundsEnabled}
-                    onChange={e => { setLimitRoundsEnabled(e.target.checked); if (!e.target.checked) setBullFinishAtLimit(false) }}
-                    className="accent-primary" />
-                  <span className="text-sm">Round хязгаар</span>
-                </label>
-                {limitRoundsEnabled && (
-                  <>
-                    <div className="flex items-center border border-border/60 rounded-md overflow-hidden">
-                      <button onClick={() => setLimitRounds(n => Math.max(1, n - 1))}
-                        className="h-7 w-7 flex items-center justify-center hover:bg-secondary text-muted-foreground">
-                        <Minus className="h-3 w-3" />
-                      </button>
-                      <span className="h-7 w-8 flex items-center justify-center text-sm font-bold bg-secondary/30">{limitRounds}</span>
-                      <button onClick={() => setLimitRounds(n => Math.min(50, n + 1))}
-                        className="h-7 w-7 flex items-center justify-center hover:bg-secondary text-muted-foreground">
-                        <Plus className="h-3 w-3" />
-                      </button>
-                    </div>
-                    <span className="text-xs text-muted-foreground">round</span>
-                  </>
-                )}
-              </div>
-              {limitRoundsEnabled && (
-                <label className="flex items-start gap-2 cursor-pointer pl-4">
-                  <input type="checkbox" checked={bullFinishAtLimit} onChange={e => setBullFinishAtLimit(e.target.checked)} className="mt-0.5 accent-primary" />
-                  <div>
-                    <span className="text-sm">🎯 Bull-off (хязгаарт хүрмэгц)</span>
-                    <p className="text-[10px] text-muted-foreground">Limit-т хүрмэгц зөвхөн Bull(50)/Half(25) финиш</p>
-                  </div>
-                </label>
-              )}
+            {/* Visit limit + Bull-off */}
+            <div className="border-t border-border/40 pt-3">
+              <VisitLimitPicker
+                enabled={limitRoundsEnabled}
+                onToggle={v => { setLimitRoundsEnabled(v); if (!v) setBullFinishAtLimit(false) }}
+                value={limitRounds}
+                onChange={setLimitRounds}
+                bullOff={bullFinishAtLimit}
+                onBullOffToggle={setBullFinishAtLimit}
+              />
             </div>
           </CardContent>
         </Card>
