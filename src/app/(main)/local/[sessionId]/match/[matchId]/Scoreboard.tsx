@@ -60,7 +60,7 @@ export function Scoreboard() {
   const p2Id = match.player2Id as string
   const p1 = playerMap[p1Id]
   const p2 = playerMap[p2Id]
-  const legsToWin = Math.ceil(session.bestOf / 2)
+  const legsToWin = session.firstTo  // First to N legs/sets
 
   const currentLegIndex = match.legs.filter((l) => l.winnerId !== null).length
   const currentLeg = match.legs[currentLegIndex] ?? { throws: {}, winnerId: null, legNumber: currentLegIndex + 1 }
@@ -144,7 +144,7 @@ export function Scoreboard() {
         <div className="flex-1">
           <h1 className="text-base font-bold">{session.name}</h1>
           <p className="text-xs text-muted-foreground">
-            {session.format.toUpperCase()} · BO{session.bestOf} · Leg {currentLegIndex + 1}/{session.bestOf}
+            {session.format.toUpperCase()} · BO{session.firstTo} · Leg {currentLegIndex + 1}/{session.firstTo}
           </p>
         </div>
         <Badge variant="outline" className="text-xs border-primary/30 text-primary pulse-live">LIVE</Badge>
@@ -166,7 +166,7 @@ export function Scoreboard() {
 
                 {/* Leg score */}
                 <div className="flex items-center justify-center gap-2 my-1">
-                  {Array.from({ length: session.bestOf }).map((_, i) => (
+                  {Array.from({ length: session.firstTo }).map((_, i) => (
                     <div key={i} className={cn("h-2 w-2 rounded-full", i < legs ? "bg-primary" : "bg-secondary")} />
                   ))}
                 </div>

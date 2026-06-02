@@ -154,6 +154,20 @@ export interface Database {
           join_code: string | null
           password: string | null
           is_private: boolean
+          first_to: number
+          sets_enabled: boolean
+          legs_per_set: number
+          limit_rounds: number | null
+          loser_first: boolean
+          show_average: boolean
+          auto_complete: boolean
+          confirm_opponent: boolean
+          allow_participant_score: boolean
+          show_index: boolean
+          point_won: number
+          point_draw: number
+          point_lost: number
+          win_points_are_legs: boolean
           created_at: string
           updated_at: string
         }
@@ -179,6 +193,20 @@ export interface Database {
           join_code?: string | null
           password?: string | null
           is_private?: boolean
+          first_to?: number
+          sets_enabled?: boolean
+          legs_per_set?: number
+          limit_rounds?: number | null
+          loser_first?: boolean
+          show_average?: boolean
+          auto_complete?: boolean
+          confirm_opponent?: boolean
+          allow_participant_score?: boolean
+          show_index?: boolean
+          point_won?: number
+          point_draw?: number
+          point_lost?: number
+          win_points_are_legs?: boolean
         }
         Update: {
           name?: string

@@ -18,9 +18,21 @@ interface LocalGameStore {
     name: string
     format: GameFormat
     startScore: number
-    bestOf: number
+    firstTo: number
+    setsEnabled: boolean
+    legsPerSet: number
     doubleOut: boolean
     doubleIn: boolean
+    loserFirst: boolean
+    limitRounds: number | null
+    showAverage: boolean
+    autoComplete: boolean
+    allowParticipantScore: boolean
+    showIndex: boolean
+    pointWon: number
+    pointDraw: number
+    pointLost: number
+    winPointsAreLegs: boolean
     bracketType: BracketType
     groupsCount: number
     groupAdvance: number
@@ -95,9 +107,21 @@ export const useLocalGame = create<LocalGameStore>()(
           updatedAt: new Date().toISOString(),
           format: config.format,
           startScore: config.startScore,
-          bestOf: config.bestOf,
+          firstTo: config.firstTo,
+          setsEnabled: config.setsEnabled,
+          legsPerSet: config.legsPerSet,
           doubleOut: config.doubleOut,
           doubleIn: config.doubleIn,
+          loserFirst: config.loserFirst,
+          limitRounds: config.limitRounds,
+          showAverage: config.showAverage,
+          autoComplete: config.autoComplete,
+          allowParticipantScore: config.allowParticipantScore,
+          showIndex: config.showIndex,
+          pointWon: config.pointWon,
+          pointDraw: config.pointDraw,
+          pointLost: config.pointLost,
+          winPointsAreLegs: config.winPointsAreLegs,
           bracketType: config.bracketType,
           groupsCount: config.groupsCount,
           groupAdvance: config.groupAdvance,

@@ -64,10 +64,23 @@ export interface LocalSession {
 
   // Game config
   format: GameFormat
-  startScore: number          // 501/301 etc — cricket では0
-  bestOf: number              // best of legs
+  startScore: number
+  firstTo: number             // first to N sets/legs
+  setsEnabled: boolean        // use sets
+  legsPerSet: number          // legs per set
   doubleOut: boolean
   doubleIn: boolean
+  loserFirst: boolean
+  limitRounds: number | null  // max rounds per leg
+  showAverage: boolean
+  autoComplete: boolean
+  allowParticipantScore: boolean
+  showIndex: boolean
+  // Point system
+  pointWon: number
+  pointDraw: number
+  pointLost: number
+  winPointsAreLegs: boolean
 
   // Bracket config
   bracketType: BracketType

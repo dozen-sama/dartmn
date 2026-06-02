@@ -83,7 +83,7 @@ export function SessionView() {
             <div className="flex flex-wrap items-center gap-2 mt-1">
               <Badge variant="outline" className="text-xs border-border/60">{session.format.toUpperCase()}</Badge>
               <Badge variant="outline" className="text-xs border-border/60">{BRACKET_LABELS[session.bracketType]}</Badge>
-              <Badge variant="outline" className="text-xs border-border/60">BO{session.bestOf}</Badge>
+              <Badge variant="outline" className="text-xs border-border/60">BO{session.firstTo}</Badge>
               {session.status === "active" ? (
                 <Badge className="text-xs bg-primary/15 text-primary border-primary/30 pulse-live">Явагдаж байна</Badge>
               ) : (
