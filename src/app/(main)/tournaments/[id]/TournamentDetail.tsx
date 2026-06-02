@@ -23,6 +23,9 @@ import { mn } from "@/locales/mn"
 import { Tournament, TournamentRegistration, Profile } from "@/types/database"
 import { formatCurrency, formatDateTime } from "@/lib/utils/format"
 import { OrganizerPanel } from "@/components/tournament/OrganizerPanel"
+import { QRJoin } from "@/components/tournament/QRJoin"
+import { QPay } from "@/components/tournament/QPay"
+import { useLiveTournament } from "@/hooks/useLiveTournament"
 
 type TournamentWithRelations = Tournament & {
   profiles: { id: string; display_name: string; username: string; avatar_url: string | null } | null
@@ -64,6 +67,7 @@ export function TournamentDetail({ tournament: t, registrations, currentUserId, 
   const [showCodeVisible, setShowCodeVisible] = useState(false)
 
   const isOrganizer = currentUserId === t.organizer_id
+  const { isLive, ongoingMatches } = useLiveTournament(t.id)
 
   async function handleRegister() {
     if (!currentUserId) { toast.error("Нэвтрэх шаардлагатай"); return }
@@ -124,6 +128,12 @@ export function TournamentDetail({ tournament: t, registrations, currentUserId, 
                 <Badge variant="outline" className={`text-xs ${statusColors[t.status]}`}>
                   {mn.tournament.status[t.status]}
                 </Badge>
+                {t.status === "ongoing" && (isLive || ongoingMatches.length > 0) && (
+                  <Badge className="text-xs bg-primary/15 text-primary border-primary/30 gap-1 pulse-live">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    LIVE · {ongoingMatches.length} тоглолт
+                  </Badge>
+                )}
                 <Badge variant="outline" className="text-xs border-border/60 text-muted-foreground">
                   {t.format}
                 </Badge>
@@ -227,6 +237,30 @@ export function TournamentDetail({ tournament: t, registrations, currentUserId, 
           </div>
 
           {/* Join Code — organizer болон бүртгүүлсэн хүнд харуулна */}
+          {/* QPay entry fee */}
+          {canRegister && registered && t.entry_fee > 0 && currentUserId && (
+            <div className="mt-4 pt-4 border-t border-border/50">
+              <QPay
+                tournamentId={t.id}
+                playerId={currentUserId}
+                amount={t.entry_fee}
+                onSuccess={() => window.location.reload()}
+              />
+            </div>
+          )}
+
+          {/* QR Join */}
+          {(isOrganizer || registered) && (
+            <div className="mt-4 pt-4 border-t border-border/50">
+              <QRJoin
+                tournamentId={t.id}
+                joinCode={t.join_code}
+                isOrganizer={isOrganizer}
+                isRegistered={registered}
+              />
+            </div>
+          )}
+
           {t.join_code && (isOrganizer || registered) && (
             <div className="mt-4 pt-4 border-t border-border/50">
               <div className="flex items-center justify-between">

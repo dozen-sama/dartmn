@@ -13,6 +13,8 @@ import { formatAverage, formatDate, formatNumber, formatPercentage } from "@/lib
 import { cn } from "@/lib/utils"
 import { getTier } from "@/lib/rating"
 import { TierBadge } from "@/components/rating/TierBadge"
+import { PlayerCard } from "@/components/player/PlayerCard"
+import { AchievementTooltip, Achievement } from "@/components/achievements/AchievementBadge"
 
 interface Props {
   profile: Profile
@@ -22,6 +24,8 @@ interface Props {
   tournaments: (TournamentRegistration & {
     tournaments: Pick<Tournament, "id" | "name" | "status" | "start_date"> | null
   })[]
+  allAchievements: Achievement[]
+  earnedAchievements: { achievement_key: string; earned_at: string }[]
 }
 
 const MONGOLIAN_PROVINCES = [
@@ -44,11 +48,17 @@ function StatCard({ label, value, sub, highlight }: { label: string; value: stri
   )
 }
 
-export function ProfileContent({ profile: p, isOwner, clubName, recentMatches, tournaments }: Props) {
+export function ProfileContent({ profile: p, isOwner, clubName, recentMatches, tournaments, allAchievements, earnedAchievements }: Props) {
   const winRate = p.matches_played > 0 ? Math.round((p.matches_won / p.matches_played) * 100) : 0
   const lossCount = p.matches_played - p.matches_won
-
   const tier = getTier(p.rating_points)
+
+  const earnedKeys = earnedAchievements.map((e) => e.achievement_key)
+  const earnedMap = Object.fromEntries(earnedAchievements.map((e) => [e.achievement_key, e.earned_at]))
+  const achievementsWithDates: Achievement[] = allAchievements.map((a) => ({
+    ...a,
+    earned_at: earnedMap[a.key],
+  }))
 
   return (
     <div className="max-w-3xl mx-auto space-y-5">
@@ -122,11 +132,59 @@ export function ProfileContent({ profile: p, isOwner, clubName, recentMatches, t
 
       {/* Tabs */}
       <Tabs defaultValue="stats">
-        <TabsList className="bg-secondary/50">
+        <TabsList className="bg-secondary/50 flex-wrap h-auto gap-1 p-1">
           <TabsTrigger value="stats"><BarChart3 className="h-4 w-4 mr-1.5" />Statistics</TabsTrigger>
+          <TabsTrigger value="achievements">🏅 Achievements</TabsTrigger>
+          <TabsTrigger value="card">🪪 Card</TabsTrigger>
           <TabsTrigger value="matches">Matches</TabsTrigger>
           <TabsTrigger value="tournaments">Tournaments</TabsTrigger>
         </TabsList>
+
+        {/* Achievements tab */}
+        <TabsContent value="achievements" className="mt-4">
+          <div className="space-y-4">
+            {/* Earned */}
+            <div>
+              <p className="text-sm font-semibold mb-3 flex items-center gap-2">
+                <span>✅</span> Нээгдсэн ({earnedKeys.length})
+              </p>
+              {earnedKeys.length === 0 ? (
+                <p className="text-muted-foreground text-sm">Одоогоор achievement байхгүй байна</p>
+              ) : (
+                <div className="flex flex-wrap gap-3">
+                  {achievementsWithDates.filter((a) => earnedKeys.includes(a.key)).map((a) => (
+                    <AchievementTooltip key={a.key} achievement={a} earned={true} />
+                  ))}
+                </div>
+              )}
+            </div>
+            {/* Locked */}
+            <div>
+              <p className="text-sm font-semibold mb-3 flex items-center gap-2 text-muted-foreground">
+                <span>🔒</span> Нээгдэх боломжтой ({allAchievements.length - earnedKeys.length})
+              </p>
+              <div className="flex flex-wrap gap-3">
+                {achievementsWithDates.filter((a) => !earnedKeys.includes(a.key)).map((a) => (
+                  <AchievementTooltip key={a.key} achievement={a} earned={false} />
+                ))}
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Player Card tab */}
+        <TabsContent value="card" className="mt-4">
+          <div className="flex flex-col items-center gap-4">
+            <PlayerCard
+              profile={p}
+              achievements={achievementsWithDates}
+              earnedKeys={earnedKeys}
+            />
+            <p className="text-xs text-muted-foreground text-center">
+              Screenshot хийж найзуудтайгаа хуваалцаарай
+            </p>
+          </div>
+        </TabsContent>
 
         <TabsContent value="stats" className="mt-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
