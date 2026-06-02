@@ -11,6 +11,8 @@ import { mn } from "@/locales/mn"
 import { Match, Profile, Tournament, TournamentRegistration } from "@/types/database"
 import { formatAverage, formatDate, formatNumber, formatPercentage } from "@/lib/utils/format"
 import { cn } from "@/lib/utils"
+import { getTier } from "@/lib/rating"
+import { TierBadge } from "@/components/rating/TierBadge"
 
 interface Props {
   profile: Profile
@@ -46,13 +48,7 @@ export function ProfileContent({ profile: p, isOwner, clubName, recentMatches, t
   const winRate = p.matches_played > 0 ? Math.round((p.matches_won / p.matches_played) * 100) : 0
   const lossCount = p.matches_played - p.matches_won
 
-  const rankLabel = p.rating_points >= 2000 ? "Мэргэжлийн" :
-    p.rating_points >= 1500 ? "Дунд шатны" :
-    p.rating_points >= 1000 ? "Анхан шатны" : "Шинэхэн"
-
-  const rankColor = p.rating_points >= 2000 ? "text-[oklch(0.78_0.16_85)] bg-[oklch(0.78_0.16_85)]/15 border-[oklch(0.78_0.16_85)]/30" :
-    p.rating_points >= 1500 ? "text-blue-400 bg-blue-500/15 border-blue-500/30" :
-    "text-muted-foreground bg-secondary border-border/60"
+  const tier = getTier(p.rating_points)
 
   return (
     <div className="max-w-3xl mx-auto space-y-5">
@@ -88,7 +84,7 @@ export function ProfileContent({ profile: p, isOwner, clubName, recentMatches, t
           <div className="space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl font-bold">{p.display_name}</h1>
-              <Badge variant="outline" className={`text-xs ${rankColor}`}>{rankLabel}</Badge>
+              <TierBadge rating={p.rating_points} size="md" />
             </div>
             <p className="text-muted-foreground text-sm">@{p.username}</p>
 

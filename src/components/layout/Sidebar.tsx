@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import {
   BarChart3,
   Building2,
+  Calendar,
   ChevronRight,
   CreditCard,
   Home,
@@ -33,6 +34,7 @@ const navItems = [
   { href: "/leagues", label: mn.nav.leagues, icon: Star },
   { href: "/play", label: mn.nav.play, icon: Monitor, badge: "LIVE" },
   { href: "/ratings", label: mn.nav.ratings, icon: BarChart3 },
+  { href: "/calendar", label: "Календарь", icon: Calendar },
   { href: "/clubs", label: mn.nav.clubs, icon: Building2 },
   { href: "/stats", label: mn.nav.stats, icon: BarChart3 },
 ]

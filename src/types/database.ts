@@ -80,6 +80,8 @@ export interface Database {
           owner_id: string
           member_count: number
           is_verified: boolean
+          club_score: number
+          club_rank: number | null
           created_at: string
           updated_at: string
         }
