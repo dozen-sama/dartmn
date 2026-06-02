@@ -132,6 +132,7 @@ export function SetupWizard() {
   const [startScore, setStartScore] = useState(501)
   const [limitRoundsEnabled, setLimitRoundsEnabled] = useState(false)
   const [limitRounds, setLimitRounds] = useState(15)
+  const [bullFinishAtLimit, setBullFinishAtLimit] = useState(false)
   const [pointWon, setPointWon] = useState(2)
   const [pointDraw, setPointDraw] = useState(1)
   const [pointLost, setPointLost] = useState(0)
@@ -265,6 +266,7 @@ export function SetupWizard() {
       loserFirst: false,
       thirdPlaceMatch: se3rdPlace,
       limitRounds: limitRoundsEnabled ? limitRounds : null,
+      bullFinishAtLimit,
       enableDraw: rrEnableDraw,
       showAverage,
       autoComplete,
@@ -502,9 +504,19 @@ export function SetupWizard() {
               <Label className="text-sm">Start Score</Label>
               <Num value={startScore} onChange={setStartScore} min={101} max={1001} />
             </div>
-            <div className="flex items-center gap-3">
-              <Chk checked={limitRoundsEnabled} onChange={setLimitRoundsEnabled} label="Round хязгаар" />
-              {limitRoundsEnabled && <Num value={limitRounds} onChange={setLimitRounds} min={1} max={50} />}
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 flex-wrap">
+                <Chk checked={limitRoundsEnabled} onChange={(v) => { setLimitRoundsEnabled(v); if (!v) setBullFinishAtLimit(false) }} label="Round хязгаар" />
+                {limitRoundsEnabled && <Num value={limitRounds} onChange={setLimitRounds} min={1} max={50} />}
+                {limitRoundsEnabled && <span className="text-xs text-muted-foreground">round</span>}
+              </div>
+              {limitRoundsEnabled && (
+                <div className="pl-4">
+                  <Chk checked={bullFinishAtLimit} onChange={setBullFinishAtLimit}
+                    label="🎯 Limit-т хүрмэгц Bull Finish шаарддаг"
+                    sub="Хязгаарын round-д зөвхөн Bull (50) эсвэл Half Bull (25) финиш хийж болно" />
+                </div>
+              )}
             </div>
           </div>
 

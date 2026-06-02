@@ -48,6 +48,7 @@ export function SessionView() {
   const [editLoserFirst, setEditLoserFirst] = useState(false)
   const [editLimitEnabled, setEditLimitEnabled] = useState(false)
   const [editLimitRounds, setEditLimitRounds] = useState(15)
+  const [editBullFinish, setEditBullFinish] = useState(false)
   const [editShowAvg, setEditShowAvg] = useState(true)
   const [editAutoComplete, setEditAutoComplete] = useState(true)
   const [editAllowParticipant, setEditAllowParticipant] = useState(false)
@@ -68,6 +69,7 @@ export function SessionView() {
       setEditLoserFirst(session.loserFirst)
       setEditLimitEnabled(!!session.limitRounds)
       setEditLimitRounds(session.limitRounds ?? 15)
+      setEditBullFinish((session as any).bullFinishAtLimit ?? false)
       setEditShowAvg(session.showAverage)
       setEditAutoComplete(session.autoComplete)
       setEditAllowParticipant(session.allowParticipantScore)
@@ -90,6 +92,7 @@ export function SessionView() {
       doubleIn: editDoubleIn,
       loserFirst: editLoserFirst,
       limitRounds: editLimitEnabled ? editLimitRounds : null,
+      bullFinishAtLimit: editLimitEnabled ? editBullFinish : false,
       showAverage: editShowAvg,
       autoComplete: editAutoComplete,
       allowParticipantScore: editAllowParticipant,
@@ -485,14 +488,28 @@ export function SessionView() {
                         <span className="text-sm">{label}</span>
                       </label>
                     ))}
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={editLimitEnabled} onChange={(e) => setEditLimitEnabled(e.target.checked)} className="accent-primary" />
-                      <span className="text-sm">Round хязгаар</span>
-                    </label>
-                    {editLimitEnabled && (
-                      <Input type="number" value={editLimitRounds} onChange={(e) => setEditLimitRounds(parseInt(e.target.value) || 15)}
-                        min={1} max={50} className="h-7 w-20 text-xs bg-secondary/50 border-border/60" />
-                    )}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" checked={editLimitEnabled} onChange={(e) => { setEditLimitEnabled(e.target.checked); if (!e.target.checked) setEditBullFinish(false) }} className="accent-primary" />
+                          <span className="text-sm">Round хязгаар</span>
+                        </label>
+                        {editLimitEnabled && (
+                          <Input type="number" value={editLimitRounds} onChange={(e) => setEditLimitRounds(parseInt(e.target.value) || 15)}
+                            min={1} max={50} className="h-7 w-16 text-xs bg-secondary/50 border-border/60" />
+                        )}
+                        {editLimitEnabled && <span className="text-xs text-muted-foreground">round</span>}
+                      </div>
+                      {editLimitEnabled && (
+                        <label className="flex items-start gap-2 cursor-pointer pl-4">
+                          <input type="checkbox" checked={editBullFinish} onChange={(e) => setEditBullFinish(e.target.checked)} className="mt-0.5 accent-primary" />
+                          <div>
+                            <span className="text-sm">🎯 Bull Finish шаарддаг</span>
+                            <p className="text-[10px] text-muted-foreground">Limit-т хүрмэгц зөвхөн Bull(50)/Half(25) финиш</p>
+                          </div>
+                        </label>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

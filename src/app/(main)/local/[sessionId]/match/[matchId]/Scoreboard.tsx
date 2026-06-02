@@ -35,10 +35,11 @@ export function Scoreboard() {
   const [mounted, setMounted] = useState(false)
   const [input, setInput] = useState("")
   const [activePlayer, setActivePlayer] = useState<0 | 1>(0)
-  const [dartsUsed, setDartsUsed] = useState(3)
+  const [dartsUsed, setDartsUsed] = useState(1)  // current dart in visit (1, 2, 3)
   const [confirmWinner, setConfirmWinner] = useState<string | null>(null)
   const [showCheckoutHint, setShowCheckoutHint] = useState(true)
-  const [showBullOff, setShowBullOff] = useState(true)  // show bull-off before match
+  const [showBullOff, setShowBullOff] = useState(true)
+  const [visitRound, setVisitRound] = useState(1)  // current round/visit number
 
   const match = session?.matches.find((m) => m.id === matchId)
 
@@ -145,15 +146,26 @@ export function Scoreboard() {
     )
   }
 
+  // Bull finish required: limit round-д хүрвэл зөвхөн 50/25 оноо
+  const isAtLimit = session.limitRounds !== null && visitRound >= session.limitRounds
+  const bullFinishRequired = isAtLimit && (session as any).bullFinishAtLimit === true
+  const isBullScore = parseInt(input) === 50 || parseInt(input) === 25
+
   function submitScore() {
     const score = parseInt(input)
     if (isNaN(score) || score < 0 || score > 180) return
     if (isBust) { toast.error("Bust! Оноо хэтэрсэн"); setInput(""); return }
 
+    // Bull finish шаардлага
+    if (bullFinishRequired && isCheckoutScore && !isBullScore) {
+      toast.error("⚠️ Round хязгаарт хүрсэн — зөвхөн Bull (50/25) финиш хийх боломжтой!")
+      setInput("")
+      return
+    }
+
     recordThrow(sessionId, matchId, currentLegIndex, activePlayerId, score, dartsUsed)
 
     if (isCheckoutScore) {
-      // Leg won
       completeLeg(sessionId, matchId, currentLegIndex, activePlayerId)
       const newP1Legs = match!.player1Legs + (activePlayerId === p1Id ? 1 : 0)
       const newP2Legs = match!.player2Legs + (activePlayerId === p2Id ? 1 : 0)
@@ -166,13 +178,16 @@ export function Scoreboard() {
         return
       }
       toast.success(`Leg ${currentLegIndex + 1} — ${playerMap[activePlayerId]?.name} хожлоо!`)
-      setActivePlayer(activePlayer === 0 ? 1 : 0)  // loser of last leg starts next
+      setActivePlayer(activePlayer === 0 ? 1 : 0)
+      setVisitRound(1)  // leg шинэ → round reset
     } else {
-      // Switch turns
+      // Turn switches — next player's visit
       setActivePlayer((prev) => (prev === 0 ? 1 : 0))
+      // Both players completed → round++
+      if (activePlayer === 1) setVisitRound(r => r + 1)
     }
     setInput("")
-    setDartsUsed(3)
+    setDartsUsed(1)  // next visit starts from dart 1
   }
 
   function handleManualWin(playerId: string) {
@@ -190,17 +205,38 @@ export function Scoreboard() {
           className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-8 w-8")}>
           <ArrowLeft className="h-4 w-4" />
         </button>
-        <div className="flex-1">
-          <h1 className="text-base font-bold">{session.name}</h1>
-          <p className="text-xs text-muted-foreground">
-            {session.format.toUpperCase()} · BO{session.firstTo} · Leg {currentLegIndex + 1}/{session.firstTo}
-          </p>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-base font-bold truncate">{session.name}</h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-xs text-muted-foreground">
+              {session.format.toUpperCase()} · BO{session.firstTo} · Leg {currentLegIndex + 1}
+            </p>
+            {/* Round counter */}
+            {session.limitRounds && (
+              <span className={cn("text-xs font-semibold",
+                isAtLimit ? "text-destructive" : "text-muted-foreground")}>
+                Round {visitRound}/{session.limitRounds}
+                {isAtLimit && (session as any).bullFinishAtLimit && " 🎯"}
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <kbd className="hidden sm:inline text-[9px] border border-border/50 rounded px-1 py-0.5 bg-secondary/50 text-muted-foreground">0-9 ↵</kbd>
           <Badge variant="outline" className="text-xs border-primary/30 text-primary pulse-live">LIVE</Badge>
         </div>
       </div>
+
+      {/* Bull finish warning */}
+      {bullFinishRequired && (
+        <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2">
+          <span className="text-lg">🎯</span>
+          <div>
+            <p className="text-xs font-bold text-destructive">Bull Finish шаардлагатай!</p>
+            <p className="text-[10px] text-muted-foreground">Round хязгаарт хүрсэн — зөвхөн Bull (50) эсвэл Half Bull (25) финиш хийх боломжтой</p>
+          </div>
+        </div>
+      )}
 
       {/* Score display */}
       <div className="grid grid-cols-2 gap-3">
@@ -251,9 +287,25 @@ export function Scoreboard() {
         })}
       </div>
 
-      {/* Active player indicator */}
-      <div className="text-center text-sm font-medium text-primary">
-        ↑ {activePlayer === 0 ? p1?.name : p2?.name}-ийн ээлж
+      {/* Active player indicator + dart counter */}
+      <div className="flex items-center justify-between px-1">
+        <p className="text-sm font-medium text-primary">
+          ↑ {activePlayer === 0 ? p1?.name : p2?.name}-ийн ээлж
+        </p>
+        {/* Dart counter: ●●○ */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-muted-foreground">Дарт:</span>
+          <div className="flex gap-1">
+            {[1, 2, 3].map((n) => (
+              <button key={n} onClick={() => setDartsUsed(n)}
+                className={cn(
+                  "h-5 w-5 rounded-full border-2 transition-all",
+                  n <= dartsUsed ? "bg-primary border-primary" : "bg-transparent border-border/50"
+                )} />
+            ))}
+          </div>
+          <span className="text-[11px] text-muted-foreground">{dartsUsed}/3</span>
+        </div>
       </div>
 
       {/* Input display */}
@@ -277,19 +329,19 @@ export function Scoreboard() {
             )}
           </div>
 
-          {/* Darts used selector */}
-          {isCheckoutScore && (
-            <div className="flex items-center gap-2 mb-2">
-              <p className="text-xs text-muted-foreground">Дарт:</p>
-              {[1, 2, 3].map((n) => (
-                <button key={n} onClick={() => setDartsUsed(n)}
-                  className={cn("h-7 w-7 rounded-md text-xs font-bold border transition-colors",
-                    dartsUsed === n ? "border-primary bg-primary/15 text-primary" : "border-border/60 text-muted-foreground hover:border-border")}>
-                  {n}
+          {/* Darts used selector — always visible */}
+          <div className="flex items-center gap-2 mb-2">
+            <p className="text-xs text-muted-foreground">
+              {isCheckoutScore ? "Хэдэн дартаар checkout хийв?" : "Энэ visit-т хэдэн дарт:"}
+            </p>
+            {[1, 2, 3].map((n) => (
+              <button key={n} onClick={() => setDartsUsed(n)}
+                className={cn("h-7 w-7 rounded-md text-xs font-bold border transition-colors",
+                  dartsUsed === n ? "border-primary bg-primary/15 text-primary" : "border-border/60 text-muted-foreground hover:border-border")}>
+                {n}
                 </button>
               ))}
-            </div>
-          )}
+          </div>
 
           {/* Submit */}
           <Button

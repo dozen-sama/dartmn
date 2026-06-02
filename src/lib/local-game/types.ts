@@ -96,7 +96,8 @@ export interface LocalSession {
   doubleIn: boolean
   loserFirst: boolean
   limitRounds: number | null
-  thirdPlaceMatch: boolean  // 3rd place match for SE
+  bullFinishAtLimit: boolean  // limit хүрмэгц зөвхөн Bull finish шаарддаг
+  thirdPlaceMatch: boolean
 
   // Options
   showAverage: boolean

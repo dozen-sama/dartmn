@@ -43,6 +43,9 @@ export function TogetherGame() {
   const [format, setFormat] = useState<GameFormat>("501")
   const [bestOf, setBestOf] = useState(3)
   const [doubleOut, setDoubleOut] = useState(true)
+  const [limitRoundsEnabled, setLimitRoundsEnabled] = useState(false)
+  const [limitRounds, setLimitRounds] = useState(15)
+  const [bullFinishAtLimit, setBullFinishAtLimit] = useState(false)
   const [teams, setTeams] = useState([
     { name: "Баг 1", players: [""] },
     { name: "Баг 2", players: [""] },
@@ -53,7 +56,8 @@ export function TogetherGame() {
   const [activeTeam, setActiveTeam] = useState(0)
   const [input, setInput] = useState("")
   const [legs, setLegs] = useState<Leg[]>([])
-  const [dartsUsed, setDartsUsed] = useState(3)
+  const [dartsUsed, setDartsUsed] = useState(1)  // 1st dart in visit
+  const [visitRound, setVisitRound] = useState(1)
   const [winner, setWinner] = useState<number | null>(null)
 
   const legsToWin = Math.ceil(bestOf / 2)
@@ -142,25 +146,34 @@ export function TogetherGame() {
     enabled: phase === "game",
   })
 
+  // Bull finish check
+  const isAtLimit = limitRoundsEnabled && visitRound >= limitRounds
+  const bullRequired = isAtLimit && bullFinishAtLimit
+  const isBullInput = parseInt(input) === 50 || parseInt(input) === 25
+
   function submit() {
     if (!active) return
     const score = parseInt(input) || 0
     if (isBust) { toast.error("Bust! Дахин шидэнэ"); setInput(""); return }
 
+    // Bull finish check
+    if (bullRequired && isCheckout && !isBullInput) {
+      toast.error("⚠️ Bull Finish шаарддаг! Зөвхөн 50 (Bull) эсвэл 25 (Half)")
+      setInput("")
+      return
+    }
+
     const newScore = active.score - score
 
     if (isCheckout) {
-      // Leg won by active team
       const newLegs = active.legs + 1
       if (newLegs >= legsToWin) {
-        // Game won
         setGameTeams(prev => prev.map((t, i) => i === activeTeam ? { ...t, score: 0, legs: newLegs } : t))
         setWinner(activeTeam)
         setPhase("finished")
         return
       }
       toast.success(`${active.name} leg хожлоо!`)
-      // Reset scores, switch who starts next leg
       setGameTeams(prev => prev.map(t => ({
         ...t,
         score: startScore,
@@ -168,9 +181,9 @@ export function TogetherGame() {
         currentPlayer: (t.currentPlayer + 1) % t.players.length,
       })))
       setLegs(prev => [...prev, { winner: activeTeam as 0 | 1 }])
-      setActiveTeam(prev => prev === 0 ? 1 : 0)  // loser starts
+      setActiveTeam(prev => prev === 0 ? 1 : 0)
+      setVisitRound(1)  // leg шинэ → round reset
     } else {
-      // Regular throw — update score, advance player in team
       setGameTeams(prev => prev.map((t, i) => {
         if (i !== activeTeam) return t
         return {
@@ -179,10 +192,12 @@ export function TogetherGame() {
           currentPlayer: (t.currentPlayer + 1) % t.players.length,
         }
       }))
+      // Both teams visited → round++
+      if (activeTeam === 1) setVisitRound(r => r + 1)
       setActiveTeam(prev => prev === 0 ? 1 : 0)
     }
     setInput("")
-    setDartsUsed(3)
+    setDartsUsed(1)  // Next visit starts from dart 1
   }
 
   function resetGame() {
@@ -286,6 +301,43 @@ export function TogetherGame() {
                 <input type="checkbox" checked={doubleOut} onChange={e => setDoubleOut(e.target.checked)} className="accent-primary" />
                 <span className="text-sm">Double out</span>
               </label>
+            </div>
+
+            {/* Round limit + Bull finish */}
+            <div className="border-t border-border/40 pt-3 space-y-2">
+              <div className="flex items-center gap-3 flex-wrap">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={limitRoundsEnabled}
+                    onChange={e => { setLimitRoundsEnabled(e.target.checked); if (!e.target.checked) setBullFinishAtLimit(false) }}
+                    className="accent-primary" />
+                  <span className="text-sm">Round хязгаар</span>
+                </label>
+                {limitRoundsEnabled && (
+                  <>
+                    <div className="flex items-center border border-border/60 rounded-md overflow-hidden">
+                      <button onClick={() => setLimitRounds(n => Math.max(1, n - 1))}
+                        className="h-7 w-7 flex items-center justify-center hover:bg-secondary text-muted-foreground">
+                        <Minus className="h-3 w-3" />
+                      </button>
+                      <span className="h-7 w-8 flex items-center justify-center text-sm font-bold bg-secondary/30">{limitRounds}</span>
+                      <button onClick={() => setLimitRounds(n => Math.min(50, n + 1))}
+                        className="h-7 w-7 flex items-center justify-center hover:bg-secondary text-muted-foreground">
+                        <Plus className="h-3 w-3" />
+                      </button>
+                    </div>
+                    <span className="text-xs text-muted-foreground">round</span>
+                  </>
+                )}
+              </div>
+              {limitRoundsEnabled && (
+                <label className="flex items-start gap-2 cursor-pointer pl-4">
+                  <input type="checkbox" checked={bullFinishAtLimit} onChange={e => setBullFinishAtLimit(e.target.checked)} className="mt-0.5 accent-primary" />
+                  <div>
+                    <span className="text-sm">🎯 Bull Finish шаарддаг</span>
+                    <p className="text-[10px] text-muted-foreground">Limit-т хүрмэгц зөвхөн Bull(50)/Half(25) финиш</p>
+                  </div>
+                </label>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -417,6 +469,12 @@ export function TogetherGame() {
           </button>
           <div className="flex-1 text-center">
             <p className="text-xs text-muted-foreground">{format} · BO{bestOf}</p>
+            {limitRoundsEnabled && (
+              <p className={cn("text-[10px] font-semibold",
+                isAtLimit ? "text-destructive" : "text-muted-foreground/60")}>
+                Round {visitRound}/{limitRounds}{isAtLimit && bullFinishAtLimit ? " 🎯" : ""}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-1.5">
             <kbd className="hidden sm:inline text-[9px] border border-border/50 rounded px-1 py-0.5 bg-secondary/50 text-muted-foreground">0-9</kbd>
@@ -431,10 +489,30 @@ export function TogetherGame() {
           <TeamScore team={t1} idx={1} />
         </div>
 
-        {/* Active player indicator */}
-        <p className="text-center text-sm font-semibold text-primary">
-          {gameTeams[activeTeam]?.name} — {gameTeams[activeTeam]?.players[gameTeams[activeTeam]?.currentPlayer]}
-        </p>
+        {/* Active player + dart counter */}
+        <div className="flex items-center justify-between px-1">
+          <p className="text-sm font-semibold text-primary">
+            {gameTeams[activeTeam]?.name} — {gameTeams[activeTeam]?.players[gameTeams[activeTeam]?.currentPlayer]}
+          </p>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground">Дарт:</span>
+            <div className="flex gap-1">
+              {[1,2,3].map(n => (
+                <button key={n} onClick={() => setDartsUsed(n)}
+                  className={cn("h-5 w-5 rounded-full border-2 transition-all",
+                    n <= dartsUsed ? "bg-primary border-primary" : "bg-transparent border-border/50")} />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Bull finish warning */}
+        {bullRequired && (
+          <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2">
+            <span className="text-lg">🎯</span>
+            <p className="text-xs font-bold text-destructive">Bull Finish — зөвхөн 50 эсвэл 25!</p>
+          </div>
+        )}
 
         {/* Input display */}
         <Card className={cn("border-2",

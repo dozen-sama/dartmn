@@ -34,6 +34,7 @@ interface LocalGameStore {
     loserFirst: boolean
     thirdPlaceMatch: boolean
     limitRounds: number | null
+    bullFinishAtLimit: boolean
     enableDraw: boolean
     showAverage: boolean
     autoComplete: boolean
@@ -57,7 +58,7 @@ interface LocalGameStore {
     "name" | "joinPassword" | "description"
     | "rrFirstTo" | "rrSetsEnabled" | "rrLegsPerSet" | "rrEnableDraw"
     | "firstTo" | "setsEnabled" | "legsPerSet" | "doubleOut" | "doubleIn"
-    | "loserFirst" | "thirdPlaceMatch" | "limitRounds" | "enableDraw"
+    | "loserFirst" | "thirdPlaceMatch" | "limitRounds" | "bullFinishAtLimit" | "enableDraw"
     | "showAverage" | "autoComplete" | "allowParticipantScore" | "showIndex"
     | "pointWon" | "pointDraw" | "pointLost" | "winPointsAreLegs"
   >>) => void
@@ -153,6 +154,7 @@ export const useLocalGame = create<LocalGameStore>()(
           loserFirst: config.loserFirst,
           thirdPlaceMatch: config.thirdPlaceMatch,
           limitRounds: config.limitRounds,
+          bullFinishAtLimit: config.bullFinishAtLimit,
           enableDraw: config.enableDraw,
           showAverage: config.showAverage,
           autoComplete: config.autoComplete,
