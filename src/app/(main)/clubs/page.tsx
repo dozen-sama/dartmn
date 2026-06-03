@@ -14,11 +14,23 @@ type ClubWithOwner = Club & {
 export default async function ClubsPage() {
   const supabase = await createClient()
 
-  const { data: clubs } = await supabase
+  // Explicit FK hint to avoid ambiguous join errors
+  const { data: clubs, error } = await supabase
     .from("clubs")
-    .select("*, profiles(display_name, username, avatar_url)")
+    .select("*, profiles!clubs_owner_id_fkey(display_name, username, avatar_url)")
     .order("member_count", { ascending: false })
     .limit(50)
+
+  if (error) {
+    console.error("[clubs/page] Supabase error:", error)
+    // Fallback: fetch clubs without profiles join
+    const { data: clubsOnly } = await supabase
+      .from("clubs")
+      .select("*")
+      .order("member_count", { ascending: false })
+      .limit(50)
+    return <ClubsContent clubs={(clubsOnly ?? []) as unknown as ClubWithOwner[]} />
+  }
 
   return <ClubsContent clubs={(clubs ?? []) as unknown as ClubWithOwner[]} />
 }
