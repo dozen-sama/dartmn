@@ -35,6 +35,8 @@ export function Scoreboard() {
   const [showBullOff, setShowBullOff] = useState(true)
   const [showLimitBullOff, setShowLimitBullOff] = useState(false)
   const [visitRound, setVisitRound] = useState(1)
+  // Double-in: tracks if each player has "opened" their game
+  const [playerOpened, setPlayerOpened] = useState<Record<string, boolean>>({})
 
   const match = session?.matches.find((m) => m.id === matchId)
   const playerMap = session ? Object.fromEntries(session.players.map((p) => [p.id, p])) : {}
@@ -87,11 +89,31 @@ export function Scoreboard() {
   const kbDelete = useCallback(() => setInput(p => p.slice(0, -1)), [])
   const kbClear = useCallback(() => setInput(""), [])
 
+  const doubleInEnabled = session?.doubleIn ?? false
+  const isPlayerOpen = (id: string) => !doubleInEnabled || !!playerOpened[id]
+
   // submitScore defined before keyboard hook
   function submitScore() {
     if (!session || !match) return
     const score = parseInt(input)
     if (isNaN(score) || score < 0 || score > 180) return
+
+    // Double-in: player must hit a double first
+    if (doubleInEnabled && !isPlayerOpen(activePlayerId)) {
+      // Check if this score could contain a double as the opening dart
+      if (VALID_DOUBLES.has(score)) {
+        // Mark player as opened
+        setPlayerOpened(prev => ({ ...prev, [activePlayerId]: true }))
+        toast.success("Double орлоо — тоглолт эхэллээ!")
+        // Continue with the score (the double itself counts from startScore)
+      } else {
+        toast(`🎯 Double-in шаардлагатай — энэ visit алдагдлаа (${score})`)
+        setInput("")
+        setActivePlayer((prev) => (prev === 0 ? 1 : 0))
+        if (activePlayer === 1) setVisitRound(r => r + 1)
+        return
+      }
+    }
 
     // Bust checks
     if (afterScore < 0 || afterScore === 1) {
@@ -307,9 +329,15 @@ export function Scoreboard() {
           const rem = getRemaining(id)
           const isActive = activePlayer === side
           const co = isActive ? getCheckout(rem) : null
+          const opened = isPlayerOpen(id)
           return (
-            <Card key={id} className={cn("border-2 transition-all", isActive ? "border-primary bg-primary/5 shadow-lg shadow-primary/10" : "border-border/50 bg-card/80")}>
+            <Card key={id} className={cn("border-2 transition-all",
+              doubleInEnabled && !opened ? "border-yellow-500/30 bg-yellow-500/5" :
+              isActive ? "border-primary bg-primary/5 shadow-lg shadow-primary/10" : "border-border/50 bg-card/80")}>
               <CardContent className="p-4 text-center space-y-1">
+                {doubleInEnabled && !opened && (
+                  <p className="text-[10px] font-bold text-yellow-400">🎯 DOUBLE-IN шаардлагатай</p>
+                )}
                 <div className="flex items-center justify-center gap-1.5">
                   <p className="text-sm font-semibold truncate">{player?.name ?? "?"}</p>
                   {isActive && <Zap className="h-3.5 w-3.5 text-primary shrink-0" />}

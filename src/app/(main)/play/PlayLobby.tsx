@@ -13,6 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import Link from "next/link"
+import { cn } from "@/lib/utils"
 import { Separator } from "@/components/ui/separator"
 import { createClient } from "@/lib/supabase/client"
 import { mn } from "@/locales/mn"
@@ -103,6 +104,20 @@ export function PlayLobby({ profile, activeRooms }: Props) {
           {mn.play.title}
         </h1>
         <p className="text-muted-foreground text-sm mt-0.5">Дэлхийн дурын тоглогчтой онлайнаар тоглох</p>
+      </div>
+
+      {/* ── Бэлтгэл тоглолт ── */}
+      <div className="rounded-xl border border-border/50 bg-secondary/20 p-4 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">🎯</span>
+          <div>
+            <p className="font-semibold text-sm">Бэлтгэл тоглолт</p>
+            <p className="text-xs text-muted-foreground">501 Solo, Checkout drill, Around the board</p>
+          </div>
+        </div>
+        <Link href="/play/practice" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "border-border/60 shrink-0")}>
+          Дадлага хийх →
+        </Link>
       </div>
 
       {/* ── ХАМТДАА ТОГЛОХ — featured section ── */}
