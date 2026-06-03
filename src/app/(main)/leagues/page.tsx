@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic"
+
 import { Metadata } from "next"
 import { createClient } from "@/lib/supabase/server"
 import { Star, Plus, Calendar } from "lucide-react"

@@ -62,7 +62,7 @@ export function TogetherGame() {
   const [winner, setWinner] = useState<number | null>(null)
 
   const legsToWin = Math.ceil(bestOf / 2)
-  const startScore = parseInt(format)
+  const startScore = parseInt(format) || 501
 
   // ── Setup helpers ──────────────────────────────────────
   function setTeamName(i: number, name: string) {
