@@ -327,6 +327,15 @@ export function SessionView() {
                                 {match.status === "ongoing" ? <><Zap className="h-3 w-3 mr-1" />Үргэлжлэх</> : "Тоглох →"}
                               </Link>
                             )}
+                            {/* Live view link */}
+                            {(match.status === "ongoing" || match.status === "completed") && (
+                              <Link
+                                href={`/local/${sessionId}/match/${match.id}/live`}
+                                className="mt-1 text-[10px] text-muted-foreground hover:text-primary transition-colors flex items-center gap-0.5"
+                              >
+                                📺 Live
+                              </Link>
+                            )}
                           </div>
 
                           {/* Player 2 */}

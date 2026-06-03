@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ChevronRight, Minus, Plus, RotateCcw, Trophy, Users } from "lucide-react"
+import { ChevronRight, Minus, Plus, RotateCcw, Shuffle, Trash2, Trophy, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -58,6 +58,27 @@ export function BracketEditor({ session, sessionId }: Props) {
     toast.success("Knockout bracket автоматаар нөхөгдлөө")
   }
 
+  function handleRandomGroups() {
+    // Shuffle players and distribute evenly to groups
+    const shuffled = [...session.players].sort(() => Math.random() - 0.5)
+    const groupIds = session.groups.map((g) => g.id)
+    shuffled.forEach((player, i) => {
+      const targetGroupId = groupIds[i % groupIds.length]
+      movePlayerToGroup(sessionId, player.id, targetGroupId)
+    })
+    toast.success("Тоглогчид санамсаргүй байдлаар бүлэгт хуваарилагдлаа")
+  }
+
+  function handleClearGroups() {
+    // Move all players to first group (clear assignments)
+    if (session.groups.length === 0) return
+    const firstGroupId = session.groups[0].id
+    session.players.forEach((player) => {
+      movePlayerToGroup(sessionId, player.id, firstGroupId)
+    })
+    toast.success("Бүлгийн хуваарилалт цэвэрлэгдлээ")
+  }
+
   // ── ROUND ROBIN / GROUPS: group assignment editor
   const hasGroups = session.groups.length > 0
   const hasKnockout = session.matches.some((m) => m.round >= 100)
@@ -79,13 +100,29 @@ export function BracketEditor({ session, sessionId }: Props) {
       {/* ── GROUP ASSIGNMENT ── */}
       {hasGroups && (
         <section className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-primary" />
-            <h3 className="font-bold text-sm">
-              Round Robin ({session.setsEnabled
-                ? `First to ${session.firstTo} Sets`
-                : `First to ${session.firstTo} Legs`})
-            </h3>
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary" />
+              <h3 className="font-bold text-sm">
+                Round Robin ({session.setsEnabled
+                  ? `First to ${session.firstTo} Sets`
+                  : `First to ${session.firstTo} Legs`})
+              </h3>
+            </div>
+            {/* n01дартс шиг товчнууд */}
+            <div className="flex gap-2">
+              <button onClick={handleRandomGroups}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium transition-colors">
+                <Shuffle className="h-3.5 w-3.5" />
+                Automatic assignment
+                <span className="opacity-60 text-[10px]">Random</span>
+              </button>
+              <button onClick={handleClearGroups}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-destructive hover:bg-destructive/90 text-white text-xs font-medium transition-colors">
+                <Trash2 className="h-3.5 w-3.5" />
+                Clear
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
