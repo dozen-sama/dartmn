@@ -23,10 +23,14 @@ interface Props {
 export function ClubsContent({ clubs }: Props) {
   const [search, setSearch] = useState("")
 
-  const filtered = clubs.filter((c) =>
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.city?.toLowerCase().includes(search.toLowerCase()) ||
-    c.description?.toLowerCase().includes(search.toLowerCase())
+  const q = search.toLowerCase().trim()
+  const filtered = !q ? clubs : clubs.filter((c) =>
+    c.name.toLowerCase().includes(q) ||
+    c.city?.toLowerCase().includes(q) ||
+    c.description?.toLowerCase().includes(q) ||
+    c.tag?.toLowerCase().includes(q) ||          // tag-аар хайх: BTEG
+    c.tagline?.toLowerCase().includes(q) ||       // tagline-аар хайх
+    c.address?.toLowerCase().includes(q)          // хаягаар хайх
   )
 
   return (
@@ -38,7 +42,11 @@ export function ClubsContent({ clubs }: Props) {
             <Building2 className="h-6 w-6 text-primary" />
             {mn.club.title}
           </h1>
-          <p className="text-muted-foreground text-sm mt-0.5">{clubs.length} клуб бүртгэлтэй</p>
+          <p className="text-muted-foreground text-sm mt-0.5">
+            {q && filtered.length !== clubs.length
+              ? `${filtered.length} / ${clubs.length} клуб`
+              : `${clubs.length} клуб бүртгэлтэй`}
+          </p>
         </div>
         <Link href="/clubs/create" className={cn(buttonVariants(), "glow-primary shrink-0")}>
           <Plus className="h-4 w-4 mr-1.5" />
