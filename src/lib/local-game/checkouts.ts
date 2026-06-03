@@ -155,24 +155,37 @@ const CHECKOUTS: Record<number, string> = {
   2: "D1",
 }
 
+// Impossible checkouts — these scores cannot be finished with any combination of 3 darts ending on a double
+export const IMPOSSIBLE_CHECKOUTS = new Set([169, 168, 166, 165, 163, 162, 159])
+
+// Valid double scores: D1(2)..D20(40) + Bull(50)
+export const VALID_DOUBLES = new Set([
+  2, 4, 6, 8, 10, 12, 14, 16, 18, 20,
+  22, 24, 26, 28, 30, 32, 34, 36, 38, 40,
+  50,
+])
+
 export function getCheckout(remaining: number): string | null {
   return CHECKOUTS[remaining] ?? null
 }
 
-export function isBust(remaining: number, score: number, doubleOut: boolean): boolean {
-  const after = remaining - score
-  if (after < 0) return true
-  if (after === 1) return true        // can't finish on 1
-  if (after === 0 && doubleOut) {
-    // Must finish on double — we handle this by checking the actual throw
-    // For now, treat as not bust (scoring will validate)
-    return false
+export function getImpossibleCheckoutWarning(afterScore: number): string | null {
+  if (IMPOSSIBLE_CHECKOUTS.has(afterScore)) {
+    return `${afterScore} — checkout боломжгүй утга. Дахин тооцоолно уу.`
   }
-  return false
+  if (afterScore === 1) return "1 — checkout боломжгүй. (Хамгийн бага checkout: D1 = 2)"
+  return null
 }
 
-export function isCheckout(remaining: number, score: number): boolean {
-  return remaining - score === 0
+// Check if a score could be a valid double-out checkout
+// Since we enter total visit score (not per dart), we check:
+// remaining must be achievable as a double (or combination ending on double)
+export function canDoubleOut(remaining: number): boolean {
+  if (remaining === 0) return false
+  if (IMPOSSIBLE_CHECKOUTS.has(remaining)) return false
+  if (remaining === 1) return false
+  // Any checkout in the table is achievable with double-out
+  return CHECKOUTS[remaining] !== undefined
 }
 
 // Score segment parsing: "T20" → 60, "D16" → 32, "Bull" → 50, "S15" → 15

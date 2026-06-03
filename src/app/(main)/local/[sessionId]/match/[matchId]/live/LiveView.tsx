@@ -52,8 +52,8 @@ export function LiveView() {
   const startScore = session.startScore || 501
   const legsToWin = session.firstTo || 1
 
-  const currentLegIdx = match.legs.filter((l) => l.winnerId !== null).length
-  const currentLeg = match.legs[currentLegIdx]
+  const currentLegIdx = match!.legs.filter((l) => l.winnerId !== null).length
+  const currentLeg = match!.legs[currentLegIdx]
 
   function getRemaining(playerId: string): number {
     if (session.format === "cricket" || session.format === "cutthroat") return 0
@@ -63,7 +63,7 @@ export function LiveView() {
   }
 
   function getAverage(playerId: string): string {
-    const allScores: number[] = match.legs.flatMap((leg) =>
+    const allScores: number[] = match!.legs.flatMap((leg) =>
       ((leg as any)?.throws?.[playerId] ?? []).map((t: any) => t.score ?? 0)
     )
     if (allScores.length === 0) return "—"
@@ -72,7 +72,7 @@ export function LiveView() {
   }
 
   function getTotalDarts(playerId: string): number {
-    return match.legs.flatMap((leg) => (leg as any)?.throws?.[playerId] ?? []).length * 3
+    return match!.legs.flatMap((leg) => (leg as any)?.throws?.[playerId] ?? []).length * 3
   }
 
   function getLastThrows(playerId: string): number[] {
@@ -236,9 +236,9 @@ export function LiveView() {
         </div>
 
         {/* Leg history */}
-        {match.legs.filter(l => l.winnerId).length > 0 && (
+        {match!.legs.filter(l => l.winnerId).length > 0 && (
           <div className="flex gap-1.5 flex-wrap justify-center mt-2.5">
-            {match.legs.filter(l => l.winnerId).map((leg, i) => (
+            {match!.legs.filter(l => l.winnerId).map((leg, i) => (
               <div key={i} className="flex items-center gap-1.5 bg-white/5 rounded-lg px-2.5 py-1 text-xs">
                 <span className={cn(leg.winnerId === p1Id ? "text-primary font-bold" : "text-white/30")}>{p1?.name}</span>
                 <span className="text-white/20">L{i+1}</span>

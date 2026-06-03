@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { useLocalGame } from "@/lib/local-game/store"
-import { getCheckout } from "@/lib/local-game/checkouts"
+import { getCheckout, IMPOSSIBLE_CHECKOUTS, VALID_DOUBLES, canDoubleOut } from "@/lib/local-game/checkouts"
 import { useScoreboardKeyboard } from "@/hooks/useScoreboardKeyboard"
 import { BullOff } from "@/components/game/BullOff"
 import { toast } from "sonner"
@@ -59,10 +59,26 @@ export function Scoreboard() {
   const remaining = getRemaining(activePlayerId)
   const inputNum = parseInt(input) || 0
   const afterScore = remaining - inputNum
-  const isBust = afterScore < 0 || afterScore === 1
+
+  // Standard bust rules + impossible checkout detection
+  const isImpossibleCheckout = afterScore > 1 && IMPOSSIBLE_CHECKOUTS.has(afterScore)
+  const isBust = afterScore < 0 || afterScore === 1 || isImpossibleCheckout
   const isCheckoutScore = afterScore === 0
+
+  // Double-out: if enabled and checking out, the visit score must be achievable as double finish
+  const doubleOutEnabled = session?.doubleOut ?? true
+  const isInvalidDoubleOut = isCheckoutScore && doubleOutEnabled && !VALID_DOUBLES.has(inputNum) && inputNum !== remaining
+  // Simpler check: if remaining ≤ 40 or == 50, and afterScore == 0, and doubleOut on:
+  // the visit score (inputNum) should include a valid double as final dart
+  // Since we can't track per-dart, we check if the REMAINING itself is a valid double target
+  const cannotDoubleOut = isCheckoutScore && doubleOutEnabled && !canDoubleOut(remaining)
+
   const checkoutHint = getCheckout(remaining)
-  const inputHint = input && !isBust && afterScore > 0 ? getCheckout(afterScore) : null
+  const inputHint = input && !isBust && afterScore > 0 && !IMPOSSIBLE_CHECKOUTS.has(afterScore)
+    ? getCheckout(afterScore) : null
+
+  // Warning for impossible checkout positions (not bust, just can't finish this visit)
+  const isOnImpossiblePosition = remaining > 1 && IMPOSSIBLE_CHECKOUTS.has(remaining)
 
   // Keyboard callbacks — must be at top level
   const kbInput = useCallback((d: string) => {
@@ -76,7 +92,22 @@ export function Scoreboard() {
     if (!session || !match) return
     const score = parseInt(input)
     if (isNaN(score) || score < 0 || score > 180) return
-    if (isBust) { toast.error("Bust! Оноо хэтэрсэн"); setInput(""); return }
+
+    // Bust checks
+    if (afterScore < 0 || afterScore === 1) {
+      toast.error("Bust! Оноо хэтэрсэн — ээлж алдагдлаа")
+      setInput(""); return
+    }
+    if (isImpossibleCheckout) {
+      toast.error(`${afterScore} — checkout боломжгүй утга! (169,168,166,165,163,162,159)`)
+      setInput(""); return
+    }
+
+    // Double-out validation
+    if (isCheckoutScore && doubleOutEnabled && !canDoubleOut(remaining)) {
+      toast.error(`${remaining} — double-out боломжгүй! Double-аас эхлэх шаардлагатай утга руу орно уу.`)
+      setInput(""); return
+    }
 
     recordThrow(sessionId, matchId, currentLegIndex, activePlayerId, score, dartsUsed)
 
@@ -247,6 +278,17 @@ export function Scoreboard() {
         </div>
       </div>
 
+      {/* Impossible checkout position warning */}
+      {isOnImpossiblePosition && (
+        <div className="flex items-center gap-2 bg-orange-500/10 border border-orange-500/30 rounded-lg px-3 py-2">
+          <span className="text-base shrink-0">⚠️</span>
+          <div>
+            <p className="text-xs font-bold text-orange-400">{remaining} — Checkout боломжгүй утга!</p>
+            <p className="text-[10px] text-muted-foreground">Энэ утгаас ямар ч 3 дартын хослолоор double-аар дуусгаж болохгүй. Стратеги тавина уу.</p>
+          </div>
+        </div>
+      )}
+
       {/* Bull-off warning */}
       {limitRounds && bullOffEnabled && visitRound >= limitRounds - 1 && (
         <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-3 py-2">
@@ -324,7 +366,8 @@ export function Scoreboard() {
               {input || "0"}
             </p>
             <div className="text-right space-y-1">
-              {isBust && <Badge className="bg-destructive/15 text-destructive border-destructive/30">BUST!</Badge>}
+              {isBust && !isImpossibleCheckout && <Badge className="bg-destructive/15 text-destructive border-destructive/30">BUST!</Badge>}
+              {isImpossibleCheckout && <Badge className="bg-orange-500/15 text-orange-400 border-orange-500/30">IMPOSSIBLE!</Badge>}
               {isCheckoutScore && <Badge className="bg-green-500/15 text-green-400 border-green-500/30">CHECKOUT!</Badge>}
               {!isBust && !isCheckoutScore && input && afterScore > 0 && (
                 <>

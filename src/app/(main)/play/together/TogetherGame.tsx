@@ -8,7 +8,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { getCheckout } from "@/lib/local-game/checkouts"
+import { getCheckout, IMPOSSIBLE_CHECKOUTS, canDoubleOut } from "@/lib/local-game/checkouts"
 import { useScoreboardKeyboard } from "@/hooks/useScoreboardKeyboard"
 import { BullOff } from "@/components/game/BullOff"
 import { VisitLimitPicker } from "@/components/game/VisitLimitPicker"
@@ -120,10 +120,13 @@ export function TogetherGame() {
 
   const inputNum = parseInt(input) || 0
   const afterScore = active ? active.score - inputNum : 0
-  const isBust = afterScore < 0 || afterScore === 1
+  const isImpossibleCheckout = afterScore > 1 && IMPOSSIBLE_CHECKOUTS.has(afterScore)
+  const isBust = afterScore < 0 || afterScore === 1 || isImpossibleCheckout
   const isCheckout = afterScore === 0
   const checkoutHint = active ? getCheckout(active.score) : null
-  const inputHint = input && !isBust && afterScore > 0 ? getCheckout(afterScore) : null
+  const inputHint = input && !isBust && afterScore > 0 && !IMPOSSIBLE_CHECKOUTS.has(afterScore)
+    ? getCheckout(afterScore) : null
+  const isOnImpossiblePosition = active && active.score > 1 && IMPOSSIBLE_CHECKOUTS.has(active.score)
 
   function keypad(k: number | string) {
     if (k === "DEL") { setInput(p => p.slice(0, -1)); return }
@@ -155,13 +158,26 @@ export function TogetherGame() {
   function submit() {
     if (!active) return
     const score = parseInt(input) || 0
-    if (isBust) { toast.error("Bust! Дахин шидэнэ"); setInput(""); return }
 
-    // Bull finish check
+    if (afterScore < 0 || afterScore === 1) {
+      toast.error("Bust! Оноо хэтэрсэн — ээлж алдагдлаа")
+      setInput(""); return
+    }
+    if (isImpossibleCheckout) {
+      toast.error(`${afterScore} — checkout боломжгүй! (169,168,166,165,163,162,159)`)
+      setInput(""); return
+    }
+
+    // Double-out validation
+    if (isCheckout && doubleOut && !canDoubleOut(active.score)) {
+      toast.error(`${active.score} — double-out боломжгүй утга! Эхлээд доор утга руу ор.`)
+      setInput(""); return
+    }
+
+    // Bull-off at limit check
     if (bullRequired && isCheckout && !isBullInput) {
-      toast.error("⚠️ Bull-off (хязгаарт хүрмэгц)! Зөвхөн 50 (Bull) эсвэл 25 (Half)")
-      setInput("")
-      return
+      toast.error("⚠️ Bull Finish шаарддаг! Зөвхөн Bull (50) эсвэл Half (25)")
+      setInput(""); return
     }
 
     const newScore = active.score - score
