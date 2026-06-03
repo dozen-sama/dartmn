@@ -501,9 +501,19 @@ export function SetupWizard() {
 
           {/* Start Score + Visit хязгаар */}
           <div className="py-4 space-y-3">
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <Label className="text-sm">Start Score</Label>
-              <Num value={startScore} onChange={setStartScore} min={101} max={1001} />
+              <div className="flex gap-2">
+                {[501, 301, 170, 121].map((s) => (
+                  <button key={s} type="button" onClick={() => setStartScore(s)}
+                    className={cn("flex-1 py-2 rounded-lg border-2 text-sm font-bold transition-all",
+                      startScore === s
+                        ? "border-primary bg-primary/15 text-primary"
+                        : "border-border/50 text-muted-foreground hover:border-border")}>
+                    {s}
+                  </button>
+                ))}
+              </div>
             </div>
             <VisitLimitPicker
               enabled={limitRoundsEnabled}
