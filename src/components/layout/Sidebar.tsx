@@ -123,7 +123,7 @@ export function Sidebar({ profile }: SidebarProps) {
 
       <div className="border-t border-border/50 p-3">
         <Link
-          href="/settings"
+          href="/settings/profile"
           className={cn(
             "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
             "text-muted-foreground hover:bg-secondary hover:text-foreground"

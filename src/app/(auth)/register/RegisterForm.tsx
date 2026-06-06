@@ -3,13 +3,14 @@
 import { useState } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
-import { Eye, EyeOff, Loader2, Mail, ArrowLeft } from "lucide-react"
+import { Eye, EyeOff, Loader2, Mail, ArrowLeft, Check, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { createClient } from "@/lib/supabase/client"
 import { mn } from "@/locales/mn"
+import { cn } from "@/lib/utils"
 
 export function RegisterForm() {
   const [loading, setLoading] = useState(false)
@@ -17,6 +18,8 @@ export function RegisterForm() {
   const [done, setDone] = useState(false)
   const [existingUnconfirmed, setExistingUnconfirmed] = useState(false)
   const [resendLoading, setResendLoading] = useState(false)
+  const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "taken" | "available">("idle")
+  const usernameTimer = useState<ReturnType<typeof setTimeout> | null>(null)
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -29,12 +32,33 @@ export function RegisterForm() {
     setForm((prev) => ({ ...prev, [field]: value }))
   }
 
+  function handleUsernameChange(value: string) {
+    update("username", value)
+    setUsernameStatus("idle")
+    if (usernameTimer[0]) clearTimeout(usernameTimer[0])
+    if (value.length < 3) return
+    setUsernameStatus("checking")
+    usernameTimer[0] = setTimeout(async () => {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("username", value.toLowerCase())
+        .maybeSingle()
+      setUsernameStatus(data ? "taken" : "available")
+    }, 500)
+  }
+
   function getErrorMessage(msg: string): string {
     const m = msg.toLowerCase()
     if (m.includes("user already registered") || m.includes("already been registered"))
       return mn.auth.emailAlreadyRegistered
     if (m.includes("email not confirmed"))
       return mn.auth.emailNotConfirmed
+    if (m.includes("username") && (m.includes("unique") || m.includes("duplicate") || m.includes("already")))
+      return mn.auth.usernameTaken
+    if (m.includes("database error") || m.includes("unexpected_failure") || m.includes("500"))
+      return mn.auth.usernameTaken
     if (m.includes("password"))
       return mn.auth.passwordMinLength
     if (m.includes("invalid email"))
@@ -64,6 +88,7 @@ export function RegisterForm() {
     if (!form.password || form.password.length < 6) return toast.error(mn.auth.passwordMinLength)
     if (form.password !== form.confirmPassword) return toast.error(mn.auth.passwordMismatch)
     if (!form.username) return toast.error(mn.auth.usernameRequired)
+    if (usernameStatus === "taken") return toast.error(mn.auth.usernameTaken)
 
     setLoading(true)
     const supabase = createClient()
@@ -135,13 +160,31 @@ export function RegisterForm() {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-sm">{mn.auth.username}</Label>
-              <Input
-                placeholder="dartmaster"
-                value={form.username}
-                onChange={(e) => update("username", e.target.value)}
-                className="bg-secondary/50 border-border/60"
-                autoComplete="username"
-              />
+              <div className="relative">
+                <Input
+                  placeholder="dartmaster"
+                  value={form.username}
+                  onChange={(e) => handleUsernameChange(e.target.value)}
+                  className={cn(
+                    "bg-secondary/50 border-border/60 pr-8",
+                    usernameStatus === "taken" && "border-destructive focus-visible:ring-destructive",
+                    usernameStatus === "available" && "border-green-500/60 focus-visible:ring-green-500/30"
+                  )}
+                  autoComplete="username"
+                />
+                {usernameStatus === "checking" && (
+                  <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                )}
+                {usernameStatus === "taken" && (
+                  <X className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-destructive" />
+                )}
+                {usernameStatus === "available" && (
+                  <Check className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-green-500" />
+                )}
+              </div>
+              {usernameStatus === "taken" && (
+                <p className="text-xs text-destructive">{mn.auth.usernameTaken}</p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label className="text-sm">{mn.auth.displayName}</Label>
