@@ -64,6 +64,8 @@ interface LocalGameStore {
     | "pointWon" | "pointDraw" | "pointLost" | "winPointsAreLegs"
   >>) => void
 
+  rebuildKnockout: (sessionId: string, newGroupAdvance: number) => void
+
   // Bracket editing
   movePlayerToGroup: (sessionId: string, playerId: string, targetGroupId: string) => void
   assignBracketSlot: (sessionId: string, matchId: string, slot: "p1" | "p2", playerId: string | null) => void
@@ -221,6 +223,30 @@ export const useLocalGame = create<LocalGameStore>()(
             },
           }
         })
+      },
+
+      rebuildKnockout: (sessionId, newGroupAdvance) => {
+        set((s) => {
+          const session = s.sessions[sessionId]
+          if (!session || session.bracketType !== "groups_knockout") return s
+          // RR match-уудыг хадгалж, KO match-уудыг дахин үүсгэнэ
+          const rrMatches = session.matches.filter((m) => m.round < 100)
+          const newKO = generateGroupsKnockout(session.players, session.groupsCount, newGroupAdvance)
+          const koOnly = newKO.matches.filter((m: LocalMatch) => m.round >= 100)
+          return {
+            sessions: {
+              ...s.sessions,
+              [sessionId]: {
+                ...session,
+                groupAdvance: newGroupAdvance,
+                matches: [...rrMatches, ...koOnly],
+                updatedAt: new Date().toISOString(),
+              },
+            },
+          }
+        })
+        const updated = get().sessions[sessionId]
+        if (updated) broadcastSession(updated)
       },
 
       movePlayerToGroup: (sessionId, playerId, targetGroupId) => {

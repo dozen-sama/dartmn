@@ -112,8 +112,9 @@ export function SetupWizard() {
 
   // RR match format
   const [hasRR, setHasRR] = useState(false)
-  const [rrGroups, setRRGroups] = useState(1)
+  const [rrGroups, setRRGroups] = useState(2)
   const [rrPlayersPerGroup, setRRPlayersPerGroup] = useState(4)
+  const [rrGroupAdvance, setRRGroupAdvance] = useState(1)
   const [rrMatchType, setRRMatchType] = useState<"legs" | "sets" | "schedule">("legs")
   const [rrFirstTo, setRRFirstTo] = useState(2)
   const [rrLegsPerSet, setRRLegsPerSet] = useState(2)
@@ -280,7 +281,7 @@ export function SetupWizard() {
       bracketType: bt,
       playersPerGroup: ppg,
       groupsCount,
-      groupAdvance: 1,
+      groupAdvance: isRR ? rrGroupAdvance : 1,
       players: validPlayers,
       startWithPhase: "making_bracket",
     })
@@ -456,7 +457,7 @@ export function SetupWizard() {
             <div className="py-4 space-y-3">
               <Chk checked={true} onChange={() => {}} label="Round Robin" />
               <div className="pl-4 space-y-3">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 flex-wrap">
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">Бүлгийн тоо</Label>
                     <Num value={rrGroups} onChange={setRRGroups} min={1} max={16} />
@@ -465,9 +466,20 @@ export function SetupWizard() {
                     <Label className="text-xs text-muted-foreground">Бүлэгт тоглогчийн тоо</Label>
                     <Num value={rrPlayersPerGroup} onChange={setRRPlayersPerGroup} min={2} max={20} />
                   </div>
+                  {compFormat === "groups_knockout" && (
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Бүлгээс гарах тоо</Label>
+                      <Num value={rrGroupAdvance} onChange={setRRGroupAdvance} min={1} max={Math.max(1, rrPlayersPerGroup - 1)} />
+                    </div>
+                  )}
                 </div>
                 <div className="text-xs text-primary/80 font-medium">
-                  = {rrGroups * rrPlayersPerGroup} нийт тоглогч · {rrGroups} бүлэг тус бүрт {rrPlayersPerGroup}
+                  = {rrGroups * rrPlayersPerGroup} нийт тоглогч · {rrGroups} бүлэг · тус бүрт {rrPlayersPerGroup} тоглогч
+                  {compFormat === "groups_knockout" && (
+                    <span className="ml-2 text-yellow-400">
+                      → KO шатанд {rrGroups * rrGroupAdvance} тоглогч орно
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

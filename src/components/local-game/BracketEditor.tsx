@@ -41,6 +41,7 @@ export function BracketEditor({ session, sessionId }: Props) {
   const assignBracketSlot = useLocalGame((s) => s.assignBracketSlot)
   const autoAssignKnockout = useLocalGame((s) => s.autoAssignKnockout)
   const setConcurrentMatches = useLocalGame((s) => s.setConcurrentMatches)
+  const rebuildKnockout = useLocalGame((s) => s.rebuildKnockout)
 
   const playerMap = Object.fromEntries(session.players.map((p) => [p.id, p]))
   const allPlayers = session.players
@@ -213,11 +214,34 @@ export function BracketEditor({ session, sessionId }: Props) {
                 Round Robin-аас хуваарилах
               </Button>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span>Финалд гарах тоо</span>
-                <Badge variant="outline" className="border-primary/30 text-primary">
-                  Top {session.groupAdvance}
-                </Badge>
-                <span>бүлэгт</span>
+                <span>Бүлгээс гарах тоо:</span>
+                <div className="flex items-center border border-border/60 rounded-lg overflow-hidden">
+                  <button type="button"
+                    onClick={() => {
+                      const next = Math.max(1, session.groupAdvance - 1)
+                      rebuildKnockout(sessionId, next)
+                      toast.success(`Top ${next} болов — KO bracket дахин үүслээ`)
+                    }}
+                    className="h-7 w-6 flex items-center justify-center hover:bg-secondary border-r border-border/60 text-xs">
+                    <Minus className="h-3 w-3" />
+                  </button>
+                  <span className="h-7 px-3 flex items-center text-primary font-bold text-sm bg-primary/10">
+                    Top {session.groupAdvance}
+                  </span>
+                  <button type="button"
+                    onClick={() => {
+                      const maxAdv = Math.max(1, session.groups[0]?.playerIds.length - 1 || 1)
+                      const next = Math.min(maxAdv, session.groupAdvance + 1)
+                      rebuildKnockout(sessionId, next)
+                      toast.success(`Top ${next} болов — KO bracket дахин үүслээ`)
+                    }}
+                    className="h-7 w-6 flex items-center justify-center hover:bg-secondary border-l border-border/60 text-xs">
+                    <Plus className="h-3 w-3" />
+                  </button>
+                </div>
+                <span className="text-xs text-muted-foreground/60">
+                  = KO шатанд {session.groups.length * session.groupAdvance} тоглогч
+                </span>
               </div>
             </div>
           )}
