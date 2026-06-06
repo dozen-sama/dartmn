@@ -154,7 +154,7 @@ export function RatingsContent({ players, clubs }: Props) {
 
       <Tabs defaultValue="global">
         <TabsList className="bg-secondary/50">
-          <TabsTrigger value="global"><Trophy className="h-4 w-4 mr-1.5" />Дэлхийн чансаа</TabsTrigger>
+          <TabsTrigger value="global"><Trophy className="h-4 w-4 mr-1.5" />Монголын чансаа</TabsTrigger>
           <TabsTrigger value="province"><MapPin className="h-4 w-4 mr-1.5" />Аймгийн чансаа</TabsTrigger>
           <TabsTrigger value="clubs"><Building2 className="h-4 w-4 mr-1.5" />Клубын чансаа</TabsTrigger>
         </TabsList>
