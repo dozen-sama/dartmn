@@ -12,6 +12,7 @@ import { getCheckout, IMPOSSIBLE_CHECKOUTS, canDoubleOut } from "@/lib/local-gam
 import { useScoreboardKeyboard } from "@/hooks/useScoreboardKeyboard"
 import { BullOff } from "@/components/game/BullOff"
 import { VisitLimitPicker } from "@/components/game/VisitLimitPicker"
+import { DartSelector } from "@/components/game/DartSelector"
 import { toast } from "sonner"
 import Link from "next/link"
 import { buttonVariants } from "@/components/ui/button"
@@ -57,7 +58,7 @@ export function TogetherGame() {
   const [activeTeam, setActiveTeam] = useState(0)
   const [input, setInput] = useState("")
   const [legs, setLegs] = useState<Leg[]>([])
-  const [dartsUsed, setDartsUsed] = useState(1)  // 1st dart in visit
+  const [dartsUsed, setDartsUsed] = useState(3)
   const [visitRound, setVisitRound] = useState(1)
   const [winner, setWinner] = useState<number | null>(null)
 
@@ -214,7 +215,7 @@ export function TogetherGame() {
       setActiveTeam(prev => prev === 0 ? 1 : 0)
     }
     setInput("")
-    setDartsUsed(1)  // Next visit starts from dart 1
+    setDartsUsed(3)
   }
 
   function resetGame() {
@@ -481,21 +482,12 @@ export function TogetherGame() {
           <TeamScore team={t1} idx={1} />
         </div>
 
-        {/* Active player + dart counter */}
-        <div className="flex items-center justify-between px-1">
+        {/* Active player */}
+        <div className="flex items-center gap-2 px-1">
+          <span className="h-2 w-2 rounded-full bg-primary animate-pulse shrink-0" />
           <p className="text-sm font-semibold text-primary">
             {gameTeams[activeTeam]?.name} — {gameTeams[activeTeam]?.players[gameTeams[activeTeam]?.currentPlayer]}
           </p>
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-muted-foreground">Дарт:</span>
-            <div className="flex gap-1">
-              {[1,2,3].map(n => (
-                <button key={n} onClick={() => setDartsUsed(n)}
-                  className={cn("h-5 w-5 rounded-full border-2 transition-all",
-                    n <= dartsUsed ? "bg-primary border-primary" : "bg-transparent border-border/50")} />
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* Bull finish warning */}
@@ -528,19 +520,12 @@ export function TogetherGame() {
                 )}
               </div>
             </div>
-            {/* Darts selector for checkout */}
-            {isCheckout && (
-              <div className="flex items-center gap-2 mb-2">
-                <p className="text-xs text-muted-foreground">Дарт:</p>
-                {[1,2,3].map(n => (
-                  <button key={n} onClick={() => setDartsUsed(n)}
-                    className={cn("h-7 w-7 rounded-md text-xs font-bold border-2 transition-all",
-                      dartsUsed === n ? "border-primary bg-primary/15 text-primary" : "border-border/60 text-muted-foreground")}>
-                    {n}
-                  </button>
-                ))}
-              </div>
-            )}
+            <DartSelector
+              value={dartsUsed}
+              onChange={setDartsUsed}
+              label={isCheckout ? "Хэдэн дартаар checkout хийв?" : "Хэдэн дарт шидэв?"}
+              className="mb-2"
+            />
             <button onClick={submit} disabled={!input || isBust}
               className={cn("w-full py-2.5 rounded-lg font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed",
                 isCheckout ? "bg-green-600 hover:bg-green-700 text-white" : "bg-primary text-primary-foreground glow-primary")}>

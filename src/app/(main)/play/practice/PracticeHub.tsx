@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { getCheckout, IMPOSSIBLE_CHECKOUTS } from "@/lib/local-game/checkouts"
 import { useScoreboardKeyboard } from "@/hooks/useScoreboardKeyboard"
+import { DartSelector } from "@/components/game/DartSelector"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import Link from "next/link"
@@ -124,17 +125,11 @@ function ScoreInput({ onSubmit, onBack, title, subtitle }: {
         </div>
       </div>
 
-      <div className="flex items-center justify-between px-1">
-        <p className="text-sm font-medium text-primary">Оноо оруулах</p>
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-muted-foreground">Дарт:</span>
-          {[1,2,3].map(n => (
-            <button key={n} onClick={() => setDartsUsed(n)}
-              className={cn("h-5 w-5 rounded-full border-2 transition-all",
-                n <= dartsUsed ? "bg-primary border-primary" : "bg-transparent border-border/50")} />
-          ))}
-        </div>
-      </div>
+      <DartSelector
+        value={dartsUsed}
+        onChange={setDartsUsed}
+        label="Хэдэн дарт шидэв?"
+      />
 
       <Card className="border-border/50">
         <CardContent className="p-3">
