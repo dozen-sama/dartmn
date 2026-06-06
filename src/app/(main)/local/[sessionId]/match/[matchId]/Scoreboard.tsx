@@ -308,7 +308,7 @@ export function Scoreboard() {
         </div>
 
         {/* Visit rows (per-visit, alternating P1/P2) */}
-        <div ref={tableRef} className="max-h-48 overflow-y-auto overscroll-contain">
+        <div ref={tableRef} className="max-h-32 sm:max-h-52 overflow-y-auto overscroll-contain">
           {visitRows.map((row, i) => {
             const isP1 = row.p1score !== undefined
             const isLast = i === visitRows.length - 1
