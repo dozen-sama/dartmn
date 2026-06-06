@@ -169,6 +169,25 @@ export interface Database {
         }
         Relationships: []
       }
+      club_messages: {
+        Row: {
+          id: string
+          club_id: string
+          player_id: string
+          body: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          club_id: string
+          player_id: string
+          body: string
+        }
+        Update: {
+          body?: string
+        }
+        Relationships: []
+      }
       tournaments: {
         Row: {
           id: string

@@ -6,8 +6,9 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import {
   ArrowLeft, Building2, Check, Edit, Globe, LogIn, LogOut,
-  MapPin, QrCode, Settings, Share2, Shield, Users,
+  MapPin, MessageCircle, QrCode, Settings, Share2, Shield, Users,
 } from "lucide-react"
+import { ClubChat } from "./ClubChat"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -44,6 +45,7 @@ export function ClubDetail({ club, members, currentUserId, myRole }: Props) {
   const [joining, setJoining] = useState(false)
   const isOwnerOrAdmin = myRole === "owner" || myRole === "admin"
   const isMember = !!myRole
+  const hasSub = !!club.subscription_plan
   const features = Array.isArray(club.features) ? club.features as string[] : []
 
   async function handleJoin() {
@@ -173,11 +175,37 @@ export function ClubDetail({ club, members, currentUserId, myRole }: Props) {
         </CardContent>
       </Card>
 
-      {/* Members */}
+      {/* Members + Chat */}
       <Tabs defaultValue="members">
         <TabsList className="bg-secondary/50">
           <TabsTrigger value="members"><Users className="h-4 w-4 mr-1.5" />Гишүүд ({members.length})</TabsTrigger>
+          <TabsTrigger value="chat"><MessageCircle className="h-4 w-4 mr-1.5" />Чат</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="chat" className="mt-4">
+          {!hasSub ? (
+            <Card className="border-dashed border-border/50">
+              <CardContent className="flex flex-col items-center justify-center py-14 text-center">
+                <MessageCircle className="h-10 w-10 text-muted-foreground/20 mb-3" />
+                <p className="font-medium text-muted-foreground">Клубын чат — Subscription шаардлагатай</p>
+                <p className="text-xs text-muted-foreground/60 mt-1 mb-4">Дотоод чат зөвхөн төлбөртэй клубт нээлттэй</p>
+                <Link href="/pricing" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "border-primary/30 text-primary hover:bg-primary/10")}>
+                  ✨ Subscription авах
+                </Link>
+              </CardContent>
+            </Card>
+          ) : !isMember || !currentUserId ? (
+            <Card className="border-dashed border-border/50">
+              <CardContent className="flex flex-col items-center justify-center py-14 text-center">
+                <MessageCircle className="h-10 w-10 text-muted-foreground/20 mb-3" />
+                <p className="font-medium text-muted-foreground">Чатад оролцохын тулд клубт нэгдэнэ үү</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <ClubChat clubId={club.id} currentUserId={currentUserId} />
+          )}
+        </TabsContent>
+
         <TabsContent value="members" className="mt-4">
           <Card className="border-border/50 bg-card/80">
             <CardContent className="p-0">
