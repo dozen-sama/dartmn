@@ -58,6 +58,9 @@ export function SessionView() {
   const [editPointDraw, setEditPointDraw] = useState(1)
   const [editPointLost, setEditPointLost] = useState(0)
   const [settingsInitialized, setSettingsInitialized] = useState(false)
+  const [passwordInput, setPasswordInput] = useState("")
+  const [passwordError, setPasswordError] = useState(false)
+  const [unlocked, setUnlocked] = useState(false)
 
   useEffect(() => {
     if (session && !settingsInitialized) {
@@ -105,6 +108,28 @@ export function SessionView() {
     toast.success("Тохиргоо хадгалагдлаа")
   }
 
+  // Password gate — sessionStorage-д хадгалж дахин асуухгүй
+  useEffect(() => {
+    if (mounted && session?.joinPassword) {
+      const key = `local-session-unlocked-${sessionId}`
+      if (sessionStorage.getItem(key) === "1") setUnlocked(true)
+    } else if (mounted) {
+      setUnlocked(true)
+    }
+  }, [mounted, session, sessionId])
+
+  function handlePasswordSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (passwordInput === session?.joinPassword) {
+      sessionStorage.setItem(`local-session-unlocked-${sessionId}`, "1")
+      setUnlocked(true)
+      setPasswordError(false)
+    } else {
+      setPasswordError(true)
+      setPasswordInput("")
+    }
+  }
+
   if (!mounted) return <div className="flex items-center justify-center py-20"><div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" /></div>
 
   if (!session) {
@@ -112,6 +137,54 @@ export function SessionView() {
       <div className="text-center py-20">
         <p className="text-muted-foreground">Тоглолт олдсонгүй</p>
         <Link href="/local" className={cn(buttonVariants({ variant: "outline" }), "mt-4")}>Буцах</Link>
+      </div>
+    )
+  }
+
+  // Password gate screen
+  if (session.joinPassword && !unlocked) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
+        <div className="w-full max-w-sm space-y-5">
+          <div className="text-center space-y-1">
+            <div className="flex justify-center mb-3">
+              <div className="h-14 w-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                <span className="text-2xl">🔒</span>
+              </div>
+            </div>
+            <h2 className="text-xl font-bold">{session.name}</h2>
+            <p className="text-sm text-muted-foreground">
+              Энэ тэмцээн нууц үгтэй хамгаалагдсан байна
+            </p>
+          </div>
+
+          <form onSubmit={handlePasswordSubmit} className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="pw" className="text-sm">Нууц үг</Label>
+              <Input
+                id="pw"
+                type="password"
+                placeholder="Нууц үг оруулна уу"
+                value={passwordInput}
+                onChange={(e) => { setPasswordInput(e.target.value); setPasswordError(false) }}
+                className={cn("bg-secondary/50", passwordError && "border-destructive")}
+                autoFocus
+              />
+              {passwordError && (
+                <p className="text-xs text-destructive">Нууц үг буруу байна</p>
+              )}
+            </div>
+            <Button type="submit" className="w-full glow-primary" disabled={!passwordInput}>
+              Нэвтрэх
+            </Button>
+          </form>
+
+          <div className="text-center">
+            <Link href="/local" className="text-sm text-muted-foreground hover:text-foreground flex items-center justify-center gap-1">
+              <ArrowLeft className="h-3.5 w-3.5" />Буцах
+            </Link>
+          </div>
+        </div>
       </div>
     )
   }
