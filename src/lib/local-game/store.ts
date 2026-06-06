@@ -4,6 +4,7 @@ import {
   LocalSession, LocalPlayer, LocalMatch, LocalLeg, SessionSummary,
   BracketType, GameFormat, StandingRow, SessionPhase,
 } from "./types"
+import { broadcastSession } from "./sync"
 import {
   generateSingleElimination, generateDoubleElimination,
   generateRoundRobin, generateGroupsKnockout, generateSwissRound1,
@@ -350,6 +351,8 @@ export const useLocalGame = create<LocalGameStore>()(
           })
           return { sessions: { ...s.sessions, [sessionId]: { ...session, matches, updatedAt: new Date().toISOString() } } }
         })
+        const updated = get().sessions[sessionId]
+        if (updated) broadcastSession(updated)
       },
 
       completeLeg: (sessionId, matchId, legIndex, winnerId) => {
@@ -372,6 +375,8 @@ export const useLocalGame = create<LocalGameStore>()(
           })
           return { sessions: { ...s.sessions, [sessionId]: { ...session, matches, updatedAt: new Date().toISOString() } } }
         })
+        const updated = get().sessions[sessionId]
+        if (updated) broadcastSession(updated)
       },
 
       completeMatch: (sessionId, matchId, winnerId) => {
@@ -425,6 +430,8 @@ export const useLocalGame = create<LocalGameStore>()(
           }
           return { sessions: { ...s.sessions, [sessionId]: updatedSession } }
         })
+        const updated = get().sessions[sessionId]
+        if (updated) broadcastSession(updated)
       },
 
       addSwissRound: (sessionId) => {

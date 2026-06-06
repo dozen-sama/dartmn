@@ -3,24 +3,49 @@
 import { useEffect, useRef, useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Trophy } from "lucide-react"
+import { ArrowLeft, Trophy, Wifi, WifiOff } from "lucide-react"
 import { useLocalGame } from "@/lib/local-game/store"
+import { fetchRemoteSession, subscribeToSession } from "@/lib/local-game/sync"
 import { getCheckout } from "@/lib/local-game/checkouts"
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
+import type { LocalSession } from "@/lib/local-game/types"
 
 export function LiveView() {
   const { sessionId, matchId } = useParams<{ sessionId: string; matchId: string }>()
   const [mounted, setMounted] = useState(false)
   const tableRef = useRef<HTMLDivElement>(null)
+  const [remoteSession, setRemoteSession] = useState<LocalSession | null>(null)
+  const [syncStatus, setSyncStatus] = useState<"local" | "remote" | "none">("none")
+
+  // Local Zustand state (same device)
+  const localSession = useLocalGame((s) => s.sessions[sessionId])
 
   useEffect(() => { setMounted(true) }, [])
-  useEffect(() => {
-    const t = setInterval(() => {}, 800)
-    return () => clearInterval(t)
-  }, [])
 
-  const session = useLocalGame((s) => s.sessions[sessionId])
+  // Суурь remote state татах + realtime subscribe
+  useEffect(() => {
+    if (!mounted) return
+
+    // 1. Local байвал ашиглана
+    if (localSession) { setSyncStatus("local"); return }
+
+    // 2. Remote-с татах
+    fetchRemoteSession(sessionId).then((s) => {
+      if (s) { setRemoteSession(s); setSyncStatus("remote") }
+    })
+
+    // 3. Realtime subscribe
+    const unsub = subscribeToSession(sessionId, (s) => {
+      setRemoteSession(s)
+      setSyncStatus("remote")
+    })
+
+    return unsub
+  }, [mounted, sessionId, localSession])
+
+  // Аль state ашиглах: local > remote
+  const session = localSession ?? remoteSession
 
   useEffect(() => {
     if (tableRef.current) tableRef.current.scrollTop = tableRef.current.scrollHeight
@@ -33,8 +58,10 @@ export function LiveView() {
   )
   if (!session) return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-slate-950 gap-4">
-      <p className="text-white/50">Тоглолт олдсонгүй</p>
-      <Link href="/local" className={cn(buttonVariants({ variant: "outline" }))}>Буцах</Link>
+      <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
+      <p className="text-white/50 text-sm">Тоглолт хайж байна...</p>
+      <p className="text-white/25 text-xs">Тоглолт олдоогүй бол хуучин хуудас руу буцна</p>
+      <Link href="/local" className={cn(buttonVariants({ variant: "ghost" }), "text-white/40 text-sm")}>Буцах</Link>
     </div>
   )
 
@@ -124,12 +151,24 @@ export function LiveView() {
           <p className="text-[10px] text-white/30 uppercase tracking-widest">{session.format} · BO{session.firstTo}</p>
         </div>
         <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5">
+          {syncStatus === "remote" && (
+            <span title="Realtime sync" className="flex items-center gap-1 text-[10px] text-emerald-400">
+              <Wifi className="h-3 w-3" />
+            </span>
+          )}
+          {syncStatus === "local" && (
+            <span title="Local" className="flex items-center gap-1 text-[10px] text-sky-400">
+              <WifiOff className="h-3 w-3" />
+            </span>
+          )}
           {isOngoing && (
             <span className="flex items-center gap-1 text-[11px] font-bold text-primary">
               <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />LIVE
             </span>
           )}
           {isCompleted && <span className="text-[11px] font-bold text-green-400">ДУУССАН</span>}
+        </div>
         </div>
       </div>
 
