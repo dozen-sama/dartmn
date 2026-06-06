@@ -23,6 +23,8 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [oauthLoading, setOauthLoading] = useState<string | null>(null)
+  const [unconfirmed, setUnconfirmed] = useState(false)
+  const [resendLoading, setResendLoading] = useState(false)
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -34,14 +36,34 @@ export function LoginForm() {
 
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
-      toast.error(mn.auth.invalidCredentials)
       setLoading(false)
+      if (error.message.toLowerCase().includes("email not confirmed")) {
+        setUnconfirmed(true)
+        toast.error(mn.auth.emailNotConfirmed)
+      } else {
+        setUnconfirmed(false)
+        toast.error(mn.auth.invalidCredentials)
+      }
       return
     }
+    setUnconfirmed(false)
 
     toast.success(mn.auth.loginSuccess)
     router.push(redirectTo)
     router.refresh()
+  }
+
+  async function handleResendConfirmation() {
+    if (!email) return toast.error(mn.auth.emailRequired)
+    setResendLoading(true)
+    const supabase = createClient()
+    const { error } = await supabase.auth.resend({ type: "signup", email })
+    setResendLoading(false)
+    if (error) {
+      toast.error(error.message)
+    } else {
+      toast.success(mn.auth.resendConfirmationSent)
+    }
   }
 
   async function handleOAuth(provider: "google" | "facebook") {
@@ -151,6 +173,21 @@ export function LoginForm() {
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {mn.auth.login}
           </Button>
+
+          {unconfirmed && (
+            <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-sm text-yellow-400">
+              <p className="mb-2">{mn.auth.emailNotConfirmed}</p>
+              <button
+                type="button"
+                onClick={handleResendConfirmation}
+                disabled={resendLoading}
+                className="flex items-center gap-1.5 text-xs font-medium underline underline-offset-2 hover:text-yellow-300 disabled:opacity-50"
+              >
+                {resendLoading && <Loader2 className="h-3 w-3 animate-spin" />}
+                {mn.auth.resendConfirmation}
+              </button>
+            </div>
+          )}
         </form>
       </CardContent>
 
