@@ -18,7 +18,7 @@ export default async function ShowcasePage({ params }: { params: Promise<{ id: s
 
   const { data: club } = await supabase
     .from("clubs")
-    .select("*, profiles(display_name, username, avatar_url)")
+    .select("*, profiles!clubs_owner_id_fkey(display_name, username, avatar_url)")
     .eq("id", id)
     .single()
 
