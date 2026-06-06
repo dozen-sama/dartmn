@@ -4,7 +4,7 @@ import { RatingsContent } from "./RatingsContent"
 
 export const metadata: Metadata = { title: "Рейтинг" }
 
-export const dynamic = "force-dynamic"
+export const revalidate = 60
 
 export default async function RatingsPage() {
   const supabase = await createClient()

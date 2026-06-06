@@ -7,14 +7,16 @@ import { redirect } from "next/navigation"
 export default async function MainLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
+  // getSession() reads from cookie — no network round-trip, ~150ms faster than getUser()
+  // Security-sensitive pages (settings, admin) call getUser() themselves
+  const { data: { session } } = await supabase.auth.getSession()
 
   let profile = null
-  if (user) {
+  if (session?.user) {
     const { data } = await supabase
       .from("profiles")
       .select("*")
-      .eq("id", user.id)
+      .eq("id", session.user.id)
       .single()
     profile = data
   }

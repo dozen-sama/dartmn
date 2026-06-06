@@ -4,7 +4,7 @@ import { CalendarContent } from "./CalendarContent"
 
 export const metadata: Metadata = { title: "Тэмцээний календарь" }
 
-export const dynamic = "force-dynamic"
+export const revalidate = 300
 
 export default async function CalendarPage() {
   const supabase = await createClient()
