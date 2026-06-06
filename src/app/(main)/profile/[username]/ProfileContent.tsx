@@ -97,7 +97,7 @@ export function ProfileContent({ profile: p, isOwner, clubName, recentMatches, t
           <div className="space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl font-bold">{p.display_name}</h1>
-              <TierBadge rating={p.rating_points} size="md" />
+              <TierBadge rating={p.rating_points} avragaWins={p.avraga_wins ?? 0} size="md" />
             </div>
             <p className="text-muted-foreground text-sm">@{p.username}</p>
 

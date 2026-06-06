@@ -1,15 +1,17 @@
-import { getTier, getProgress, TierInfo } from "@/lib/rating"
+import { getTier, getProgress, getAvragaTitle, TIERS, AVRAGA_TITLES } from "@/lib/rating"
 import { cn } from "@/lib/utils"
 
 interface TierBadgeProps {
   rating: number
+  avragaWins?: number
   showProgress?: boolean
   size?: "sm" | "md" | "lg"
 }
 
-export function TierBadge({ rating, showProgress = false, size = "md" }: TierBadgeProps) {
+export function TierBadge({ rating, avragaWins = 0, showProgress = false, size = "md" }: TierBadgeProps) {
   const tier = getTier(rating)
   const progress = getProgress(rating)
+  const avraga = getAvragaTitle(avragaWins)
 
   const sizes = {
     sm: "text-[10px] px-1.5 py-0.5 gap-1",
@@ -19,13 +21,28 @@ export function TierBadge({ rating, showProgress = false, size = "md" }: TierBad
 
   return (
     <div className="inline-flex flex-col gap-1">
-      <span className={cn(
-        "inline-flex items-center rounded-full border font-semibold",
-        tier.bg, tier.border, tier.color, sizes[size]
-      )}>
-        <span>{tier.icon}</span>
-        <span>{tier.tier}</span>
-      </span>
+      <div className="flex items-center gap-1 flex-wrap">
+        {/* Рейтинг дээр суурилсан цол */}
+        <span className={cn(
+          "inline-flex items-center rounded-full border font-semibold",
+          tier.bg, tier.border, tier.color, sizes[size]
+        )}>
+          <span>{tier.icon}</span>
+          <span>{tier.tier}</span>
+        </span>
+
+        {/* Тэмцээний онцгой цол */}
+        {avraga && (
+          <span className={cn(
+            "inline-flex items-center rounded-full border font-semibold",
+            avraga.bg, avraga.border, avraga.color, sizes[size]
+          )}>
+            <span>{avraga.icon}</span>
+            <span>{avraga.label}</span>
+          </span>
+        )}
+      </div>
+
       {showProgress && tier.nextMin && (
         <div className="w-full">
           <div className="h-1 rounded-full bg-border/50 overflow-hidden">
@@ -35,13 +52,10 @@ export function TierBadge({ rating, showProgress = false, size = "md" }: TierBad
             />
           </div>
           <p className="text-[10px] text-muted-foreground mt-0.5">
-            {rating} / {tier.nextMin} pts → {TIER_NAMES[TIERS.indexOf(tier) + 1]}
+            {rating} / {tier.nextMin} → {TIERS[TIERS.findIndex(t => t.tier === tier.tier) + 1]?.tier}
           </p>
         </div>
       )}
     </div>
   )
 }
-
-import { TIERS } from "@/lib/rating"
-const TIER_NAMES = TIERS.map((t) => t.tier)

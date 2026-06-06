@@ -21,6 +21,7 @@ export interface Database {
           matches_played: number
           matches_won: number
           tournament_wins: number
+          avraga_wins: number
           average_score: number
           checkout_percentage: number
           highest_checkout: number
@@ -69,6 +70,7 @@ export interface Database {
           matches_played?: number
           matches_won?: number
           tournament_wins?: number
+          avraga_wins?: number
           is_premium?: boolean
           premium_expires_at?: string | null
           primary_club_id?: string | null
