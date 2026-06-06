@@ -124,15 +124,28 @@ export function CreateTournamentForm({ userId, userProfile }: Props) {
   // Format
   const [format, setFormat] = useState<"501" | "301" | "cricket" | "cutthroat">("501")
   const [startScore, setStartScore] = useState(501)
+  // KO тохиргоо
   const [firstTo, setFirstTo] = useState(2)
   const [setsEnabled, setSetsEnabled] = useState(false)
   const [legsPerSet, setLegsPerSet] = useState(3)
+  const [doubleOut, setDoubleOut] = useState(true)
+  const [doubleIn, setDoubleIn] = useState(false)
+  const [loserFirst, setLoserFirst] = useState(false)
+  const [thirdPlaceMatch, setThirdPlaceMatch] = useState(false)
   const [limitRoundsEnabled, setLimitRoundsEnabled] = useState(false)
   const [limitRounds, setLimitRounds] = useState(15)
-  const [loserFirst, setLoserFirst] = useState(false)
+  const [bullFinishAtLimit, setBullFinishAtLimit] = useState(false)
+  // RR тохиргоо
+  const [rrFirstTo, setRrFirstTo] = useState(2)
+  const [rrSetsEnabled, setRrSetsEnabled] = useState(false)
+  const [rrLegsPerSet, setRrLegsPerSet] = useState(3)
+  const [enableDraw, setEnableDraw] = useState(false)
+  const [groupsCount, setGroupsCount] = useState(2)
+  const [groupAdvance, setGroupAdvance] = useState(1)
+  const [playersPerGroup, setPlayersPerGroup] = useState(4)
 
   // Bracket
-  const [bracketType, setBracketType] = useState<"single_elimination" | "double_elimination" | "round_robin" | "swiss">("single_elimination")
+  const [bracketType, setBracketType] = useState<"single_elimination" | "double_elimination" | "round_robin" | "swiss" | "groups_knockout">("single_elimination")
   const [maxPlayers, setMaxPlayers] = useState(16)
 
   // Оноо тооцоо (RR/Swiss)
@@ -155,15 +168,14 @@ export function CreateTournamentForm({ userId, userProfile }: Props) {
   const [entryFee, setEntryFee] = useState(0)
   const [prizePool, setPrizePool] = useState(0)
 
-  // Batch add
-  const [batchText, setBatchText] = useState("")
-  const [showBatch, setShowBatch] = useState(false)
+  const isRR = bracketType === "round_robin" || bracketType === "swiss" || bracketType === "groups_knockout"
 
   const BRACKET_OPTIONS = [
     { value: "single_elimination", label: "Single Elimination", desc: "Нэг алдлаар унана" },
     { value: "double_elimination", label: "Double Elimination", desc: "Хоёр алдлаар унана" },
     { value: "round_robin", label: "Round Robin", desc: "Бүгд бүгдтэйгээ тоглоно" },
-    { value: "swiss", label: "Swiss (Matches)", desc: "Ижил оноотой тоглогчид тулалдана" },
+    { value: "groups_knockout", label: "Бүлэг + Knockout", desc: "Бүлгийн шат → Knockout шат" },
+    { value: "swiss", label: "Swiss", desc: "Ижил оноотой тоглогчид тулалдана" },
   ] as const
 
   const FORMAT_OPTIONS = [
@@ -245,8 +257,19 @@ export function CreateTournamentForm({ userId, userProfile }: Props) {
         first_to: firstTo,
         sets_enabled: setsEnabled,
         legs_per_set: legsPerSet,
-        limit_rounds: limitRoundsEnabled ? limitRounds : null,
+        double_out: doubleOut,
+        double_in: doubleIn,
         loser_first: loserFirst,
+        third_place_match: thirdPlaceMatch,
+        limit_rounds: limitRoundsEnabled ? limitRounds : null,
+        bull_finish_at_limit: limitRoundsEnabled ? bullFinishAtLimit : false,
+        enable_draw: enableDraw,
+        groups_count: groupsCount,
+        group_advance: groupAdvance,
+        players_per_group: playersPerGroup,
+        rr_first_to: rrFirstTo,
+        rr_sets_enabled: rrSetsEnabled,
+        rr_legs_per_set: rrLegsPerSet,
         show_average: showAverage,
         auto_complete: autoComplete,
         confirm_opponent: confirmOpponent,
@@ -468,56 +491,110 @@ export function CreateTournamentForm({ userId, userProfile }: Props) {
             </div>
           </div>
 
-          {/* First to / Sets / Legs */}
-          <div className="space-y-2">
-            <Label>Тоглолтын формат</Label>
-            <div className="flex items-center gap-3 flex-wrap">
-              <Stepper value={firstTo} onChange={setFirstTo} min={1} max={11} label="First to" />
-              <div className="flex items-center gap-2 mt-4">
-                <button type="button" onClick={() => setSetsEnabled(!setsEnabled)}
-                  className={cn("px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition-all",
-                    setsEnabled ? "border-primary bg-primary/15 text-primary" : "border-border/50 text-muted-foreground hover:border-border")}>
-                  Sets
-                </button>
-                <span className="text-muted-foreground text-sm">/</span>
-                {setsEnabled && <Stepper value={legsPerSet} onChange={setLegsPerSet} min={1} max={11} label="Legs per set" />}
-                {!setsEnabled && <span className="text-sm text-muted-foreground mt-4">Legs</span>}
-              </div>
-            </div>
-          </div>
-
-          {/* Start Score + Round хязгаар */}
+          {/* Start Score */}
           {(format === "501" || format === "301") && (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Start Score</Label>
-                <div className="flex gap-1.5">
-                  {[501, 301, 170, 121].map((s) => (
-                    <button key={s} type="button" onClick={() => setStartScore(s)}
-                      className={cn("flex-1 py-1.5 text-xs font-bold rounded-md border-2 transition-all",
-                        startScore === s ? "border-primary bg-primary/15 text-primary" : "border-border/50 text-muted-foreground hover:border-border")}>
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <Label>Round хязгаар</Label>
-                  <input type="checkbox" checked={limitRoundsEnabled} onChange={(e) => setLimitRoundsEnabled(e.target.checked)} className="accent-primary" />
-                </div>
-                {limitRoundsEnabled && (
-                  <Input type="number" value={limitRounds} onChange={(e) => setLimitRounds(parseInt(e.target.value) || 15)}
-                    min={1} max={50} className="bg-secondary/50 border-border/60" />
-                )}
+            <div className="space-y-1.5">
+              <Label>Start Score</Label>
+              <div className="flex gap-1.5">
+                {[501, 301, 170, 121].map((s) => (
+                  <button key={s} type="button" onClick={() => setStartScore(s)}
+                    className={cn("flex-1 py-1.5 text-sm font-bold rounded-md border-2 transition-all",
+                      startScore === s ? "border-primary bg-primary/15 text-primary" : "border-border/50 text-muted-foreground hover:border-border")}>
+                    {s}
+                  </button>
+                ))}
               </div>
             </div>
           )}
 
-          {/* Loser First */}
-          <CheckRow label="Loser First" checked={loserFirst} onChange={setLoserFirst}
-            sub="Өмнөх leg-ийг хожигдсон тоглогч эхэлнэ" />
+          {/* RR тохиргоо */}
+          {isRR && (
+            <div className="rounded-lg border border-border/40 bg-secondary/20 p-3 space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Round Robin тохиргоо</p>
+              <div className="flex items-center gap-3 flex-wrap">
+                <Stepper value={rrFirstTo} onChange={setRrFirstTo} min={1} max={11} label="First to" />
+                <div className="flex items-center gap-2 mt-4">
+                  <button type="button" onClick={() => setRrSetsEnabled(!rrSetsEnabled)}
+                    className={cn("px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition-all",
+                      rrSetsEnabled ? "border-primary bg-primary/15 text-primary" : "border-border/50 text-muted-foreground hover:border-border")}>
+                    Sets
+                  </button>
+                  {rrSetsEnabled && <Stepper value={rrLegsPerSet} onChange={setRrLegsPerSet} min={1} max={11} label="Legs/set" />}
+                  {!rrSetsEnabled && <span className="text-sm text-muted-foreground mt-4">Legs</span>}
+                </div>
+                <CheckRow label="Тэнцэл зөвшөөрөх" checked={enableDraw} onChange={setEnableDraw} />
+              </div>
+            </div>
+          )}
+
+          {/* Groups тохиргоо */}
+          {bracketType === "groups_knockout" && (
+            <div className="rounded-lg border border-border/40 bg-secondary/20 p-3 space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Бүлгийн тохиргоо</p>
+              <div className="flex items-center gap-4 flex-wrap">
+                <Stepper value={groupsCount} onChange={setGroupsCount} min={2} max={16} label="Бүлгийн тоо" />
+                <Stepper value={playersPerGroup} onChange={setPlayersPerGroup} min={2} max={20} label="Бүлэгт тоглогч" />
+                <Stepper value={groupAdvance} onChange={setGroupAdvance} min={1} max={Math.max(1, playersPerGroup - 1)} label="Гарах тоо" />
+              </div>
+              <p className="text-xs text-primary/80 font-medium">
+                = {groupsCount * playersPerGroup} нийт · KO шатанд {groupsCount * groupAdvance} тоглогч
+              </p>
+            </div>
+          )}
+
+          {/* KO тохиргоо */}
+          {!isRR && (
+            <div className="rounded-lg border border-border/40 bg-secondary/20 p-3 space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Knockout тохиргоо</p>
+              <div className="flex items-center gap-3 flex-wrap">
+                <Stepper value={firstTo} onChange={setFirstTo} min={1} max={11} label="First to" />
+                <div className="flex items-center gap-2 mt-4">
+                  <button type="button" onClick={() => setSetsEnabled(!setsEnabled)}
+                    className={cn("px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition-all",
+                      setsEnabled ? "border-primary bg-primary/15 text-primary" : "border-border/50 text-muted-foreground hover:border-border")}>
+                    Sets
+                  </button>
+                  {setsEnabled && <Stepper value={legsPerSet} onChange={setLegsPerSet} min={1} max={11} label="Legs/set" />}
+                  {!setsEnabled && <span className="text-sm text-muted-foreground mt-4">Legs</span>}
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-3 pt-1">
+                <CheckRow label="3-р байрны тоглолт" checked={thirdPlaceMatch} onChange={setThirdPlaceMatch} />
+              </div>
+            </div>
+          )}
+
+          {/* Double Out / In */}
+          {(format === "501" || format === "301") && (
+            <div className="flex gap-4 flex-wrap">
+              <CheckRow label="Double Out" checked={doubleOut} onChange={setDoubleOut}
+                sub="Финиш double-аас байх ёстой" />
+              <CheckRow label="Double In" checked={doubleIn} onChange={setDoubleIn}
+                sub="Double-аас тоглолт эхэлнэ" />
+              <CheckRow label="Loser First" checked={loserFirst} onChange={setLoserFirst}
+                sub="Leg хожигдсон тоглогч эхэлнэ" />
+            </div>
+          )}
+
+          {/* Visit хязгаар */}
+          {(format === "501" || format === "301") && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <input type="checkbox" id="limitRounds" checked={limitRoundsEnabled}
+                  onChange={(e) => setLimitRoundsEnabled(e.target.checked)} className="accent-primary" />
+                <label htmlFor="limitRounds" className="text-sm font-medium cursor-pointer">Visit хязгаар</label>
+              </div>
+              {limitRoundsEnabled && (
+                <div className="pl-5 space-y-2">
+                  <div className="flex items-center gap-3">
+                    <Stepper value={limitRounds} onChange={setLimitRounds} min={5} max={99} label="Хамгийн их visit" />
+                  </div>
+                  <CheckRow label="Bull-off-оор дуусгах" checked={bullFinishAtLimit} onChange={setBullFinishAtLimit}
+                    sub="Visit хязгаарт хүрэхэд Bull-off хийнэ" />
+                </div>
+              )}
+            </div>
+          )}
         </Section>
 
         {/* ── BRACKET TYPE ── */}

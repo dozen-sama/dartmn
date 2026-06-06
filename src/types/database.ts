@@ -178,7 +178,7 @@ export interface Database {
           organizer_id: string
           format: "501" | "301" | "cricket" | "cutthroat"
           type: "singles" | "doubles" | "team"
-          bracket_type: "single_elimination" | "double_elimination" | "round_robin" | "swiss"
+          bracket_type: "single_elimination" | "double_elimination" | "round_robin" | "swiss" | "groups_knockout"
           status: "draft" | "registration" | "ongoing" | "completed" | "cancelled"
           max_players: number
           current_players: number
@@ -207,6 +207,17 @@ export interface Database {
           point_draw: number
           point_lost: number
           win_points_are_legs: boolean
+          double_out: boolean
+          double_in: boolean
+          bull_finish_at_limit: boolean
+          enable_draw: boolean
+          third_place_match: boolean
+          groups_count: number
+          group_advance: number
+          players_per_group: number
+          rr_first_to: number
+          rr_sets_enabled: boolean
+          rr_legs_per_set: number
           tournament_type: "open" | "league" | "national" | "club" | "friendly"
           platform_fee: number
           created_at: string
@@ -220,7 +231,7 @@ export interface Database {
           organizer_id: string
           format: "501" | "301" | "cricket" | "cutthroat"
           type?: "singles" | "doubles" | "team"
-          bracket_type?: "single_elimination" | "double_elimination" | "round_robin" | "swiss"
+          bracket_type?: "single_elimination" | "double_elimination" | "round_robin" | "swiss" | "groups_knockout"
           status?: "draft" | "registration" | "ongoing" | "completed" | "cancelled"
           max_players?: number
           entry_fee?: number
@@ -248,6 +259,17 @@ export interface Database {
           point_draw?: number
           point_lost?: number
           win_points_are_legs?: boolean
+          double_out?: boolean
+          double_in?: boolean
+          bull_finish_at_limit?: boolean
+          enable_draw?: boolean
+          third_place_match?: boolean
+          groups_count?: number
+          group_advance?: number
+          players_per_group?: number
+          rr_first_to?: number
+          rr_sets_enabled?: boolean
+          rr_legs_per_set?: number
         }
         Update: {
           name?: string
@@ -267,7 +289,7 @@ export interface Database {
           password?: string | null
           is_private?: boolean
           format?: "501" | "301" | "cricket" | "cutthroat"
-          bracket_type?: "single_elimination" | "double_elimination" | "round_robin" | "swiss"
+          bracket_type?: "single_elimination" | "double_elimination" | "round_robin" | "swiss" | "groups_knockout"
           first_to?: number
           sets_enabled?: boolean
           legs_per_set?: number
