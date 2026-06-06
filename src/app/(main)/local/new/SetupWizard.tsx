@@ -316,7 +316,7 @@ export function SetupWizard() {
           </div>
           <button onClick={handleDone}
             className="text-sm font-semibold bg-green-600 hover:bg-green-700 text-white px-4 py-1.5 rounded-md transition-colors">
-            Done
+            Дуусгах
           </button>
         </div>
 
@@ -327,11 +327,11 @@ export function SetupWizard() {
         <div className="flex gap-3 pt-2 border-t border-border/50">
           <button onClick={() => setStep("players")}
             className="px-4 py-2 rounded-md bg-pink-600 hover:bg-pink-700 text-white text-sm font-medium">
-            ← Prev
+            ← Буцах
           </button>
           <button onClick={handleDone}
             className="flex-1 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold">
-            Next (Явагдаж байна) →
+            Тэмцээн эхлүүлэх →
           </button>
         </div>
       </div>
@@ -352,9 +352,7 @@ export function SetupWizard() {
           </p>
         </div>
         {step !== "type" && (
-          <button className="text-sm border border-border/60 px-3 py-1 rounded-md text-muted-foreground hover:text-foreground">
-            Detail
-          </button>
+          <div className="w-20" />
         )}
         {step === "type" && <div className="w-20" />}
       </div>

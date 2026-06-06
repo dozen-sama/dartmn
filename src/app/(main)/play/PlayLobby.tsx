@@ -182,7 +182,7 @@ export function PlayLobby({ profile, activeRooms }: Props) {
             },
             {
               icon: "🎮",
-              title: "Real-time multiplayer",
+              title: "Шууд олон тоглогч",
               desc: "Хоёр тоглогч нэгэн зэрэг оноо оруулж, шууд харилцах. WebRTC-д суурилсан.",
               status: "Төлөвлөгдсөн",
             },

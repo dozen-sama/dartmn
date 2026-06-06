@@ -107,9 +107,9 @@ function PlayerRow({ player, rank, showProvince = false }: { player: PlayerRow; 
               <MapPin className="h-2.5 w-2.5" />{player.province}
             </span>
           )}
-          <span>Avg {formatAverage(player.average_score)}</span>
+          <span>Дундаж {formatAverage(player.average_score)}</span>
           <span>·</span>
-          <span>{winRate}% WR</span>
+          <span>{winRate}% Хожилт</span>
         </div>
       </div>
       <span className="text-sm font-bold score-display text-[oklch(0.78_0.16_85)] shrink-0">

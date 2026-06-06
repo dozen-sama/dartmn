@@ -125,10 +125,10 @@ export function ProfileContent({ profile: p, isOwner, clubName, recentMatches, t
 
           {/* Quick stats */}
           <div className="grid grid-cols-4 gap-2 mt-5 pt-5 border-t border-border/50">
-            <StatCard label="Matches" value={p.matches_played} />
-            <StatCard label="Win Rate" value={`${winRate}%`} sub={`${p.matches_won}W / ${lossCount}L`} />
-            <StatCard label="180s" value={p.count_180} />
-            <StatCard label="Titles" value={p.tournament_wins} highlight={p.tournament_wins > 0} />
+            <StatCard label="Тоглолт" value={p.matches_played} />
+            <StatCard label="Хожлын хувь" value={`${winRate}%`} sub={`${p.matches_won}Х / ${lossCount}Я`} />
+            <StatCard label="180-ийн тоо" value={p.count_180} />
+            <StatCard label="Ялалт" value={p.tournament_wins} highlight={p.tournament_wins > 0} />
           </div>
         </CardContent>
       </Card>
@@ -199,9 +199,9 @@ export function ProfileContent({ profile: p, isOwner, clubName, recentMatches, t
               </CardHeader>
               <CardContent className="px-4 pb-4 space-y-3">
                 <StatRow label="Match Played" value={formatNumber(p.matches_played)} />
-                <StatRow label="Win Rate" value={`${winRate}%`} accent />
-                <StatRow label="Average" value={formatAverage(p.average_score)} />
-                <StatRow label="Rating" value={formatNumber(p.rating_points)} accent />
+                <StatRow label="Хожлын хувь" value={`${winRate}%`} accent />
+                <StatRow label="Дундаж" value={formatAverage(p.average_score)} />
+                <StatRow label="Рейтинг оноо" value={formatNumber(p.rating_points)} accent />
               </CardContent>
             </Card>
 

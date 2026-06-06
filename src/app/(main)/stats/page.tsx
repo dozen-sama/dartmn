@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { formatAverage, formatDate, formatNumber } from "@/lib/utils/format"
 
-export const metadata: Metadata = { title: "Statistics" }
+export const metadata: Metadata = { title: "Статистик" }
 
 export default async function StatsPage() {
   const supabase = await createClient()
@@ -36,35 +36,35 @@ export default async function StatsPage() {
 
   const phases = [
     {
-      title: "Match Record",
+      title: "Тоглолтын бүртгэл",
       icon: Trophy,
       color: "text-primary",
       stats: [
-        { label: "Matches Played", value: formatNumber(profile.matches_played), pct: null },
-        { label: "Wins", value: profile.matches_won, pct: Math.round(winRate) },
-        { label: "Losses", value: lossCount, pct: Math.round(100 - winRate) },
-        { label: "Win Rate", value: `${Math.round(winRate)}%`, pct: Math.round(winRate) },
+        { label: "Нийт тоглолт", value: formatNumber(profile.matches_played), pct: null },
+        { label: "Хожсон", value: profile.matches_won, pct: Math.round(winRate) },
+        { label: "Хожигдсон", value: lossCount, pct: Math.round(100 - winRate) },
+        { label: "Хожлын хувь", value: `${Math.round(winRate)}%`, pct: Math.round(winRate) },
       ],
     },
     {
-      title: "Scoring",
+      title: "Оноо оруулалт",
       icon: Zap,
       color: "text-blue-400",
       stats: [
-        { label: "Average", value: formatAverage(profile.average_score), pct: null },
-        { label: "180s", value: formatNumber(profile.count_180), pct: null },
-        { label: "Rating Points", value: formatNumber(profile.rating_points), pct: null },
-        { label: "Tournament Wins", value: profile.tournament_wins, pct: null },
+        { label: "Дундаж", value: formatAverage(profile.average_score), pct: null },
+        { label: "180-ийн тоо", value: formatNumber(profile.count_180), pct: null },
+        { label: "Рейтинг оноо", value: formatNumber(profile.rating_points), pct: null },
+        { label: "Тэмцээний ялалт", value: profile.tournament_wins, pct: null },
       ],
     },
     {
-      title: "Checkout",
+      title: "Финиш",
       icon: Target,
       color: "text-green-400",
       stats: [
-        { label: "Checkout %", value: `${(profile.checkout_percentage * 100).toFixed(1)}%`, pct: Math.round(profile.checkout_percentage * 100) },
-        { label: "Highest Checkout", value: profile.highest_checkout || "—", pct: profile.highest_checkout > 0 ? Math.round((profile.highest_checkout / 170) * 100) : 0 },
-        { label: "Best Leg", value: profile.best_leg ? `${profile.best_leg} darts` : "—", pct: profile.best_leg > 0 ? Math.max(0, Math.round(100 - ((profile.best_leg - 9) / 30) * 100)) : 0 },
+        { label: "Финиш %", value: `${(profile.checkout_percentage * 100).toFixed(1)}%`, pct: Math.round(profile.checkout_percentage * 100) },
+        { label: "Хамгийн өндөр финиш", value: profile.highest_checkout || "—", pct: profile.highest_checkout > 0 ? Math.round((profile.highest_checkout / 170) * 100) : 0 },
+        { label: "Хамгийн сайн лег", value: profile.best_leg ? `${profile.best_leg} дарт` : "—", pct: profile.best_leg > 0 ? Math.max(0, Math.round(100 - ((profile.best_leg - 9) / 30) * 100)) : 0 },
       ],
     },
   ]
@@ -74,7 +74,7 @@ export default async function StatsPage() {
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <BarChart3 className="h-6 w-6 text-primary" />
-          Statistics
+          Статистик
         </h1>
         <p className="text-muted-foreground text-sm mt-0.5">{profile.display_name}-ийн тоглолтын дэлгэрэнгүй</p>
       </div>
@@ -109,10 +109,10 @@ export default async function StatsPage() {
       {/* Summary banner */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Matches Played", value: formatNumber(profile.matches_played), icon: "🎯" },
-          { label: "Win Rate", value: `${Math.round(winRate)}%`, icon: "📈" },
-          { label: "Highest Checkout", value: profile.highest_checkout || "—", icon: "🎉" },
-          { label: "Best Leg", value: profile.best_leg ? `${profile.best_leg}↗` : "—", icon: "⚡" },
+          { label: "Нийт тоглолт", value: formatNumber(profile.matches_played), icon: "🎯" },
+          { label: "Хожлын хувь", value: `${Math.round(winRate)}%`, icon: "📈" },
+          { label: "Хамгийн өндөр финиш", value: profile.highest_checkout || "—", icon: "🎉" },
+          { label: "Хамгийн сайн лег", value: profile.best_leg ? `${profile.best_leg}↗` : "—", icon: "⚡" },
         ].map((s) => (
           <Card key={s.label} className="border-border/50 bg-card/80 text-center">
             <CardContent className="p-4">
@@ -128,7 +128,7 @@ export default async function StatsPage() {
       {ratingHistory && ratingHistory.length > 0 && (
         <Card className="border-border/50 bg-card/80">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Rating History</CardTitle>
+            <CardTitle className="text-base">Рейтингийн түүх</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             {ratingHistory.map((entry) => (

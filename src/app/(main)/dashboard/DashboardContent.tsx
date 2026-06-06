@@ -113,10 +113,10 @@ export function DashboardContent({ profile, todayTournaments, activeTournaments,
                 <div className="flex items-center gap-3 mt-1 flex-wrap">
                   <span className="flex items-center gap-1 text-sm font-semibold text-[oklch(0.78_0.16_85)]">
                     <Trophy className="h-3.5 w-3.5" />
-                    {formatNumber(profile.rating_points)} pts
+                    {formatNumber(profile.rating_points)} оноо
                   </span>
                   <span className="text-border text-xs">•</span>
-                  <span className="text-xs text-muted-foreground">Average: {formatAverage(profile.average_score)}</span>
+                  <span className="text-xs text-muted-foreground">Дундаж: {formatAverage(profile.average_score)}</span>
                 </div>
               </div>
             </div>
@@ -129,10 +129,10 @@ export function DashboardContent({ profile, todayTournaments, activeTournaments,
           {/* Stats */}
           <div className="grid grid-cols-4 gap-3 mt-5 pt-5 border-t border-border/50">
             {[
-              { label: "Matches", value: profile.matches_played },
-              { label: "Win Rate", value: `${winRate}%` },
-              { label: "Best checkout", value: profile.highest_checkout || "—" },
-              { label: "180s", value: profile.count_180 },
+              { label: "Тоглолт", value: profile.matches_played },
+              { label: "Хожлын хувь", value: `${winRate}%` },
+              { label: "Хамгийн өндөр финиш", value: profile.highest_checkout || "—" },
+              { label: "180-ийн тоо", value: profile.count_180 },
             ].map((s) => (
               <div key={s.label} className="text-center">
                 <p className="text-lg sm:text-2xl font-bold score-display">{s.value}</p>

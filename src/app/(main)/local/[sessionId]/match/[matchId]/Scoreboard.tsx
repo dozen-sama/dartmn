@@ -177,7 +177,9 @@ export function Scoreboard() {
       return
     }
     toast.success(`${playerMap[winnerId]?.name} хожлоо!`)
-    setActivePlayer(winnerId === p1Id ? 1 : 0)
+    // Хожигч leg дууссаны дараа эсрэг тоглогч эхэлнэ
+    if (winnerId === p1Id) setActivePlayer(1)
+    else if (winnerId === p2Id) setActivePlayer(0)
     setVisitRound(1)
   }
 

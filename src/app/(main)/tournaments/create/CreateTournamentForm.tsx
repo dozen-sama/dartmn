@@ -716,7 +716,7 @@ export function CreateTournamentForm({ userId, userProfile }: Props) {
         {/* Submit */}
         <div className="flex gap-3 pt-2">
           <Link href="/tournaments" className={cn(buttonVariants({ variant: "outline" }), "border-border/60")}>
-            Cancel
+            Буцах
           </Link>
           <Button type="submit" className="flex-1 glow-primary" size="lg" disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

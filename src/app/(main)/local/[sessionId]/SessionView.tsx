@@ -246,10 +246,7 @@ export function SessionView() {
           <h1 className="font-bold text-base">{session.name}</h1>
           <p className="text-xs text-muted-foreground">({currentPhaseLabel})</p>
         </div>
-        <button onClick={() => updateSession(sessionId, {})}
-          className="text-sm border border-border/60 px-3 py-1 rounded-md text-muted-foreground hover:text-foreground">
-          Detail
-        </button>
+        <div className="w-20" />
       </div>
 
       {/* n01-style action buttons */}

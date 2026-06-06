@@ -528,7 +528,7 @@ export function TournamentEditForm({ tournament: t, clubs }: Props) {
         {/* Save / Cancel */}
         <div className="flex gap-3 pt-2">
           <Link href={`/tournaments/${t.id}`} className={cn(buttonVariants({ variant: "outline" }), "border-border/60 px-5")}>
-            Cancel
+            Буцах
           </Link>
           <Button type="submit" className="flex-1 glow-primary" size="lg" disabled={saving}>
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}

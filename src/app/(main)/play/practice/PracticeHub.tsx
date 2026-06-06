@@ -200,7 +200,7 @@ function Solo501({ onBack }: { onBack: () => void }) {
         {[
           { label: "Visit", value: visits },
           { label: "Дарт", value: dartsUsed },
-          { label: "Average", value: avg },
+          { label: "Дундаж", value: avg },
         ].map(s => (
           <div key={s.label} className="bg-secondary/40 rounded-xl py-3">
             <p className="text-xl font-black score-display">{s.value}</p>
@@ -229,7 +229,7 @@ function Solo501({ onBack }: { onBack: () => void }) {
         <div className="flex items-center gap-3">
           <span className="text-3xl font-black text-primary score-display">{remaining}</span>
           <div className="text-xs text-muted-foreground">
-            <p>Visit: {visits} · Average: {avg}</p>
+            <p>Visit: {visits} · Дундаж: {avg}</p>
             <p>Дарт: {dartsUsed}</p>
           </div>
         </div>
@@ -314,9 +314,9 @@ function ScoringDrill({ onBack }: { onBack: () => void }) {
       <p className="text-muted-foreground">10 visit-ийн нийт оноо</p>
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: "Average", value: avg },
-          { label: "Best visit", value: max },
-          { label: "180s", value: scores.filter(s => s === 180).length },
+          { label: "Дундаж", value: avg },
+          { label: "Хамгийн сайн", value: max },
+          { label: "180-ийн тоо", value: scores.filter(s => s === 180).length },
         ].map(s => (
           <div key={s.label} className="bg-secondary/40 rounded-xl py-3">
             <p className="text-xl font-black score-display">{s.value}</p>
