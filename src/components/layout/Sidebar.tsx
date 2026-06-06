@@ -42,6 +42,7 @@ const adminItems = [
   { href: "/admin", label: mn.admin.title, icon: Shield },
   { href: "/admin/users", label: mn.admin.users, icon: Users },
   { href: "/admin/tournaments", label: mn.admin.tournaments, icon: Trophy },
+  { href: "/admin/clubs", label: mn.admin.clubs, icon: Building2 },
   { href: "/admin/payments", label: mn.admin.payments, icon: CreditCard },
 ]
 

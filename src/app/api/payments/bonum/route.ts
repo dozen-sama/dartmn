@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
       tournament_id,
       amount,
       currency: "MNT",
-      provider: "qpay", // TODO: "bonum" нэмнэ
+      provider: "bonum",
       status: "pending",
     })
     .select("id")
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ error: "Bonum invoice failed", details: data }, { status: 502 })
   } catch (err) {
-    return NextResponse.json({ error: "Bonum API cold" }, { status: 502 })
+    return NextResponse.json({ error: "Bonum API холболтын алдаа" }, { status: 502 })
   }
 }
 

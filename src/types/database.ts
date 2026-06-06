@@ -533,7 +533,7 @@ export interface Database {
           tournament_id: string | null
           amount: number
           currency: string
-          provider: "qpay" | "socialpay"
+          provider: "qpay" | "socialpay" | "bonum"
           status: "pending" | "paid" | "failed" | "refunded"
           invoice_id: string | null
           qr_text: string | null
@@ -548,7 +548,7 @@ export interface Database {
           tournament_id?: string | null
           amount: number
           currency?: string
-          provider: "qpay" | "socialpay"
+          provider: "qpay" | "socialpay" | "bonum"
           status?: "pending" | "paid" | "failed" | "refunded"
           invoice_id?: string | null
           qr_text?: string | null
