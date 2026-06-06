@@ -4,27 +4,16 @@ import { Metadata } from "next"
 import Link from "next/link"
 import { ArrowLeft, Users, Crown } from "lucide-react"
 import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import { formatDate, formatNumber } from "@/lib/utils/format"
 import { requireAdmin } from "@/lib/auth/require-admin"
 import { cn } from "@/lib/utils"
+import { UserRoleSelect } from "./UserRoleSelect"
 
 export const metadata: Metadata = { title: "Хэрэглэгчид — Админ" }
 
-const roleLabels: Record<string, string> = {
-  player: "Тоглогч",
-  club_admin: "Клуб админ",
-  admin: "Админ",
-}
-const roleColors: Record<string, string> = {
-  player: "bg-secondary text-muted-foreground border-border/50",
-  club_admin: "bg-blue-500/15 text-blue-400 border-blue-500/30",
-  admin: "bg-primary/15 text-primary border-primary/30",
-}
-
 export default async function AdminUsersPage() {
-  const { supabase } = await requireAdmin()
+  const { supabase, user } = await requireAdmin()
 
   const { data: users, count } = await supabase
     .from("profiles")
@@ -54,7 +43,7 @@ export default async function AdminUsersPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border/50 bg-secondary/20">
-                {["Нэр", "Эрх", "Рейтинг", "Тоглолт", "Бүртгүүлсэн"].map((h) => (
+                {["Нэр", "Эрх (dashboard)", "Рейтинг", "Тоглолт", "Бүртгүүлсэн"].map((h) => (
                   <th key={h} className="px-3 py-2.5 text-left text-xs text-muted-foreground font-medium whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -70,9 +59,7 @@ export default async function AdminUsersPage() {
                     <span className="text-xs text-muted-foreground">@{u.username}</span>
                   </td>
                   <td className="px-3 py-2.5">
-                    <Badge variant="outline" className={`text-[10px] ${roleColors[u.role] ?? roleColors.player}`}>
-                      {roleLabels[u.role] ?? u.role}
-                    </Badge>
+                    <UserRoleSelect userId={u.id} role={u.role} isSelf={u.id === user.id} />
                   </td>
                   <td className="px-3 py-2.5 text-xs score-display text-primary">{formatNumber(u.rating_points)}</td>
                   <td className="px-3 py-2.5 text-xs score-display">{formatNumber(u.matches_played)}</td>

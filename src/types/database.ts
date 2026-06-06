@@ -16,7 +16,7 @@ export interface Database {
           city: string | null
           province: string | null
           bio: string | null
-          role: "player" | "club_admin" | "admin"
+          role: "player" | "club_admin" | "admin" | "owner"
           rating_points: number
           matches_played: number
           matches_won: number
@@ -47,7 +47,7 @@ export interface Database {
           city?: string | null
           province?: string | null
           bio?: string | null
-          role?: "player" | "club_admin" | "admin"
+          role?: "player" | "club_admin" | "admin" | "owner"
         }
         Update: {
           username?: string
@@ -60,7 +60,7 @@ export interface Database {
           city?: string | null
           province?: string | null
           bio?: string | null
-          role?: "player" | "club_admin" | "admin"
+          role?: "player" | "club_admin" | "admin" | "owner"
           rating_points?: number
           average_score?: number
           checkout_percentage?: number
