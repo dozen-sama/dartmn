@@ -33,6 +33,36 @@ export async function fetchRemoteSession(sessionId: string): Promise<LocalSessio
   }
 }
 
+// Нээлттэй (нууц үггүй) active session-уудыг татах
+export async function fetchPublicSessions(): Promise<LocalSession[]> {
+  try {
+    const { data } = await db()
+      .from("local_session_sync")
+      .select("data, updated_at")
+      .order("updated_at", { ascending: false })
+      .limit(30)
+    if (!data) return []
+    return (data as any[])
+      .map((row: any) => row.data as LocalSession)
+      .filter((s) => !s.joinPassword && s.status !== "completed")
+  } catch {
+    return []
+  }
+}
+
+// Нээлттэй session-уудын realtime subscription
+export function subscribeToPublicSessions(onUpdate: (sessions: LocalSession[]) => void) {
+  const supabase = createClient() as any
+  const channel = supabase
+    .channel("public-local-sessions")
+    .on("postgres_changes", { event: "*", schema: "public", table: "local_session_sync" }, async () => {
+      const sessions = await fetchPublicSessions()
+      onUpdate(sessions)
+    })
+    .subscribe()
+  return () => { supabase.removeChannel(channel) }
+}
+
 // Realtime subscription — LiveView ашиглана
 export function subscribeToSession(
   sessionId: string,

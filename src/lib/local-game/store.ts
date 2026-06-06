@@ -180,6 +180,7 @@ export const useLocalGame = create<LocalGameStore>()(
         }
 
         set((s) => ({ sessions: { ...s.sessions, [id]: session } }))
+        broadcastSession(session)
         return id
       },
 
@@ -322,6 +323,8 @@ export const useLocalGame = create<LocalGameStore>()(
           )
           return { sessions: { ...s.sessions, [sessionId]: { ...session, matches, updatedAt: new Date().toISOString() } } }
         })
+        const updated = get().sessions[sessionId]
+        if (updated) broadcastSession(updated)
       },
 
       recordThrow: (sessionId, matchId, legIndex, playerId, score, dartsUsed) => {
