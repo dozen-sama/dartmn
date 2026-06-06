@@ -10,16 +10,16 @@ export default async function CreateTournamentPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const { data: clubs } = await supabase
-    .from("club_members")
-    .select("clubs(id, name)")
-    .eq("player_id", user.id)
-    .in("role", ["owner", "admin"])
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("display_name, username, avatar_url")
+    .eq("id", user.id)
+    .single()
 
   return (
     <CreateTournamentForm
       userId={user.id}
-      clubs={(clubs?.map((c) => c.clubs).filter(Boolean) ?? []) as unknown as { id: string; name: string }[]}
+      userProfile={profile ?? { display_name: "", username: "", avatar_url: null }}
     />
   )
 }

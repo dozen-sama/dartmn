@@ -1,16 +1,19 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import {
   ArrowLeft, Calendar, ChevronDown, ChevronRight, Copy, Eye, EyeOff,
   Globe, Lock, Loader2, Minus, Plus, RefreshCw, Trophy, Users,
+  Upload, X, Building2, User,
 } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
@@ -19,7 +22,7 @@ import Link from "next/link"
 
 interface Props {
   userId: string
-  clubs: { id: string; name: string }[]
+  userProfile: { display_name: string; username: string; avatar_url: string | null }
 }
 
 function generateCode() {
@@ -92,19 +95,31 @@ function Stepper({ value, onChange, min = 1, max = 99, label }: { value: number;
   )
 }
 
-export function CreateTournamentForm({ userId, clubs }: Props) {
+export function CreateTournamentForm({ userId, userProfile }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploadingImage, setUploadingImage] = useState(false)
 
   // Basic info
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [clubId, setClubId] = useState("")
-  const [startDate, setStartDate] = useState("")
-  const [regDeadline, setRegDeadline] = useState("")
+  const [clubName, setClubName] = useState("")
+  const [clubSearch, setClubSearch] = useState("")
+  const [clubResults, setClubResults] = useState<{ id: string; name: string; logo_url: string | null }[]>([])
+  const [showClubDropdown, setShowClubDropdown] = useState(false)
+  // Date: тусдаа date + time state
+  const [startDateD, setStartDateD] = useState("")
+  const [startDateT, setStartDateT] = useState("12:00")
+  const [deadlineDateD, setDeadlineDateD] = useState("")
+  const [deadlineDateT, setDeadlineDateT] = useState("23:59")
+  const startDate = startDateD ? `${startDateD}T${startDateT}` : ""
+  const regDeadline = deadlineDateD ? `${deadlineDateD}T${deadlineDateT}` : ""
   const [location, setLocation] = useState("")
   const [titleImageUrl, setTitleImageUrl] = useState("")
+  const [imagePreview, setImagePreview] = useState("")
 
   // Format
   const [format, setFormat] = useState<"501" | "301" | "cricket" | "cutthroat">("501")
@@ -158,6 +173,38 @@ export function CreateTournamentForm({ userId, clubs }: Props) {
     { value: "cricket", label: "Cricket", score: 0 },
     { value: "cutthroat", label: "Cutthroat", score: 0 },
   ]
+
+  // Клуб хайлт
+  const searchClubs = useCallback(async (q: string) => {
+    if (q.length < 1) { setClubResults([]); return }
+    const supabase = createClient()
+    const { data } = await supabase
+      .from("clubs")
+      .select("id, name, logo_url")
+      .ilike("name", `%${q}%`)
+      .limit(8)
+    setClubResults(data ?? [])
+  }, [])
+
+  // Файл upload
+  async function handleImageUpload(file: File) {
+    if (!file.type.startsWith("image/")) { toast.error("Зөвхөн зураг оруулна уу"); return }
+    if (file.size > 5 * 1024 * 1024) { toast.error("Зургийн хэмжээ 5MB-аас бага байх ёстой"); return }
+
+    setUploadingImage(true)
+    const supabase = createClient()
+    const ext = file.name.split(".").pop()
+    const path = `banners/${userId}-${Date.now()}.${ext}`
+
+    const { error } = await supabase.storage.from("tournaments").upload(path, file, { upsert: true })
+    if (error) { toast.error("Зураг upload хийхэд алдаа гарлаа"); setUploadingImage(false); return }
+
+    const { data: { publicUrl } } = supabase.storage.from("tournaments").getPublicUrl(path)
+    setTitleImageUrl(publicUrl)
+    setImagePreview(URL.createObjectURL(file))
+    setUploadingImage(false)
+    toast.success("Зураг амжилттай оруулагдлаа")
+  }
 
   function handleFormatChange(val: string) {
     const opt = FORMAT_OPTIONS.find((f) => f.value === val)
@@ -278,19 +325,47 @@ export function CreateTournamentForm({ userId, clubs }: Props) {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Start Date <span className="text-primary">*</span></Label>
-                <Input type="datetime-local" value={startDate} onChange={(e) => setStartDate(e.target.value)}
-                  className="bg-secondary/50 border-border/60" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Бүртгэлийн дедлайн</Label>
-                <Input type="datetime-local" value={regDeadline} onChange={(e) => setRegDeadline(e.target.value)}
-                  className="bg-secondary/50 border-border/60" />
+            {/* Зохион байгуулагч */}
+            <div className="space-y-1.5">
+              <Label>Зохион байгуулагч</Label>
+              <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-secondary/40 border border-border/40">
+                <Avatar className="h-7 w-7 shrink-0">
+                  <AvatarImage src={userProfile.avatar_url ?? undefined} />
+                  <AvatarFallback className="text-xs bg-secondary">
+                    {userProfile.display_name?.slice(0,2).toUpperCase() || "?"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{userProfile.display_name}</p>
+                  <p className="text-xs text-muted-foreground">@{userProfile.username}</p>
+                </div>
+                <User className="h-4 w-4 text-muted-foreground shrink-0" />
               </div>
             </div>
 
+            {/* Эхлэх огноо */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Эхлэх огноо <span className="text-primary">*</span></Label>
+                <div className="flex gap-1.5">
+                  <Input type="date" value={startDateD} onChange={(e) => setStartDateD(e.target.value)}
+                    className="bg-secondary/50 border-border/60 flex-1" />
+                  <Input type="time" value={startDateT} onChange={(e) => setStartDateT(e.target.value)}
+                    className="bg-secondary/50 border-border/60 w-24" />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Бүртгэлийн дедлайн</Label>
+                <div className="flex gap-1.5">
+                  <Input type="date" value={deadlineDateD} onChange={(e) => setDeadlineDateD(e.target.value)}
+                    className="bg-secondary/50 border-border/60 flex-1" />
+                  <Input type="time" value={deadlineDateT} onChange={(e) => setDeadlineDateT(e.target.value)}
+                    className="bg-secondary/50 border-border/60 w-24" />
+                </div>
+              </div>
+            </div>
+
+            {/* Тайлбар */}
             <div className="space-y-1.5">
               <Label>Тэмцээний тайлбар</Label>
               <textarea value={description} onChange={(e) => setDescription(e.target.value)}
@@ -298,32 +373,82 @@ export function CreateTournamentForm({ userId, clubs }: Props) {
                 className="w-full rounded-md bg-secondary/50 border border-border/60 px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none" />
             </div>
 
+            {/* Байршил + Клуб хайлт */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Байршил</Label>
                 <Input value={location} onChange={(e) => setLocation(e.target.value)}
                   placeholder="DartMN Клуб, УБ" className="bg-secondary/50 border-border/60" />
               </div>
-              <div className="space-y-1.5">
-                <Label>Баннер зурагны холбоос</Label>
-                <Input value={titleImageUrl} onChange={(e) => setTitleImageUrl(e.target.value)}
-                  placeholder="https://..." className="bg-secondary/50 border-border/60" />
+
+              {/* Клуб хайлт */}
+              <div className="space-y-1.5 relative">
+                <Label>Клуб <span className="text-muted-foreground text-xs">(сонголтоор)</span></Label>
+                <div className="relative">
+                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                  <Input
+                    value={clubId ? clubName : clubSearch}
+                    onChange={(e) => {
+                      if (clubId) { setClubId(""); setClubName("") }
+                      setClubSearch(e.target.value)
+                      setShowClubDropdown(true)
+                      searchClubs(e.target.value)
+                    }}
+                    onFocus={() => { if (!clubId) setShowClubDropdown(true) }}
+                    placeholder="Клуб хайх..."
+                    className="bg-secondary/50 border-border/60 pl-9 pr-7"
+                  />
+                  {clubId && (
+                    <button type="button" onClick={() => { setClubId(""); setClubName(""); setClubSearch("") }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+                {showClubDropdown && clubResults.length > 0 && !clubId && (
+                  <div className="absolute z-50 top-full mt-1 w-full bg-card border border-border/60 rounded-lg shadow-lg overflow-hidden">
+                    {clubResults.map((c) => (
+                      <button key={c.id} type="button"
+                        onClick={() => { setClubId(c.id); setClubName(c.name); setShowClubDropdown(false); setClubSearch("") }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-secondary/50 transition-colors text-left text-sm">
+                        {c.logo_url
+                          ? <img src={c.logo_url} className="h-5 w-5 rounded object-cover" alt="" />
+                          : <Building2 className="h-4 w-4 text-muted-foreground" />}
+                        {c.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
-            {clubs.length > 0 && (
-              <div className="space-y-1.5">
-                <Label>Клуб</Label>
-                <Select value={clubId} onValueChange={(v) => v && setClubId(v)}>
-                  <SelectTrigger className="bg-secondary/50 border-border/60">
-                    <SelectValue placeholder="Клуб сонгох (сонголтоор)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clubs.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+            {/* Баннер зураг */}
+            <div className="space-y-1.5">
+              <Label>Баннер зураг</Label>
+              <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f) }} />
+              <div className="flex gap-2">
+                <Input value={titleImageUrl} onChange={(e) => { setTitleImageUrl(e.target.value); setImagePreview("") }}
+                  placeholder="https://... эсвэл доороос файл оруулна уу"
+                  className="bg-secondary/50 border-border/60 flex-1" />
+                <button type="button" onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingImage}
+                  className="shrink-0 flex items-center gap-1.5 px-3 h-9 rounded-md border border-border/60 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors disabled:opacity-50">
+                  {uploadingImage ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                  Файл
+                </button>
               </div>
-            )}
+              {(imagePreview || titleImageUrl) && (
+                <div className="relative w-full h-28 rounded-lg overflow-hidden border border-border/40 bg-secondary/20">
+                  <img src={imagePreview || titleImageUrl} alt="preview"
+                    className="w-full h-full object-cover" onError={() => setImagePreview("")} />
+                  <button type="button" onClick={() => { setTitleImageUrl(""); setImagePreview("") }}
+                    className="absolute top-2 right-2 bg-black/60 rounded-full p-1 text-white hover:bg-black/80">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </Section>
 
