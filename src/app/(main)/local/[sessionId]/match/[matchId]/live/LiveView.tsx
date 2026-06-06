@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Trophy, Zap } from "lucide-react"
+import { ArrowLeft, Trophy } from "lucide-react"
 import { useLocalGame } from "@/lib/local-game/store"
 import { getCheckout } from "@/lib/local-game/checkouts"
 import { cn } from "@/lib/utils"
@@ -12,24 +12,25 @@ import { buttonVariants } from "@/components/ui/button"
 export function LiveView() {
   const { sessionId, matchId } = useParams<{ sessionId: string; matchId: string }>()
   const [mounted, setMounted] = useState(false)
-  const [tick, setTick] = useState(0)
+  const tableRef = useRef<HTMLDivElement>(null)
 
+  useEffect(() => { setMounted(true) }, [])
   useEffect(() => {
-    setMounted(true)
-    // Poll every 800ms to catch Zustand state changes
-    const timer = setInterval(() => setTick(t => t + 1), 800)
-    return () => clearInterval(timer)
+    const t = setInterval(() => {}, 800)
+    return () => clearInterval(t)
   }, [])
 
-  // Zustand subscription — real-time updates
   const session = useLocalGame((s) => s.sessions[sessionId])
+
+  useEffect(() => {
+    if (tableRef.current) tableRef.current.scrollTop = tableRef.current.scrollHeight
+  })
 
   if (!mounted) return (
     <div className="flex items-center justify-center min-h-screen bg-slate-950">
       <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
     </div>
   )
-
   if (!session) return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-slate-950 gap-4">
       <p className="text-white/50">Тоглолт олдсонгүй</p>
@@ -38,217 +39,292 @@ export function LiveView() {
   )
 
   const match = session.matches.find((m) => m.id === matchId)
-  if (!match) return (
-    <div className="flex items-center justify-center min-h-screen bg-slate-950">
-      <p className="text-white/50">Match олдсонгүй</p>
-    </div>
-  )
+  if (!match) return <div className="flex items-center justify-center min-h-screen bg-slate-950"><p className="text-white/50">Match олдсонгүй</p></div>
 
   const playerMap = Object.fromEntries(session.players.map((p) => [p.id, p]))
   const p1Id = match.player1Id as string
   const p2Id = match.player2Id as string
   const p1 = playerMap[p1Id]
   const p2 = playerMap[p2Id]
-  const startScore = session.startScore || 501
-  const legsToWin = session.firstTo || 1
+  const startScore  = session.startScore || 501
+  const legsToWin   = session.firstTo || 1
+  const limitRounds = session.limitRounds ?? null
 
-  const currentLegIdx = match!.legs.filter((l) => l.winnerId !== null).length
-  const currentLeg = match!.legs[currentLegIdx]
+  const completedLegs = match.legs.filter((l) => l.winnerId !== null).length
+  const currentLeg    = match.legs[completedLegs] ?? { throws: {}, winnerId: null }
 
-  function getRemaining(playerId: string): number {
-    if (session.format === "cricket" || session.format === "cutthroat") return 0
-    const throws = (currentLeg as any)?.throws?.[playerId] ?? []
-    const thrown = throws.reduce((a: number, t: any) => a + (t.score ?? 0), 0)
-    return Math.max(0, startScore - thrown)
+  const p1Throws: any[] = (currentLeg as any).throws?.[p1Id] ?? []
+  const p2Throws: any[] = (currentLeg as any).throws?.[p2Id] ?? []
+  const maxVisits = Math.max(p1Throws.length, p2Throws.length)
+
+  function getRemaining(throws: any[]): number {
+    return startScore - throws.reduce((a: number, t: any) => a + (t.score ?? 0), 0)
   }
 
   function getAverage(playerId: string): string {
-    const allScores: number[] = match!.legs.flatMap((leg) =>
+    const all: number[] = match!.legs.flatMap((leg) =>
       ((leg as any)?.throws?.[playerId] ?? []).map((t: any) => t.score ?? 0)
     )
-    if (allScores.length === 0) return "—"
-    const sum = allScores.reduce((a, s) => a + s, 0)
-    return (sum / allScores.length * 3).toFixed(1)
+    if (!all.length) return "—"
+    return (all.reduce((a, s) => a + s, 0) / all.length * 3).toFixed(1)
   }
 
-  function getTotalDarts(playerId: string): number {
-    return match!.legs.flatMap((leg) => (leg as any)?.throws?.[playerId] ?? []).length * 3
+  function getCurrentAvg(throws: any[]): string {
+    if (!throws.length) return "—"
+    const sum = throws.reduce((a: number, t: any) => a + (t.score ?? 0), 0)
+    return (sum / throws.length * 3).toFixed(1)
   }
 
-  function getLastThrows(playerId: string): number[] {
-    return ((currentLeg as any)?.throws?.[playerId] ?? []).slice(-3).map((t: any) => t.score ?? 0)
-  }
+  // Who threw last (infer active player)
+  const p1Ct = p1Throws.length
+  const p2Ct = p2Throws.length
+  const activeId = p1Ct <= p2Ct ? p1Id : p2Id
 
-  // Infer active player: whoever has fewer throws in current leg goes next
-  const p1Throws = ((currentLeg as any)?.throws?.[p1Id] ?? []).length
-  const p2Throws = ((currentLeg as any)?.throws?.[p2Id] ?? []).length
-  const activeId = p1Throws <= p2Throws ? p1Id : p2Id
+  const rem1 = getRemaining(p1Throws)
+  const rem2 = getRemaining(p2Throws)
+  const co1  = getCheckout(rem1)
+  const co2  = getCheckout(rem2)
 
-  const rem1 = getRemaining(p1Id)
-  const rem2 = getRemaining(p2Id)
-  const co1 = getCheckout(rem1)
-  const co2 = getCheckout(rem2)
+  const totalDarts = (p1Ct + p2Ct) * 3
+  const visitRound = Math.max(p1Ct, p2Ct)
 
-  const isOngoing = match.status === "ongoing"
+  // P1 leg wins across all legs
+  const p1LegWins = match.legs.filter(l => l.winnerId === p1Id).length
+  const p2LegWins = match.legs.filter(l => l.winnerId === p2Id).length
+
+  // Last 3 throws per player in current leg
+  const last1 = p1Throws.slice(-3).map((t: any) => t.score ?? 0)
+  const last2 = p2Throws.slice(-3).map((t: any) => t.score ?? 0)
+
+  const isOngoing   = match.status === "ongoing"
   const isCompleted = match.status === "completed"
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex flex-col select-none">
+  // Visit rows for table (per-visit alternating)
+  type VRow = { dartNo: number; p1s?: number; p1r?: number; p2s?: number; p2r?: number }
+  const visitRows: VRow[] = []
+  for (let i = 0; i < maxVisits; i++) {
+    const t1 = p1Throws[i]
+    const t2 = p2Throws[i]
+    const r1 = t1 ? startScore - p1Throws.slice(0, i + 1).reduce((a: number, t: any) => a + t.score, 0) : undefined
+    const r2 = t2 ? startScore - p2Throws.slice(0, i + 1).reduce((a: number, t: any) => a + t.score, 0) : undefined
+    if (t1) visitRows.push({ dartNo: (i * 2 + 1) * 3, p1s: t1.score, p1r: r1 })
+    if (t2) visitRows.push({ dartNo: (i + 1) * 6, p2s: t2.score, p2r: r2 })
+  }
 
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0">
-        <Link href={`/local/${sessionId}`}
-          className="flex items-center gap-1.5 text-sm text-white/60 hover:text-white transition-colors">
-          <ArrowLeft className="h-4 w-4" />
-          Буцах
+  return (
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col select-none">
+
+      {/* ── Top bar ── */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/10 shrink-0">
+        <Link href={`/local/${sessionId}`} className="flex items-center gap-1.5 text-sm text-white/50 hover:text-white">
+          <ArrowLeft className="h-4 w-4" />Буцах
         </Link>
         <div className="text-center">
-          <p className="text-xs font-semibold">{session.name}</p>
-          <p className="text-[10px] text-white/40">{session.format.toUpperCase()} · BO{session.firstTo}</p>
+          <p className="text-xs font-bold text-white/80">{session.name}</p>
+          <p className="text-[10px] text-white/30 uppercase tracking-widest">{session.format} · BO{session.firstTo}</p>
         </div>
         <div className="flex items-center gap-1.5">
           {isOngoing && (
             <span className="flex items-center gap-1 text-[11px] font-bold text-primary">
-              <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-              LIVE
+              <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />LIVE
             </span>
           )}
           {isCompleted && <span className="text-[11px] font-bold text-green-400">ДУУССАН</span>}
-          {match.status === "pending" && <span className="text-[11px] text-white/30">Эхлээгүй</span>}
         </div>
       </div>
 
-      {/* Winner banner */}
+      {/* ── Winner banner ── */}
       {isCompleted && match.winnerId && (
-        <div className="bg-[oklch(0.78_0.16_85)]/20 border-b border-[oklch(0.78_0.16_85)]/30 px-4 py-3 flex items-center justify-center gap-3">
-          <Trophy className="h-6 w-6 text-[oklch(0.78_0.16_85)]" />
-          <p className="font-black text-[oklch(0.78_0.16_85)] text-xl">
-            {playerMap[match.winnerId]?.name} — Ялагч!
-          </p>
-          <Trophy className="h-6 w-6 text-[oklch(0.78_0.16_85)]" />
+        <div className="bg-yellow-400/15 border-b border-yellow-400/20 px-4 py-3 flex items-center justify-center gap-3 shrink-0">
+          <Trophy className="h-5 w-5 text-yellow-400" />
+          <p className="font-black text-yellow-400 text-lg">{playerMap[match.winnerId]?.name} — Ялагч!</p>
+          <Trophy className="h-5 w-5 text-yellow-400" />
         </div>
       )}
 
-      {/* Leg score */}
-      <div className="flex items-center justify-center gap-10 py-5 border-b border-white/10 shrink-0">
-        <span className="text-5xl font-black score-display">{match.player1Legs}</span>
-        <div className="text-center">
-          <p className="text-[10px] text-white/30 uppercase tracking-widest">Leg</p>
-          <p className="text-sm font-bold">{currentLegIdx + 1} / {legsToWin}</p>
+      {/* ── Leg score & set bars ── */}
+      <div className="flex items-center justify-center gap-8 px-4 py-3 border-b border-white/10 shrink-0 bg-white/5">
+        {/* P1 leg bar */}
+        <div className="flex flex-col items-end gap-1">
+          <p className="text-[11px] text-white/40 truncate max-w-[80px] text-right">{p1?.name}</p>
+          <div className="flex gap-1">
+            {Array.from({ length: legsToWin }).map((_, i) => (
+              <div key={i} className={cn("h-2 rounded-full transition-all", i < match.player1Legs ? "bg-primary w-5" : "bg-white/15 w-3")} />
+            ))}
+          </div>
         </div>
-        <span className="text-5xl font-black score-display">{match.player2Legs}</span>
+
+        {/* Leg score */}
+        <div className="flex items-center gap-4">
+          <span className={cn("text-5xl font-black score-display", activeId === p1Id ? "text-white" : "text-white/40")}>
+            {match.player1Legs}
+          </span>
+          <div className="text-center">
+            <p className="text-[9px] text-white/30 uppercase tracking-widest">Leg</p>
+            <p className="text-xs font-bold text-white/50">{completedLegs + 1}/{legsToWin}</p>
+          </div>
+          <span className={cn("text-5xl font-black score-display", activeId === p2Id ? "text-white" : "text-white/40")}>
+            {match.player2Legs}
+          </span>
+        </div>
+
+        {/* P2 leg bar */}
+        <div className="flex flex-col items-start gap-1">
+          <p className="text-[11px] text-white/40 truncate max-w-[80px]">{p2?.name}</p>
+          <div className="flex gap-1">
+            {Array.from({ length: legsToWin }).map((_, i) => (
+              <div key={i} className={cn("h-2 rounded-full transition-all", i < match.player2Legs ? "bg-primary w-5" : "bg-white/15 w-3")} />
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* Player score panels */}
-      <div className="flex-1 grid grid-cols-2 divide-x divide-white/10">
+      {/* ── Main: big remaining + stats ── */}
+      <div className="grid grid-cols-2 divide-x divide-white/10 shrink-0">
         {[
-          { id: p1Id, player: p1, rem: rem1, legs: match.player1Legs, co: co1, last: getLastThrows(p1Id) },
-          { id: p2Id, player: p2, rem: rem2, legs: match.player2Legs, co: co2, last: getLastThrows(p2Id) },
-        ].map(({ id, player, rem, legs, co, last }) => {
+          { id: p1Id, player: p1, rem: rem1, co: co1, last: last1, avg: getCurrentAvg(p1Throws) },
+          { id: p2Id, player: p2, rem: rem2, co: co2, last: last2, avg: getCurrentAvg(p2Throws) },
+        ].map(({ id, player, rem, co, last, avg }) => {
           const isActive = id === activeId && isOngoing
           const isWinner = isCompleted && match.winnerId === id
-
           return (
-            <div key={id} className={cn(
-              "flex flex-col items-center justify-center py-6 px-4 relative transition-all duration-300",
-              isActive ? "bg-primary/5" : ""
-            )}>
-              {/* "Шидэх ээлж" indicator */}
+            <div key={id} className={cn("flex flex-col items-center py-5 px-3 relative transition-all", isActive ? "bg-primary/5" : "")}>
               {isActive && (
-                <div className="absolute top-4 left-1/2 -translate-x-1/2 whitespace-nowrap flex items-center gap-1.5 bg-primary/20 rounded-full px-3 py-1 border border-primary/30">
-                  <Zap className="h-3.5 w-3.5 text-primary" />
-                  <span className="text-xs font-bold text-primary">Шидэх ээлж</span>
+                <div className="absolute top-3 flex items-center gap-1 bg-primary/20 rounded-full px-2.5 py-0.5 border border-primary/30">
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                  <span className="text-[10px] font-bold text-primary">Шидэх ээлж</span>
                 </div>
               )}
-              {isWinner && (
-                <div className="absolute top-4 left-1/2 -translate-x-1/2">
-                  <Trophy className="h-5 w-5 text-[oklch(0.78_0.16_85)]" />
-                </div>
-              )}
+              {isWinner && <Trophy className="absolute top-3 h-4 w-4 text-yellow-400" />}
 
-              {/* Name */}
-              <p className={cn("text-lg font-bold truncate max-w-full mt-10 mb-1",
-                isActive ? "text-white" : "text-white/60")}>{player?.name ?? "?"}</p>
+              <p className={cn("text-sm font-bold mt-7 mb-2 truncate max-w-full", isActive ? "text-white" : "text-white/50")}>
+                {player?.name ?? "?"}
+              </p>
 
-              {/* Leg dots */}
-              <div className="flex gap-2 mb-3">
-                {Array.from({ length: legsToWin }).map((_, i) => (
-                  <div key={i} className={cn("h-3 w-3 rounded-full transition-all duration-300",
-                    i < legs ? "bg-primary" : "bg-white/15")} />
-                ))}
-              </div>
-
-              {/* Remaining — very large */}
-              <div className={cn(
-                "text-[88px] leading-none font-black score-display transition-all duration-300",
-                isActive ? "text-white" : isWinner ? "text-[oklch(0.78_0.16_85)]" : "text-white/50"
-              )}>
+              {/* Remaining — huge */}
+              <p className={cn("text-[80px] leading-none font-black score-display",
+                isActive ? "text-white" : isWinner ? "text-yellow-400" : "text-white/30")}>
                 {rem}
-              </div>
+              </p>
 
               {/* Checkout hint */}
               {co && isActive && (
-                <div className="mt-3 bg-[oklch(0.78_0.16_85)]/20 border border-[oklch(0.78_0.16_85)]/30 rounded-xl px-4 py-2">
-                  <p className="font-mono text-base font-bold text-[oklch(0.78_0.16_85)]">{co}</p>
+                <div className="mt-2 bg-[oklch(0.78_0.16_85)]/20 border border-[oklch(0.78_0.16_85)]/30 rounded-lg px-3 py-1.5">
+                  <p className="font-mono text-sm font-bold text-[oklch(0.78_0.16_85)]">{co}</p>
                 </div>
               )}
 
               {/* Last 3 throws */}
               {last.length > 0 && (
-                <div className="flex gap-2 mt-4">
+                <div className="flex gap-1.5 mt-3">
                   {last.map((s, i) => (
-                    <div key={i} className={cn(
-                      "rounded-lg px-3 py-1.5 border text-center",
-                      isActive ? "bg-primary/15 border-primary/20" : "bg-white/5 border-white/10"
-                    )}>
-                      <p className={cn("text-lg font-bold score-display",
-                        isActive ? "text-primary" : "text-white/50")}>{s}</p>
+                    <div key={i} className={cn("rounded-md px-2.5 py-1 border text-center min-w-[36px]",
+                      isActive ? "bg-primary/10 border-primary/20" : "bg-white/5 border-white/10")}>
+                      <p className={cn("text-base font-bold score-display", isActive ? "text-primary" : "text-white/40")}>{s}</p>
                     </div>
                   ))}
                 </div>
               )}
+
+              {/* Per-leg average */}
+              <div className="mt-3 text-center">
+                <p className="text-lg font-bold score-display text-white/70">{avg}</p>
+                <p className="text-[9px] text-white/30 uppercase tracking-wider">Дундаж</p>
+              </div>
             </div>
           )
         })}
       </div>
 
-      {/* Stats bar */}
-      <div className="border-t border-white/10 px-4 py-3 shrink-0 bg-black/20">
-        <div className="grid grid-cols-3 gap-2 text-center">
-          <div>
-            <p className="text-xl font-bold score-display">{getAverage(p1Id)}</p>
-            <p className="text-[10px] text-white/30 uppercase tracking-wider">Average</p>
+      {/* ── Throw table ── */}
+      <div className="flex-1 border-t border-white/10 overflow-hidden">
+        {/* Header */}
+        <div className="grid grid-cols-[1fr_40px_1fr] bg-white/5 text-[10px] text-white/30 font-semibold border-b border-white/10 uppercase tracking-widest">
+          <div className="grid grid-cols-2">
+            <div className="px-2 py-1.5 text-center border-r border-white/10">Оноо</div>
+            <div className="px-2 py-1.5 text-center">Үлдсэн</div>
           </div>
-          <div className="border-x border-white/10 flex items-center justify-center">
-            <div className="text-center">
-              <p className="text-[10px] text-white/20 uppercase tracking-wider">Нийт дарт</p>
-              <div className="flex items-center gap-2 justify-center mt-0.5">
-                <span className="text-sm font-bold">{getTotalDarts(p1Id)}</span>
-                <span className="text-white/20 text-xs">vs</span>
-                <span className="text-sm font-bold">{getTotalDarts(p2Id)}</span>
+          <div className="px-1 py-1.5 text-center border-x border-white/10">🎯</div>
+          <div className="grid grid-cols-2">
+            <div className="px-2 py-1.5 text-center border-l border-white/10">Үлдсэн</div>
+            <div className="px-2 py-1.5 text-center">Оноо</div>
+          </div>
+        </div>
+        <div ref={tableRef} className="overflow-y-auto max-h-40">
+          {visitRows.map((row, i) => {
+            const isP1 = row.p1s !== undefined
+            return (
+              <div key={i} className="grid grid-cols-[1fr_40px_1fr] border-b border-white/5 text-sm">
+                <div className="grid grid-cols-2">
+                  <div className={cn("px-2 py-1.5 text-center font-mono border-r border-white/5",
+                    isP1 ? row.p1s! >= 100 ? "text-primary font-bold" : "text-white/80" : "text-white/15")}>
+                    {isP1 ? row.p1s : "·"}
+                  </div>
+                  <div className="px-2 py-1.5 text-center font-mono text-white/40">
+                    {isP1 && row.p1r !== undefined ? row.p1r : ""}
+                  </div>
+                </div>
+                <div className="px-1 py-1.5 text-center text-[10px] font-mono text-white/25 border-x border-white/10">
+                  {row.dartNo}
+                </div>
+                <div className="grid grid-cols-2">
+                  <div className="px-2 py-1.5 text-center font-mono text-white/40 border-l border-white/5">
+                    {!isP1 && row.p2r !== undefined ? row.p2r : ""}
+                  </div>
+                  <div className={cn("px-2 py-1.5 text-center font-mono",
+                    !isP1 ? row.p2s! >= 100 ? "text-primary font-bold" : "text-white/80" : "text-white/15")}>
+                    {!isP1 ? row.p2s : "·"}
+                  </div>
+                </div>
               </div>
-            </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* ── Stats bar ── */}
+      <div className="border-t border-white/10 px-3 py-2.5 shrink-0 bg-black/30">
+        <div className="grid grid-cols-5 gap-1 text-center">
+          <div>
+            <p className="text-base font-bold score-display">{getAverage(p1Id)}</p>
+            <p className="text-[9px] text-white/25 uppercase tracking-wider">Avg</p>
           </div>
           <div>
-            <p className="text-xl font-bold score-display">{getAverage(p2Id)}</p>
-            <p className="text-[10px] text-white/30 uppercase tracking-wider">Average</p>
+            <p className="text-sm font-bold">{p1Ct * 3}</p>
+            <p className="text-[9px] text-white/25 uppercase tracking-wider">Дарт</p>
+          </div>
+          <div className="border-x border-white/10">
+            <p className="text-xs font-bold text-white/50">{p1LegWins} — {p2LegWins}</p>
+            <p className="text-[9px] text-white/25 uppercase tracking-wider">Leg</p>
+            {limitRounds && (
+              <p className={cn("text-[9px] font-bold mt-0.5", visitRound >= limitRounds ? "text-yellow-400" : "text-white/30")}>
+                {visitRound}/{limitRounds}v
+              </p>
+            )}
+          </div>
+          <div>
+            <p className="text-sm font-bold">{p2Ct * 3}</p>
+            <p className="text-[9px] text-white/25 uppercase tracking-wider">Дарт</p>
+          </div>
+          <div>
+            <p className="text-base font-bold score-display">{getAverage(p2Id)}</p>
+            <p className="text-[9px] text-white/25 uppercase tracking-wider">Avg</p>
           </div>
         </div>
 
         {/* Leg history */}
-        {match!.legs.filter(l => l.winnerId).length > 0 && (
-          <div className="flex gap-1.5 flex-wrap justify-center mt-2.5">
-            {match!.legs.filter(l => l.winnerId).map((leg, i) => (
-              <div key={i} className="flex items-center gap-1.5 bg-white/5 rounded-lg px-2.5 py-1 text-xs">
-                <span className={cn(leg.winnerId === p1Id ? "text-primary font-bold" : "text-white/30")}>{p1?.name}</span>
+        {match.legs.filter(l => l.winnerId).length > 0 && (
+          <div className="flex gap-1 flex-wrap justify-center mt-2">
+            {match.legs.filter(l => l.winnerId).map((leg, i) => (
+              <div key={i} className="flex items-center gap-1 bg-white/5 rounded px-2 py-0.5 text-[10px]">
+                <span className={cn(leg.winnerId === p1Id ? "text-primary font-bold" : "text-white/25")}>{p1?.name?.split(" ")[0]}</span>
                 <span className="text-white/20">L{i+1}</span>
-                <span className={cn(leg.winnerId === p2Id ? "text-primary font-bold" : "text-white/30")}>{p2?.name}</span>
+                <span className={cn(leg.winnerId === p2Id ? "text-primary font-bold" : "text-white/25")}>{p2?.name?.split(" ")[0]}</span>
               </div>
             ))}
           </div>
         )}
-
-        <p className="text-center text-[10px] text-white/15 mt-2">
+        <p className="text-center text-[9px] text-white/15 mt-1.5">
           {isOngoing ? "↻ Автоматаар шинэчлэгдэнэ" : "Тоглолт дууссан"}
         </p>
       </div>
