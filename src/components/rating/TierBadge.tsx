@@ -27,8 +27,7 @@ export function TierBadge({ rating, avragaWins = 0, showProgress = false, size =
           "inline-flex items-center rounded-full border font-semibold",
           tier.bg, tier.border, tier.color, sizes[size]
         )}>
-          <span>{tier.icon}</span>
-          <span>{tier.tier}</span>
+          {tier.tier}
         </span>
 
         {/* Тэмцээний онцгой цол */}
@@ -37,8 +36,7 @@ export function TierBadge({ rating, avragaWins = 0, showProgress = false, size =
             "inline-flex items-center rounded-full border font-semibold",
             avraga.bg, avraga.border, avraga.color, sizes[size]
           )}>
-            <span>{avraga.icon}</span>
-            <span>{avraga.label}</span>
+            {avraga.label}
           </span>
         )}
       </div>
