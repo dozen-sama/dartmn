@@ -130,7 +130,6 @@ export function NewTournamentChoice() {
               {[
                 { label: "Интернэт", online: "Шаардлагатай", local: "Шаардахгүй" },
                 { label: "Тоглогч бүртгэл", online: "Акаунт шаардлагатай", local: "Дурын нэр" },
-                { label: "Мэдээлэл хадгалах", online: "Supabase DB", local: "Browser (localStorage)" },
                 { label: "Рейтинг", online: "✓ ELO шинэчлэгдэнэ", local: "✗ Нөлөөлөхгүй" },
                 { label: "Хуваалцах", online: "✓ URL-р нэгдэнэ", local: "✗ Зөвхөн нэг төхөөрөмж" },
                 { label: "QPay хураамж", online: "✓ Боломжтой", local: "✗ Байхгүй" },
