@@ -2,9 +2,10 @@ export const dynamic = "force-dynamic"
 
 import { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, Building2, BadgeCheck } from "lucide-react"
+import { ArrowLeft, Building2, BadgeCheck, Search } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { buttonVariants } from "@/components/ui/button"
 import { formatDate, formatNumber } from "@/lib/utils/format"
 import { requireAdmin } from "@/lib/auth/require-admin"
@@ -12,15 +13,20 @@ import { cn } from "@/lib/utils"
 
 export const metadata: Metadata = { title: "Клубууд — Админ" }
 
-export default async function AdminClubsPage() {
+export default async function AdminClubsPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { supabase } = await requireAdmin()
+  const { q: rawQ } = await searchParams
+  const q = (rawQ ?? "").trim().replace(/[,()*%]/g, "")
 
-  const { data: clubs, count } = await supabase
+  let query = supabase
     .from("clubs")
-    .select("id, name, tag, member_count, is_verified, club_score, club_rank, created_at", { count: "exact" })
-    .order("club_score", { ascending: false })
-    .limit(100)
+    .select("id, name, tag, phone, member_count, is_verified, club_score, club_rank, created_at", { count: "exact" })
 
+  if (q) {
+    query = query.or(`name.ilike.%${q}%,tag.ilike.%${q}%,phone.ilike.%${q}%`)
+  }
+
+  const { data: clubs, count } = await query.order("club_score", { ascending: false }).limit(100)
   const list = clubs ?? []
 
   return (
@@ -34,9 +40,18 @@ export default async function AdminClubsPage() {
             <Building2 className="h-5 w-5 text-blue-400" />
             Клубууд
           </h1>
-          <p className="text-muted-foreground text-sm mt-0.5">Нийт {formatNumber(count ?? 0)} клуб</p>
+          <p className="text-muted-foreground text-sm mt-0.5">
+            {q ? `"${q}" — ${formatNumber(count ?? 0)} илэрц` : `Нийт ${formatNumber(count ?? 0)} клуб`}
+          </p>
         </div>
       </div>
+
+      {/* Хайлт — нэр, tag, утас */}
+      <form className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input name="q" defaultValue={q} placeholder="Клубын нэр, [TAG], утсаар хайх..."
+          className="pl-9 bg-secondary/50 border-border/60" />
+      </form>
 
       <Card className="border-border/50 bg-card/80 overflow-hidden">
         <div className="overflow-x-auto">
