@@ -33,6 +33,13 @@ export async function fetchRemoteSession(sessionId: string): Promise<LocalSessio
   }
 }
 
+// Supabase-с session устгах
+export async function deleteRemoteSession(sessionId: string) {
+  try {
+    await db().from("local_session_sync").delete().eq("session_id", sessionId)
+  } catch {}
+}
+
 // Нээлттэй (нууц үггүй) active session-уудыг татах
 export async function fetchPublicSessions(): Promise<LocalSession[]> {
   try {

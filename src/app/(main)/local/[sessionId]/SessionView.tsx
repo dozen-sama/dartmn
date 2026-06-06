@@ -61,6 +61,7 @@ export function SessionView() {
   const [passwordInput, setPasswordInput] = useState("")
   const [passwordError, setPasswordError] = useState(false)
   const [unlocked, setUnlocked] = useState(false)
+  const [isOwner, setIsOwner] = useState(false)
 
   useEffect(() => {
     if (session && !settingsInitialized) {
@@ -108,12 +109,18 @@ export function SessionView() {
     toast.success("Тохиргоо хадгалагдлаа")
   }
 
-  // Password gate — sessionStorage-д хадгалж дахин асуухгүй
+  // Owner болон password шалгалт
   useEffect(() => {
-    if (mounted && session?.joinPassword) {
+    if (!mounted) return
+    try {
+      const owned = JSON.parse(localStorage.getItem("owned-sessions") ?? "[]") as string[]
+      setIsOwner(owned.includes(sessionId))
+    } catch {}
+
+    if (session?.joinPassword) {
       const key = `local-session-unlocked-${sessionId}`
       if (sessionStorage.getItem(key) === "1") setUnlocked(true)
-    } else if (mounted) {
+    } else {
       setUnlocked(true)
     }
   }, [mounted, session, sessionId])
@@ -321,14 +328,18 @@ export function SessionView() {
             <Users className="h-4 w-4 mr-1.5" />
             Тоглогчид
           </TabsTrigger>
-          <TabsTrigger value="edit-bracket">
-            <Edit2 className="h-4 w-4 mr-1.5" />
-            Edit Bracket
-          </TabsTrigger>
-          <TabsTrigger value="settings">
-            <Settings className="h-4 w-4 mr-1.5" />
-            Тохиргоо
-          </TabsTrigger>
+          {isOwner && (
+            <TabsTrigger value="edit-bracket">
+              <Edit2 className="h-4 w-4 mr-1.5" />
+              Edit Bracket
+            </TabsTrigger>
+          )}
+          {isOwner && (
+            <TabsTrigger value="settings">
+              <Settings className="h-4 w-4 mr-1.5" />
+              Тохиргоо
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* Bracket */}
@@ -344,7 +355,12 @@ export function SessionView() {
         {/* Schedule */}
         <TabsContent value="schedule" className="mt-4 space-y-4">
           {rounds.map((round) => {
-            const roundMatches = session.matches.filter((m) => m.round === round)
+            // BYE болон хоёулаа тодорхойгүй match хасна
+            const roundMatches = session.matches.filter((m) =>
+              m.round === round &&
+              !(m.player1Id === "bye" && m.player2Id === "bye") &&
+              !(m.player1Id === null && m.player2Id === null)
+            )
             if (roundMatches.length === 0) return null
 
             const isKnockoutRound = round >= 100
@@ -380,31 +396,34 @@ export function SessionView() {
                           </div>
 
                           {/* VS / Score */}
-                          <div className="flex flex-col items-center shrink-0 w-20">
-                            {match.status === "pending" && <p className="text-xs text-muted-foreground">VS</p>}
+                          <div className="flex flex-col items-center shrink-0 w-24 gap-1">
+                            {match.status === "pending" && (
+                              <p className="text-xs text-muted-foreground">VS</p>
+                            )}
                             {match.status === "ongoing" && (
                               <div className="flex items-center gap-1">
                                 <span className="text-lg font-bold score-display text-primary">{match.player1Legs}</span>
-                                <span className="text-muted-foreground">:</span>
+                                <span className="text-muted-foreground text-sm">:</span>
                                 <span className="text-lg font-bold score-display text-primary">{match.player2Legs}</span>
                               </div>
                             )}
                             {match.status === "completed" && (
-                              <p className="text-xs text-muted-foreground">FINAL</p>
+                              <p className="text-[10px] text-muted-foreground font-semibold uppercase">Дууссан</p>
                             )}
-                            {canClick && (
+                            {canClick && isOwner && (
                               <Link
                                 href={`/local/${sessionId}/match/${match.id}`}
-                                className={cn(buttonVariants({ size: "sm" }), "mt-1 text-xs glow-primary")}
+                                className={cn(buttonVariants({ size: "sm" }), "text-[11px] px-2 py-1 h-auto glow-primary")}
                               >
-                                {match.status === "ongoing" ? <><Zap className="h-3 w-3 mr-1" />Үргэлжлэх</> : "Тоглох →"}
+                                {match.status === "ongoing"
+                                  ? <><Zap className="h-3 w-3 mr-1" />Үргэлжлэх</>
+                                  : "Тоглох →"}
                               </Link>
                             )}
-                            {/* Live view link */}
                             {(match.status === "ongoing" || match.status === "completed") && (
                               <Link
                                 href={`/local/${sessionId}/match/${match.id}/live`}
-                                className="mt-1 text-[10px] text-muted-foreground hover:text-primary transition-colors flex items-center gap-0.5"
+                                className="text-[10px] text-muted-foreground hover:text-primary transition-colors flex items-center gap-0.5"
                               >
                                 📺 Live
                               </Link>

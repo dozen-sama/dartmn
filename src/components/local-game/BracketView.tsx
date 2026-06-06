@@ -226,19 +226,21 @@ function EliminationBracket({ matches, playerMap, sessionId, firstTo, setsEnable
     matches.filter((m) => m.isLosersBracket).map((m) => m.round)
   )].sort((a, b) => a - b)
 
-  const maxRound = Math.max(...winnerRounds)
+  const totalWinnerRounds = winnerRounds.length
 
-  function getRoundLabel(round: number, max: number) {
-    const dist = max - round
-    if (dist === 0) return "Final"
-    if (dist === 1) return "Semi-final"
-    if (dist === 2) return "Quarter-final"
-    return `Round of ${Math.pow(2, dist + 1)}`
+  // Index-д суурилсан round label (actual round number биш)
+  function getRoundLabel(idx: number, total: number) {
+    const fromEnd = total - 1 - idx
+    if (fromEnd === 0) return "Финал"
+    if (fromEnd === 1) return "Хагас финал"
+    if (fromEnd === 2) return "Улирал финал"
+    const playerCount = Math.pow(2, fromEnd + 1)
+    return `Round of ${Number.isFinite(playerCount) && playerCount < 1e9 ? playerCount : idx + 1}`
   }
 
-  const winnerMatchesByRound = winnerRounds.map((r) => ({
+  const winnerMatchesByRound = winnerRounds.map((r, idx) => ({
     round: r,
-    label: getRoundLabel(r, maxRound),
+    label: getRoundLabel(idx, totalWinnerRounds),
     matches: matches.filter((m) => !m.isLosersBracket && m.round === r),
   }))
 

@@ -4,7 +4,7 @@ import {
   LocalSession, LocalPlayer, LocalMatch, LocalLeg, SessionSummary,
   BracketType, GameFormat, StandingRow, SessionPhase,
 } from "./types"
-import { broadcastSession } from "./sync"
+import { broadcastSession, deleteRemoteSession } from "./sync"
 import {
   generateSingleElimination, generateDoubleElimination,
   generateRoundRobin, generateGroupsKnockout, generateSwissRound1,
@@ -181,6 +181,11 @@ export const useLocalGame = create<LocalGameStore>()(
 
         set((s) => ({ sessions: { ...s.sessions, [id]: session } }))
         broadcastSession(session)
+        // Owner flag — энэ device дээр үүсгэсэн session-уудын жагсаалт
+        try {
+          const owned = JSON.parse(localStorage.getItem("owned-sessions") ?? "[]") as string[]
+          if (!owned.includes(id)) localStorage.setItem("owned-sessions", JSON.stringify([...owned, id]))
+        } catch {}
         return id
       },
 
@@ -190,6 +195,11 @@ export const useLocalGame = create<LocalGameStore>()(
           delete next[id]
           return { sessions: next }
         })
+        deleteRemoteSession(id)
+        try {
+          const owned = JSON.parse(localStorage.getItem("owned-sessions") ?? "[]") as string[]
+          localStorage.setItem("owned-sessions", JSON.stringify(owned.filter((o) => o !== id)))
+        } catch {}
       },
 
       setPhase: (sessionId, phase) => {

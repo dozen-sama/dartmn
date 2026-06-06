@@ -132,6 +132,8 @@ function PublicSessionCard({ session }: { session: LocalSession }) {
 export function LocalHub() {
   const getSummaries = useLocalGame((s) => s.getSummaries)
   const deleteSession = useLocalGame((s) => s.deleteSession)
+  // sessions-д subscribe хийснээр delete/add хийх үед автоматаар re-render болно
+  useLocalGame((s) => Object.keys(s.sessions))
   const [mounted, setMounted] = useState(false)
   const [publicSessions, setPublicSessions] = useState<LocalSession[]>([])
   const [loadingPublic, setLoadingPublic] = useState(false)
