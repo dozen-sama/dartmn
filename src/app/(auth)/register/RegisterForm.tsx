@@ -2,9 +2,8 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { Eye, EyeOff, Loader2 } from "lucide-react"
+import { Eye, EyeOff, Loader2, Mail, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,9 +12,11 @@ import { createClient } from "@/lib/supabase/client"
 import { mn } from "@/locales/mn"
 
 export function RegisterForm() {
-  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [done, setDone] = useState(false)
+  const [existingUnconfirmed, setExistingUnconfirmed] = useState(false)
+  const [resendLoading, setResendLoading] = useState(false)
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -26,6 +27,34 @@ export function RegisterForm() {
 
   function update(field: keyof typeof form, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }))
+  }
+
+  function getErrorMessage(msg: string): string {
+    const m = msg.toLowerCase()
+    if (m.includes("user already registered") || m.includes("already been registered"))
+      return mn.auth.emailAlreadyRegistered
+    if (m.includes("email not confirmed"))
+      return mn.auth.emailNotConfirmed
+    if (m.includes("password"))
+      return mn.auth.passwordMinLength
+    if (m.includes("invalid email"))
+      return "Имэйл хаягийн формат буруу байна"
+    if (m.includes("rate limit") || m.includes("too many"))
+      return "Хэт олон удаа оролдлоо. Түр хүлээгээд дахин оролдно уу."
+    return "Алдаа гарлаа. Дахин оролдно уу."
+  }
+
+  async function handleResend() {
+    setResendLoading(true)
+    const supabase = createClient()
+    const { error } = await supabase.auth.resend({ type: "signup", email: form.email })
+    setResendLoading(false)
+    if (error) {
+      toast.error(getErrorMessage(error.message))
+    } else {
+      setExistingUnconfirmed(false)
+      setDone(true)
+    }
   }
 
   async function handleRegister(e: React.FormEvent) {
@@ -39,7 +68,7 @@ export function RegisterForm() {
     setLoading(true)
     const supabase = createClient()
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
       options: {
@@ -50,15 +79,49 @@ export function RegisterForm() {
       },
     })
 
+    setLoading(false)
+
     if (error) {
-      toast.error(error.message)
-      setLoading(false)
+      const msg = error.message.toLowerCase()
+      if (msg.includes("user already registered") || msg.includes("already been registered")) {
+        setExistingUnconfirmed(true)
+      } else {
+        toast.error(getErrorMessage(error.message))
+      }
       return
     }
 
-    toast.success(mn.auth.registerSuccess)
-    router.push("/dashboard")
-    router.refresh()
+    // Бүртгэлтэй боловч баталгаажаагүй — identities хоосон
+    if (!data.user?.identities?.length) {
+      setExistingUnconfirmed(true)
+      return
+    }
+
+    setDone(true)
+  }
+
+  // Амжилттай бүртгүүлсний дараа "имэйл шалгах" дэлгэц
+  if (done) {
+    return (
+      <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
+        <CardContent className="pt-8 pb-6 text-center space-y-4">
+          <div className="flex justify-center">
+            <div className="rounded-full bg-primary/10 p-4">
+              <Mail className="h-8 w-8 text-primary" />
+            </div>
+          </div>
+          <h2 className="text-lg font-semibold text-foreground">{mn.auth.checkEmailToConfirm}</h2>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {mn.auth.checkEmailDescription}
+          </p>
+          <p className="text-sm font-medium text-foreground">{form.email}</p>
+          <Link href="/login" className="flex items-center justify-center gap-1.5 text-sm text-primary hover:underline mt-2">
+            <ArrowLeft className="h-3.5 w-3.5" />
+            {mn.auth.backToLogin}
+          </Link>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
@@ -71,7 +134,7 @@ export function RegisterForm() {
         <form onSubmit={handleRegister} className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-sm">Хэрэглэгчийн нэр</Label>
+              <Label className="text-sm">{mn.auth.username}</Label>
               <Input
                 placeholder="dartmaster"
                 value={form.username}
@@ -81,7 +144,7 @@ export function RegisterForm() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-sm">Дэлгэцийн нэр</Label>
+              <Label className="text-sm">{mn.auth.displayName}</Label>
               <Input
                 placeholder="Бат-Эрдэнэ"
                 value={form.displayName}
@@ -97,7 +160,10 @@ export function RegisterForm() {
               type="email"
               placeholder="name@example.com"
               value={form.email}
-              onChange={(e) => update("email", e.target.value)}
+              onChange={(e) => {
+                update("email", e.target.value)
+                setExistingUnconfirmed(false)
+              }}
               className="bg-secondary/50 border-border/60"
               autoComplete="email"
             />
@@ -133,6 +199,27 @@ export function RegisterForm() {
               autoComplete="new-password"
             />
           </div>
+
+          {existingUnconfirmed && (
+            <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-sm text-yellow-400 space-y-2">
+              <p>{mn.auth.alreadyRegisteredUnconfirmed}</p>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={resendLoading}
+                  className="flex items-center gap-1.5 text-xs font-medium underline underline-offset-2 hover:text-yellow-300 disabled:opacity-50"
+                >
+                  {resendLoading && <Loader2 className="h-3 w-3 animate-spin" />}
+                  {mn.auth.resendConfirmation}
+                </button>
+                <span className="text-yellow-600">·</span>
+                <Link href="/login" className="text-xs font-medium underline underline-offset-2 hover:text-yellow-300">
+                  {mn.auth.goToLogin}
+                </Link>
+              </div>
+            </div>
+          )}
 
           <Button type="submit" className="w-full mt-2 glow-primary" disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
