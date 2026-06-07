@@ -223,12 +223,43 @@
     animation: np-flicker-blue 1.8s linear infinite;
   }
   .np-inferno {
-    border-color: oklch(0.72 0.22 42);
-    background: linear-gradient(180deg, oklch(0.48 0.19 32 / 0.5), oklch(0.17 0.08 22 / 0.55));
-    color: oklch(0.93 0.16 58);
-    text-shadow: 0 0 9px oklch(0.74 0.21 42 / 0.95);
-    box-shadow: 0 0 16px oklch(0.66 0.24 40 / 0.6), inset 0 0 12px oklch(0.66 0.24 40 / 0.3);
-    animation: np-flicker-fire 1.5s ease-in-out infinite;
+    position: relative;
+    isolation: isolate;
+    border-color: oklch(0.74 0.22 45);
+    background: linear-gradient(180deg, oklch(0.52 0.2 40 / 0.55), oklch(0.15 0.08 22 / 0.62));
+    color: oklch(0.96 0.16 64);
+    text-shadow: 0 0 6px oklch(0.88 0.2 58 / 0.95), 0 0 16px oklch(0.74 0.22 42 / 0.7);
+    box-shadow: 0 0 20px oklch(0.66 0.24 40 / 0.7), inset 0 0 14px oklch(0.66 0.24 40 / 0.38);
+    animation: np-flicker-fire 1.3s ease-in-out infinite;
+  }
+  /* Дүрэлзэх галын дөл — дээд ирмэг дээгүүр */
+  .np-inferno::before {
+    content: "";
+    position: absolute;
+    left: 6%; right: 6%; bottom: 88%; height: 1.1em;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(42% 100% at 12% 100%, oklch(0.86 0.2 62 / 0.95), transparent 70%),
+      radial-gradient(38% 100% at 30% 100%, oklch(0.78 0.24 35 / 0.95), transparent 72%),
+      radial-gradient(44% 100% at 50% 100%, oklch(0.9 0.19 70 / 0.98), transparent 70%),
+      radial-gradient(38% 100% at 70% 100%, oklch(0.78 0.24 32 / 0.95), transparent 72%),
+      radial-gradient(42% 100% at 88% 100%, oklch(0.86 0.2 58 / 0.92), transparent 70%);
+    filter: blur(3px);
+    transform-origin: bottom;
+    animation: np-fire-tongues 0.5s ease-in-out infinite alternate;
+  }
+  /* Доорх нүүрсэн гэрэлтэлт */
+  .np-inferno::after {
+    content: "";
+    position: absolute;
+    inset: -3px;
+    border-radius: inherit;
+    z-index: -2;
+    pointer-events: none;
+    background: radial-gradient(ellipse at 50% 130%, oklch(0.72 0.24 38 / 0.6), transparent 68%);
+    filter: blur(6px);
+    animation: np-fire-ember 1.3s ease-in-out infinite;
   }
   .np-champion {
     border-color: var(--gold);
@@ -274,9 +305,19 @@
   0% { background-position: 0% 50%; }
   100% { background-position: 300% 50%; }
 }
+@keyframes np-fire-tongues {
+  0%   { transform: scaleY(0.8) translateY(3px); opacity: 0.75; }
+  50%  { transform: scaleY(1.2) translateY(-3px); opacity: 1; }
+  100% { transform: scaleY(0.92) translateY(0); opacity: 0.88; }
+}
+@keyframes np-fire-ember {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.85; }
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .np-gold, .np-electric, .np-inferno, .np-champion, .np-premium, .np-legend {
+  .np-gold, .np-electric, .np-inferno, .np-champion, .np-premium, .np-legend,
+  .np-inferno::before, .np-inferno::after {
     animation: none;
   }
 }

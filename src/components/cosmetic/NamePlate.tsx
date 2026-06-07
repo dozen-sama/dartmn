@@ -19,7 +19,6 @@ export function NamePlate({ name, frame, variant = "inline", className }: Props)
   }
   return (
     <span className={cn("np", `np-${def.theme}`, `np-${variant}`, className)}>
-      {def.emoji && <span aria-hidden>{def.emoji}</span>}
       <span>{name}</span>
     </span>
   )
