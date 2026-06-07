@@ -7,7 +7,7 @@ import { Lock, Loader2, Save, Check, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { createClient } from "@/lib/supabase/client"
-import { NamePlate } from "@/components/cosmetic/NamePlate"
+import { NamePlate, FONT_FAMILY } from "@/components/cosmetic/NamePlate"
 import { PROFILE_FRAMES, isFrameUnlocked, COLOR_PRESETS, FONT_OPTIONS } from "@/lib/frames"
 import { cn } from "@/lib/utils"
 
@@ -123,7 +123,7 @@ export function NameplateCustomizer({ profileId, displayName, initial, unlock }:
                 "px-4 py-2 rounded-lg border-2 text-sm transition-all",
                 font === o.key ? "border-primary bg-primary/10 text-primary" : "border-border/40 hover:border-border text-foreground/80",
               )}
-              style={{ fontFamily: o.key === "mono" ? "var(--font-mono)" : o.key === "heading" ? "var(--font-heading)" : undefined }}>
+              style={{ fontFamily: FONT_FAMILY[o.key] }}>
               {o.label}
             </button>
           ))}

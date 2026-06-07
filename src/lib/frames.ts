@@ -70,7 +70,11 @@ export const COLOR_PRESETS: { label: string; value: string }[] = [
 // Customize — фонтын сонголтууд
 export const FONT_OPTIONS: { key: string; label: string }[] = [
   { key: "", label: "Энгийн" },
-  { key: "heading", label: "Гарчиг" },
+  { key: "oswald", label: "Oswald" },
+  { key: "russo", label: "Russo" },
+  { key: "montserrat", label: "Montserrat" },
+  { key: "rubik", label: "Rubik" },
+  { key: "exo2", label: "Exo 2" },
   { key: "mono", label: "Моно" },
 ]
 

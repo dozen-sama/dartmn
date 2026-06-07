@@ -6,8 +6,12 @@ import { FireFrame } from "./FireFrame"
 // Сонгож болох фонтууд (customize)
 export const FONT_FAMILY: Record<string, string> = {
   sans: "var(--font-sans), sans-serif",
+  oswald: "var(--font-oswald), sans-serif",
+  russo: "var(--font-russo), sans-serif",
+  montserrat: "var(--font-montserrat), sans-serif",
+  rubik: "var(--font-rubik), sans-serif",
+  exo2: "var(--font-exo2), sans-serif",
   mono: "var(--font-mono), monospace",
-  heading: "var(--font-heading), sans-serif",
 }
 
 interface Props {

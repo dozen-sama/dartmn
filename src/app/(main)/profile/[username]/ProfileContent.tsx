@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { BarChart3, Building2, Edit, MapPin, Pin, Target, Trophy, Zap } from "lucide-react"
+import { BarChart3, Building2, Edit, MapPin, Pin, Sparkles, Target, Trophy, Zap } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
@@ -16,7 +16,8 @@ import { TierBadge } from "@/components/rating/TierBadge"
 import { NamePlate } from "@/components/cosmetic/NamePlate"
 import { PlayerCard } from "@/components/player/PlayerCard"
 import { PlayerAvatar } from "@/components/player/PlayerAvatar"
-import { AchievementTooltip, Achievement } from "@/components/achievements/AchievementBadge"
+import { Achievement } from "@/components/achievements/AchievementBadge"
+import { NameplateCustomizer } from "@/app/(main)/settings/nameplate/NameplateCustomizer"
 
 interface Props {
   profile: Profile
@@ -140,43 +141,23 @@ export function ProfileContent({ profile: p, isOwner, clubName, recentMatches, t
       <Tabs defaultValue="stats">
         <TabsList className="bg-secondary/50 flex-wrap h-auto gap-1 p-1">
           <TabsTrigger value="stats"><BarChart3 className="h-4 w-4 mr-1.5" />Statistics</TabsTrigger>
-          <TabsTrigger value="achievements">🏅 Achievements</TabsTrigger>
+          {isOwner && <TabsTrigger value="nameplate"><Sparkles className="h-4 w-4 mr-1.5" />Хээ</TabsTrigger>}
           <TabsTrigger value="card">🪪 Card</TabsTrigger>
           <TabsTrigger value="matches">Matches</TabsTrigger>
           <TabsTrigger value="tournaments">Tournaments</TabsTrigger>
         </TabsList>
 
-        {/* Achievements tab */}
-        <TabsContent value="achievements" className="mt-4">
-          <div className="space-y-4">
-            {/* Earned */}
-            <div>
-              <p className="text-sm font-semibold mb-3 flex items-center gap-2">
-                <span>✅</span> Нээгдсэн ({earnedKeys.length})
-              </p>
-              {earnedKeys.length === 0 ? (
-                <p className="text-muted-foreground text-sm">Одоогоор achievement байхгүй байна</p>
-              ) : (
-                <div className="flex flex-wrap gap-3">
-                  {achievementsWithDates.filter((a) => earnedKeys.includes(a.key)).map((a) => (
-                    <AchievementTooltip key={a.key} achievement={a} earned={true} />
-                  ))}
-                </div>
-              )}
-            </div>
-            {/* Locked */}
-            <div>
-              <p className="text-sm font-semibold mb-3 flex items-center gap-2 text-muted-foreground">
-                <span>🔒</span> Нээгдэх боломжтой ({allAchievements.length - earnedKeys.length})
-              </p>
-              <div className="flex flex-wrap gap-3">
-                {achievementsWithDates.filter((a) => !earnedKeys.includes(a.key)).map((a) => (
-                  <AchievementTooltip key={a.key} achievement={a} earned={false} />
-                ))}
-              </div>
-            </div>
-          </div>
-        </TabsContent>
+        {/* Nameplate customize tab (зөвхөн эзэнд) */}
+        {isOwner && (
+          <TabsContent value="nameplate" className="mt-4">
+            <NameplateCustomizer
+              profileId={p.id}
+              displayName={p.display_name}
+              initial={{ frame: p.equipped_frame, color: p.name_color, font: p.name_font, animated: p.name_animated }}
+              unlock={{ rating: p.rating_points, isPremium: p.is_premium }}
+            />
+          </TabsContent>
+        )}
 
         {/* Player Card tab */}
         <TabsContent value="card" className="mt-4">
