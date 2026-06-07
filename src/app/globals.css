@@ -189,7 +189,8 @@
   /* Effect-тэй nameplate — тогтмол доод өргөн → бүх нэрэнд (≤~10 тэмдэгт) ижил харагдана */
   .np-fixed { min-width: 10em; justify-content: center; }
   /* Жагсаалтад (inline/compact) — дүүргэлтгүй, зөвхөн хүрээ+гэрэлтэлт+өнгөт текст (цэвэрхэн) */
-  .np-inline, .np-compact { background: transparent !important; }
+  .np-inline, .np-compact { background: transparent !important; max-width: 100%; }
+  .np-inline .np-label, .np-compact .np-label { overflow: hidden; text-overflow: ellipsis; }
   .np-full { padding: 0.32em 0.85em; font-weight: 800; letter-spacing: 0.01em; }
   .np-compact { padding: 0.18em 0.62em; font-weight: 700; font-size: 0.85em; }
   .np-inline { padding: 0.1em 0.5em; font-weight: 700; font-size: 0.9em; border-width: 1px; }
@@ -302,4 +303,10 @@
   .np-gold, .np-electric, .np-inferno, .np-champion, .np-premium, .np-legend {
     animation: none;
   }
+}
+
+/* Гар утас — nameplate жижигрүүлж багтаана */
+@media (max-width: 640px) {
+  .np-fixed { min-width: 8em; }
+  .np-full { padding: 0.26em 0.62em; }
 }
