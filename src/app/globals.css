@@ -232,35 +232,17 @@
     box-shadow: 0 0 20px oklch(0.66 0.24 40 / 0.7), inset 0 0 14px oklch(0.66 0.24 40 / 0.38);
     animation: np-flicker-fire 1.3s ease-in-out infinite;
   }
-  /* Дүрэлзэх галын дөл — дээд ирмэг дээгүүр */
-  .np-inferno::before {
-    content: "";
+  /* SVG галын border — хүрээг тойрсон дүрэлзэх гал */
+  .np-fire-svg {
     position: absolute;
-    left: 6%; right: 6%; bottom: 88%; height: 1.1em;
-    z-index: -1;
+    inset: -10px;
+    width: calc(100% + 20px);
+    height: calc(100% + 20px);
     pointer-events: none;
-    background:
-      radial-gradient(42% 100% at 12% 100%, oklch(0.86 0.2 62 / 0.95), transparent 70%),
-      radial-gradient(38% 100% at 30% 100%, oklch(0.78 0.24 35 / 0.95), transparent 72%),
-      radial-gradient(44% 100% at 50% 100%, oklch(0.9 0.19 70 / 0.98), transparent 70%),
-      radial-gradient(38% 100% at 70% 100%, oklch(0.78 0.24 32 / 0.95), transparent 72%),
-      radial-gradient(42% 100% at 88% 100%, oklch(0.86 0.2 58 / 0.92), transparent 70%);
-    filter: blur(3px);
-    transform-origin: bottom;
-    animation: np-fire-tongues 0.5s ease-in-out infinite alternate;
+    overflow: visible;
+    z-index: 0;
   }
-  /* Доорх нүүрсэн гэрэлтэлт */
-  .np-inferno::after {
-    content: "";
-    position: absolute;
-    inset: -3px;
-    border-radius: inherit;
-    z-index: -2;
-    pointer-events: none;
-    background: radial-gradient(ellipse at 50% 130%, oklch(0.72 0.24 38 / 0.6), transparent 68%);
-    filter: blur(6px);
-    animation: np-fire-ember 1.3s ease-in-out infinite;
-  }
+  .np-label { position: relative; z-index: 1; }
   .np-champion {
     border-color: var(--gold);
     background: linear-gradient(180deg, oklch(0.55 0.15 85 / 0.48), oklch(0.18 0.05 80 / 0.55));

@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils"
 import { getFrame } from "@/lib/frames"
+import { FireFrame } from "./FireFrame"
 
 interface Props {
   name: string
@@ -17,9 +18,11 @@ export function NamePlate({ name, frame, variant = "inline", className }: Props)
   if (!def || def.theme === "none") {
     return <span className={className}>{name}</span>
   }
+  const showFire = def.theme === "inferno" && variant === "full"
   return (
     <span className={cn("np", `np-${def.theme}`, `np-${variant}`, className)}>
-      <span>{name}</span>
+      {showFire && <FireFrame />}
+      <span className="np-label">{name}</span>
     </span>
   )
 }
