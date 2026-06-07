@@ -1,6 +1,6 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
-import { getEffect, computeXp, spentXp } from "@/lib/frames"
+import { computeXp, spentXp, isPassActive } from "@/lib/cosmetics"
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -8,8 +8,15 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Нэвтрээгүй байна" }, { status: 401 })
 
   const { item_key } = await req.json()
-  const eff = getEffect(item_key)
-  if (!eff || eff.key === "none") return NextResponse.json({ error: "Буруу effect" }, { status: 400 })
+  if (!item_key) return NextResponse.json({ error: "Буруу effect" }, { status: 400 })
+
+  // Effect-ийг DB-ээс
+  const { data: eff } = await supabase
+    .from("cosmetic_effects")
+    .select("key, xp, pass_id, is_active")
+    .eq("key", item_key)
+    .maybeSingle()
+  if (!eff || !eff.is_active) return NextResponse.json({ error: "Effect олдсонгүй" }, { status: 400 })
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -17,30 +24,27 @@ export async function POST(req: NextRequest) {
     .eq("id", user.id)
     .single()
   if (!profile) return NextResponse.json({ error: "Профайл олдсонгүй" }, { status: 404 })
+  if (!profile.is_premium) return NextResponse.json({ error: "Subscription шаардлагатай" }, { status: 403 })
 
-  // Subscription заавал (нээх үед)
-  if (!profile.is_premium) {
-    return NextResponse.json({ error: "Subscription шаардлагатай" }, { status: 403 })
+  // Pass идэвхтэй (сезон нээлттэй) эсэх
+  if (eff.pass_id) {
+    const { data: pass } = await supabase
+      .from("cosmetic_passes").select("id, name, starts_at, ends_at").eq("id", eff.pass_id).maybeSingle()
+    if (!isPassActive(pass)) return NextResponse.json({ error: "Pass хаагдсан байна" }, { status: 403 })
   }
 
-  // Аль хэдийн нээсэн effect-үүдэд зарцуулсан XP-г хасаж боломжит XP-г гаргах
+  // Аль хэдийн нээсэн эсэх + боломжит XP
   const { data: existing } = await supabase
-    .from("player_unlocks")
-    .select("item_key")
-    .eq("player_id", user.id)
-    .eq("item_kind", "effect")
-
+    .from("player_unlocks").select("item_key").eq("player_id", user.id).eq("item_kind", "effect")
   const ownedKeys = (existing ?? []).map((r) => r.item_key)
-  if (ownedKeys.includes(eff.key)) {
-    return NextResponse.json({ ok: true }) // аль хэдийн нээсэн
-  }
+  if (ownedKeys.includes(eff.key)) return NextResponse.json({ ok: true })
 
-  const available = computeXp(profile) - spentXp(ownedKeys)
+  const { data: allEffects } = await supabase.from("cosmetic_effects").select("key, xp")
+  const available = computeXp(profile) - spentXp(ownedKeys, allEffects ?? [])
   if (available < eff.xp) {
     return NextResponse.json({ error: `Боломжит XP хүрэлцэхгүй (${available}/${eff.xp})` }, { status: 400 })
   }
 
-  // Насан туршийн нээлт — player_unlocks-д бүртгэх
   const admin = await createAdminClient()
   const { error } = await admin
     .from("player_unlocks")

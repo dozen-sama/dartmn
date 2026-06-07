@@ -228,6 +228,69 @@ export interface Database {
         }
         Relationships: []
       }
+      cosmetic_passes: {
+        Row: {
+          id: string
+          name: string
+          starts_at: string | null
+          ends_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          starts_at?: string | null
+          ends_at?: string | null
+        }
+        Update: {
+          name?: string
+          starts_at?: string | null
+          ends_at?: string | null
+        }
+        Relationships: []
+      }
+      cosmetic_effects: {
+        Row: {
+          id: string
+          pass_id: string | null
+          key: string
+          name: string
+          lottie_url: string
+          xp: number
+          fit: string
+          scale: number
+          scope: string
+          sort_order: number
+          is_active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          pass_id?: string | null
+          key: string
+          name: string
+          lottie_url: string
+          xp?: number
+          fit?: string
+          scale?: number
+          scope?: string
+          sort_order?: number
+          is_active?: boolean
+        }
+        Update: {
+          pass_id?: string | null
+          key?: string
+          name?: string
+          lottie_url?: string
+          xp?: number
+          fit?: string
+          scale?: number
+          scope?: string
+          sort_order?: number
+          is_active?: boolean
+        }
+        Relationships: []
+      }
       tournaments: {
         Row: {
           id: string

@@ -1,6 +1,9 @@
+"use client"
+
 import type { CSSProperties } from "react"
 import { cn } from "@/lib/utils"
-import { getFrame, getEffect } from "@/lib/frames"
+import { getFrame } from "@/lib/frames"
+import { useCosmeticEffect } from "./EffectsProvider"
 import { EffectLayer } from "./FireFrame"
 
 // Сонгож болох фонтууд (customize)
@@ -27,29 +30,27 @@ interface Props {
 
 /**
  * Тоглогч/клубын нэрийг сонгосон хүрээ + effect + өнгө/фонт/анивчилтаар харуулна.
- * Хүрээ ба effect тус тусдаа (effect нь ямар ч хүрээтэй ажиллана).
+ * Effect-ийн render тохиргоо EffectsProvider (DB)-ээс ирнэ.
  */
 export function NamePlate({ name, frame, effect, color, font, animated = true, variant = "inline", className }: Props) {
   const def = getFrame(frame)
   const noFrame = !def || def.theme === "none"
 
-  const eff = getEffect(effect)
-  const effectFile = eff?.file || ""
-  const showEffect = variant === "full" && !!effectFile && animated
+  const eff = useCosmeticEffect(effect)
+  const showEffect = variant === "full" && !!eff?.lottie_url && animated
 
   const style: CSSProperties = {}
   if (color) style.color = color
   if (font && FONT_FAMILY[font]) style.fontFamily = FONT_FAMILY[font]
   const labelStyle = Object.keys(style).length > 0 ? style : undefined
 
-  // Хүрээ ч үгүй, effect ч үгүй бол энгийн текст
   if (noFrame && !showEffect) {
     return <span className={className} style={labelStyle}>{name}</span>
   }
 
   return (
     <span className={cn("np", noFrame ? "np-bare" : `np-${def!.theme}`, `np-${variant}`, !animated && "np-static", className)}>
-      {showEffect && <EffectLayer file={effectFile} fit={eff?.fit} scale={eff?.scale} />}
+      {showEffect && <EffectLayer file={eff!.lottie_url} fit={eff!.fit} scale={eff!.scale} />}
       <span className="np-label" style={labelStyle}>{name}</span>
     </span>
   )

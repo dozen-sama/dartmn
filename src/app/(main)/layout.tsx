@@ -2,7 +2,8 @@ import { createClient } from "@/lib/supabase/server"
 import { Navbar } from "@/components/layout/Navbar"
 import { Sidebar } from "@/components/layout/Sidebar"
 import { BottomNav } from "@/components/layout/BottomNav"
-import { redirect } from "next/navigation"
+import { EffectsProvider } from "@/components/cosmetic/EffectsProvider"
+import type { EffectRow } from "@/lib/cosmetics"
 
 export default async function MainLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -21,18 +22,27 @@ export default async function MainLayout({ children }: { children: React.ReactNo
     profile = data
   }
 
+  // Идэвхтэй cosmetic effect-үүд (NamePlate-д ашиглана)
+  const { data: effects } = await supabase
+    .from("cosmetic_effects")
+    .select("key, name, lottie_url, xp, fit, scale, scope, pass_id, is_active, sort_order")
+    .eq("is_active", true)
+    .order("sort_order")
+
   return (
-    <div className="flex min-h-screen flex-col">
-      <Navbar profile={profile} />
-      <div className="flex flex-1">
-        <Sidebar profile={profile} />
-        <main className="flex-1 overflow-auto">
-          <div className="container mx-auto max-w-6xl px-4 py-6 pb-20 md:pb-6">
-            {children}
-          </div>
-        </main>
+    <EffectsProvider effects={(effects ?? []) as EffectRow[]}>
+      <div className="flex min-h-screen flex-col">
+        <Navbar profile={profile} />
+        <div className="flex flex-1">
+          <Sidebar profile={profile} />
+          <main className="flex-1 overflow-auto">
+            <div className="container mx-auto max-w-6xl px-4 py-6 pb-20 md:pb-6">
+              {children}
+            </div>
+          </main>
+        </div>
+        <BottomNav />
       </div>
-      <BottomNav />
-    </div>
+    </EffectsProvider>
   )
 }

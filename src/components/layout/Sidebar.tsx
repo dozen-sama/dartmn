@@ -13,6 +13,7 @@ import {
   Monitor,
   Settings,
   Shield,
+  Sparkles,
   Star,
   Target,
   Trophy,
@@ -44,6 +45,7 @@ const adminItems = [
   { href: "/admin/tournaments", label: mn.admin.tournaments, icon: Trophy },
   { href: "/admin/clubs", label: mn.admin.clubs, icon: Building2 },
   { href: "/admin/payments", label: mn.admin.payments, icon: CreditCard },
+  { href: "/admin/cosmetics", label: "Cosmetics", icon: Sparkles },
 ]
 
 interface NavItemProps {

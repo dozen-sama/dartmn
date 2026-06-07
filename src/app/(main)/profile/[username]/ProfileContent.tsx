@@ -18,7 +18,7 @@ import { PlayerCard } from "@/components/player/PlayerCard"
 import { PlayerAvatar } from "@/components/player/PlayerAvatar"
 import { Achievement } from "@/components/achievements/AchievementBadge"
 import { NameplateCustomizer } from "@/app/(main)/settings/nameplate/NameplateCustomizer"
-import { computeXp } from "@/lib/frames"
+import { computeXp, type EffectRow } from "@/lib/cosmetics"
 
 interface Props {
   profile: Profile
@@ -31,6 +31,7 @@ interface Props {
   allAchievements: Achievement[]
   earnedAchievements: { achievement_key: string; earned_at: string }[]
   ownedEffects: string[]
+  effects: (EffectRow & { passActive: boolean })[]
 }
 
 const MONGOLIAN_PROVINCES = [
@@ -53,7 +54,7 @@ function StatCard({ label, value, sub, highlight }: { label: string; value: stri
   )
 }
 
-export function ProfileContent({ profile: p, isOwner, clubName, recentMatches, tournaments, allAchievements, earnedAchievements, ownedEffects }: Props) {
+export function ProfileContent({ profile: p, isOwner, clubName, recentMatches, tournaments, allAchievements, earnedAchievements, ownedEffects, effects }: Props) {
   const winRate = p.matches_played > 0 ? Math.round((p.matches_won / p.matches_played) * 100) : 0
   const lossCount = p.matches_played - p.matches_won
   const tier = getTier(p.rating_points)
@@ -153,12 +154,12 @@ export function ProfileContent({ profile: p, isOwner, clubName, recentMatches, t
         {isOwner && (
           <TabsContent value="nameplate" className="mt-4">
             <NameplateCustomizer
-              profileId={p.id}
               displayName={p.display_name}
               initial={{ frame: p.equipped_frame, effect: p.name_effect, color: p.name_color, font: p.name_font, animated: p.name_animated }}
               unlock={{ rating: p.rating_points, isPremium: p.is_premium }}
               xp={computeXp(p)}
               ownedEffects={ownedEffects}
+              effects={effects}
             />
           </TabsContent>
         )}

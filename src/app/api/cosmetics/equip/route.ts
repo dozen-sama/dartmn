@@ -1,6 +1,6 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
-import { getFrame, isFrameUnlocked, getEffect } from "@/lib/frames"
+import { getFrame, isFrameUnlocked } from "@/lib/frames"
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -29,7 +29,9 @@ export async function POST(req: NextRequest) {
   // Effect — эзэмшиж байгаа эсэхийг шалгах
   const effectKey = effect && effect !== "none" ? String(effect) : null
   if (effectKey) {
-    if (!getEffect(effectKey)) return NextResponse.json({ error: "Буруу effect" }, { status: 400 })
+    const { data: effExists } = await supabase
+      .from("cosmetic_effects").select("key").eq("key", effectKey).maybeSingle()
+    if (!effExists) return NextResponse.json({ error: "Буруу effect" }, { status: 400 })
     const { data: owned } = await supabase
       .from("player_unlocks")
       .select("id")
