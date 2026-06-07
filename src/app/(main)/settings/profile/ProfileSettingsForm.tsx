@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { ArrowLeft, Check, ChevronRight, MapPin, Save, Loader2, User } from "lucide-react"
+import { ArrowLeft, Check, ChevronRight, MapPin, Save, Loader2, User, Sparkles } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -94,6 +94,17 @@ export function ProfileSettingsForm({ profile }: Props) {
           </div>
         </div>
       </div>
+
+      {/* Нэрийн хээ тохиргоо руу */}
+      <Link href="/settings/nameplate"
+        className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 hover:bg-primary/10 transition-colors">
+        <Sparkles className="h-5 w-5 text-primary shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium">Нэрийн хээ тохируулах</p>
+          <p className="text-xs text-muted-foreground">Хүрээ, өнгө, фонт, анивчилт</p>
+        </div>
+        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+      </Link>
 
       {/* Үндсэн мэдээлэл */}
       <Card className="border-border/50 bg-card/80">

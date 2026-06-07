@@ -35,6 +35,7 @@ export interface Database {
           equipped_frame: string | null
           name_color: string | null
           name_font: string | null
+          name_animated: boolean
           created_at: string
           updated_at: string
         }
@@ -82,6 +83,7 @@ export interface Database {
           equipped_frame?: string | null
           name_color?: string | null
           name_font?: string | null
+          name_animated?: boolean
         }
         Relationships: []
       }
@@ -114,6 +116,7 @@ export interface Database {
           equipped_frame: string | null
           name_color: string | null
           name_font: string | null
+          name_animated: boolean
           created_at: string
           updated_at: string
         }
@@ -159,6 +162,7 @@ export interface Database {
           equipped_frame?: string | null
           name_color?: string | null
           name_font?: string | null
+          name_animated?: boolean
         }
         Relationships: []
       }

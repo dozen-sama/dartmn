@@ -51,6 +51,29 @@ export interface UnlockContext {
   isVerified?: boolean
 }
 
+// Customize — нэрний өнгөний бэлэн сонголтууд
+export const COLOR_PRESETS: { label: string; value: string }[] = [
+  { label: "Үндсэн", value: "" },
+  { label: "Цагаан", value: "#ffffff" },
+  { label: "Алт", value: "#f5c542" },
+  { label: "Улбар шар", value: "#ff8a1f" },
+  { label: "Улаан", value: "#ff4d4d" },
+  { label: "Ягаан", value: "#ff6ec7" },
+  { label: "Нил", value: "#a855f7" },
+  { label: "Цэнхэр", value: "#4da3ff" },
+  { label: "Цайвар цэнхэр", value: "#22d3ee" },
+  { label: "Ногоон", value: "#34d399" },
+  { label: "Лайм", value: "#a3e635" },
+  { label: "Хар саарал", value: "#cbd5e1" },
+]
+
+// Customize — фонтын сонголтууд
+export const FONT_OPTIONS: { key: string; label: string }[] = [
+  { key: "", label: "Энгийн" },
+  { key: "heading", label: "Гарчиг" },
+  { key: "mono", label: "Моно" },
+]
+
 export function isFrameUnlocked(f: FrameDef, ctx: UnlockContext): boolean {
   switch (f.unlock.type) {
     case "free": return true

@@ -15,14 +15,15 @@ interface Props {
   frame?: string | null
   color?: string | null
   font?: string | null
+  animated?: boolean
   variant?: "full" | "compact" | "inline"
   className?: string
 }
 
 /**
- * Тоглогч/клубын нэрийг сонгосон cosmetic хүрээ + өнгө/фонтоор харуулна.
+ * Тоглогч/клубын нэрийг сонгосон cosmetic хүрээ + өнгө/фонт/анивчилтаар харуулна.
  */
-export function NamePlate({ name, frame, color, font, variant = "inline", className }: Props) {
+export function NamePlate({ name, frame, color, font, animated = true, variant = "inline", className }: Props) {
   const def = getFrame(frame)
 
   const style: CSSProperties = {}
@@ -34,9 +35,9 @@ export function NamePlate({ name, frame, color, font, variant = "inline", classN
     return <span className={className} style={hasStyle ? style : undefined}>{name}</span>
   }
 
-  const showFire = def.theme === "inferno" && variant === "full"
+  const showFire = def.theme === "inferno" && variant === "full" && animated
   return (
-    <span className={cn("np", `np-${def.theme}`, `np-${variant}`, className)}>
+    <span className={cn("np", `np-${def.theme}`, `np-${variant}`, !animated && "np-static", className)}>
       {showFire && <FireFrame />}
       <span className="np-label" style={hasStyle ? style : undefined}>{name}</span>
     </span>
