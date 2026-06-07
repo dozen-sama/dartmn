@@ -22,7 +22,7 @@ export default async function NameplateSettingsPage() {
       .select("id, username, display_name, equipped_frame, name_effect, name_color, name_font, name_animated, rating_points, is_premium, matches_played, matches_won, count_180, tournament_wins, avraga_wins")
       .eq("id", user.id).single(),
     supabase.from("player_unlocks").select("item_key").eq("player_id", user.id).eq("item_kind", "effect"),
-    supabase.from("cosmetic_effects").select("key, name, lottie_url, xp, fit, scale, scope, pass_id, is_active, sort_order").eq("is_active", true).order("sort_order"),
+    supabase.from("cosmetic_effects").select("key, name, lottie_url, xp, fit, scale, offset_x, offset_y, scope, pass_id, is_active, sort_order").eq("is_active", true).order("sort_order"),
     supabase.from("cosmetic_passes").select("id, name, starts_at, ends_at"),
   ])
 

@@ -259,6 +259,8 @@ export interface Database {
           xp: number
           fit: string
           scale: number
+          offset_x: number
+          offset_y: number
           scope: string
           sort_order: number
           is_active: boolean
@@ -273,6 +275,8 @@ export interface Database {
           xp?: number
           fit?: string
           scale?: number
+          offset_x?: number
+          offset_y?: number
           scope?: string
           sort_order?: number
           is_active?: boolean
@@ -285,6 +289,8 @@ export interface Database {
           xp?: number
           fit?: string
           scale?: number
+          offset_x?: number
+          offset_y?: number
           scope?: string
           sort_order?: number
           is_active?: boolean

@@ -9,6 +9,8 @@ export interface EffectRow {
   xp: number
   fit: Fit
   scale: number
+  offset_x: number
+  offset_y: number
   scope: string
   pass_id: string | null
   is_active: boolean

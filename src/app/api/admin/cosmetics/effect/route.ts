@@ -39,6 +39,8 @@ export async function POST(req: NextRequest) {
     xp: Number(body.xp) || 0,
     fit: body.fit || "cover",
     scale: Number(body.scale) || 1,
+    offset_x: Number(body.offset_x) || 0,
+    offset_y: Number(body.offset_y) || 0,
     scope: body.scope || "profile",
     sort_order: Number(body.sort_order) || 0,
     is_active: body.is_active !== false,

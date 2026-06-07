@@ -41,7 +41,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
     supabase.from("player_achievements")
       .select("achievement_key, earned_at").eq("player_id", profile.id),
     supabase.from("player_unlocks").select("item_key").eq("player_id", profile.id).eq("item_kind", "effect"),
-    supabase.from("cosmetic_effects").select("key, name, lottie_url, xp, fit, scale, scope, pass_id, is_active, sort_order").eq("is_active", true).order("sort_order"),
+    supabase.from("cosmetic_effects").select("key, name, lottie_url, xp, fit, scale, offset_x, offset_y, scope, pass_id, is_active, sort_order").eq("is_active", true).order("sort_order"),
     supabase.from("cosmetic_passes").select("id, name, starts_at, ends_at"),
   ])
 

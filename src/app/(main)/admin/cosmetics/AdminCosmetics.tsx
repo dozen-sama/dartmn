@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, type PointerEvent as ReactPointerEvent } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Loader2, Plus, Trash2, Upload, Save, Eye } from "lucide-react"
@@ -15,7 +15,7 @@ type Fit = "cover" | "contain" | "stretch"
 interface Pass { id: string; name: string; starts_at: string | null; ends_at: string | null }
 interface Effect {
   id: string; key: string; name: string; lottie_url: string; xp: number
-  fit: string; scale: number; scope: string; pass_id: string | null; sort_order: number; is_active: boolean
+  fit: string; scale: number; offset_x: number; offset_y: number; scope: string; pass_id: string | null; sort_order: number; is_active: boolean
 }
 
 const FIT_OPTIONS = ["cover", "contain", "stretch"]
@@ -41,10 +41,27 @@ export function AdminCosmetics({ passes, effects }: { passes: Pass[]; effects: E
 
   // Effect local edit state — numeric багана supabase-аас string ирдэг тул тоо болгоно
   const [rows, setRows] = useState<Effect[]>(
-    effects.map((e) => ({ ...e, xp: Number(e.xp), scale: Number(e.scale), sort_order: Number(e.sort_order) }))
+    effects.map((e) => ({ ...e, xp: Number(e.xp), scale: Number(e.scale), offset_x: Number(e.offset_x), offset_y: Number(e.offset_y), sort_order: Number(e.sort_order) }))
   )
   const [previewKey, setPreviewKey] = useState<string | null>(rows[0]?.key ?? null)
   const preview = rows.find((r) => r.key === previewKey) ?? null
+
+  // Preview-г чирж offset тааруулах
+  const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number; w: number; h: number } | null>(null)
+  function onDragStart(ev: ReactPointerEvent) {
+    if (!preview) return
+    const r = (ev.currentTarget as HTMLElement).getBoundingClientRect()
+    dragRef.current = { sx: ev.clientX, sy: ev.clientY, ox: preview.offset_x, oy: preview.offset_y, w: r.width, h: r.height }
+    ;(ev.currentTarget as HTMLElement).setPointerCapture(ev.pointerId)
+  }
+  function onDragMove(ev: ReactPointerEvent) {
+    const d = dragRef.current
+    if (!d || !preview) return
+    const dx = Math.round(d.ox + ((ev.clientX - d.sx) / d.w) * 100)
+    const dy = Math.round(d.oy + ((ev.clientY - d.sy) / d.h) * 100)
+    patchRow(preview.id, { offset_x: dx, offset_y: dy })
+  }
+  function onDragEnd() { dragRef.current = null }
 
   async function createPass() {
     if (!passName.trim()) return toast.error("Нэр оруул")
@@ -92,7 +109,7 @@ export function AdminCosmetics({ passes, effects }: { passes: Pass[]; effects: E
     setBusy(true)
     const res = await fetch("/api/admin/cosmetics/effect", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: e.id, key: e.key, name: e.name, xp: e.xp, fit: e.fit, scale: e.scale, scope: e.scope, pass_id: e.pass_id, sort_order: e.sort_order, is_active: e.is_active }),
+      body: JSON.stringify({ id: e.id, key: e.key, name: e.name, xp: e.xp, fit: e.fit, scale: e.scale, offset_x: e.offset_x, offset_y: e.offset_y, scope: e.scope, pass_id: e.pass_id, sort_order: e.sort_order, is_active: e.is_active }),
     })
     if (res.ok) { toast.success("Хадгалагдлаа"); router.refresh() } else toast.error("Алдаа")
     setBusy(false)
@@ -161,12 +178,18 @@ export function AdminCosmetics({ passes, effects }: { passes: Pass[]; effects: E
         <CardContent className="space-y-2">
           {/* Шууд preview — 👁 дарж сонгосон effect, fit/scale-ийг шууд харна */}
           {preview && (
-            <div className="flex flex-col items-center gap-1 py-6 bg-secondary/20 rounded-lg sticky top-2 z-10 border border-border/40">
-              <span className="np np-bare np-full text-2xl">
-                <EffectLayer key={preview.lottie_url} file={preview.lottie_url} fit={preview.fit as Fit} scale={Number(preview.scale)} />
+            <div className="flex flex-col items-center gap-1.5 py-6 bg-secondary/20 rounded-lg sticky top-2 z-10 border border-border/40">
+              <span className="np np-bare np-full text-2xl cursor-move select-none touch-none"
+                onPointerDown={onDragStart} onPointerMove={onDragMove} onPointerUp={onDragEnd}>
+                <EffectLayer key={preview.lottie_url} file={preview.lottie_url} fit={preview.fit as Fit}
+                  scale={Number(preview.scale)} offsetX={Number(preview.offset_x)} offsetY={Number(preview.offset_y)} />
                 <span className="np-label">{preview.name}</span>
               </span>
-              <span className="text-[10px] text-muted-foreground">{preview.name} · fit: {preview.fit} · scale: {preview.scale}</span>
+              <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                <span>fit: {preview.fit} · scale: {preview.scale} · offset: {preview.offset_x},{preview.offset_y}</span>
+                <button onClick={() => patchRow(preview.id, { offset_x: 0, offset_y: 0 })} className="underline hover:text-foreground">reset</button>
+              </div>
+              <p className="text-[10px] text-muted-foreground/60">🖐 чирж байрлуул · доор scale/fit тааруул · мөрийн 💾-ээр хадгал</p>
             </div>
           )}
           {rows.map((e) => (

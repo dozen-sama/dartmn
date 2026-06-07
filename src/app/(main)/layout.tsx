@@ -25,7 +25,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   // Идэвхтэй cosmetic effect-үүд (NamePlate-д ашиглана)
   const { data: effects } = await supabase
     .from("cosmetic_effects")
-    .select("key, name, lottie_url, xp, fit, scale, scope, pass_id, is_active, sort_order")
+    .select("key, name, lottie_url, xp, fit, scale, offset_x, offset_y, scope, pass_id, is_active, sort_order")
     .eq("is_active", true)
     .order("sort_order")
 
