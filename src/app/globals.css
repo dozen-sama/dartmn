@@ -170,4 +170,100 @@
   .card-hover {
     @apply transition-all duration-200 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5;
   }
+
+  /* ===== NamePlate хүрээ (cosmetic frames) ===== */
+  .np {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.28em;
+    border-radius: 9999px;
+    border: 1px solid transparent;
+    line-height: 1.1;
+    white-space: nowrap;
+    vertical-align: middle;
+  }
+  .np-full { padding: 0.22em 0.7em; font-weight: 700; }
+  .np-compact { padding: 0.12em 0.5em; font-weight: 600; font-size: 0.85em; }
+  .np-inline { padding: 0.05em 0.4em; font-weight: 600; font-size: 0.92em; }
+
+  .np-bronze {
+    border-color: oklch(0.62 0.1 60 / 0.6);
+    background: linear-gradient(180deg, oklch(0.55 0.1 60 / 0.18), transparent);
+    box-shadow: 0 0 10px oklch(0.6 0.1 60 / 0.28);
+    color: oklch(0.82 0.1 65);
+  }
+  .np-silver {
+    border-color: oklch(0.82 0.02 250 / 0.6);
+    background: linear-gradient(180deg, oklch(0.85 0.02 250 / 0.16), transparent);
+    box-shadow: 0 0 10px oklch(0.85 0.02 250 / 0.3);
+    color: oklch(0.93 0.02 250);
+  }
+  .np-gold {
+    border-color: var(--gold);
+    background: linear-gradient(180deg, oklch(0.78 0.16 85 / 0.18), transparent);
+    color: var(--gold);
+    animation: np-pulse-gold 2.6s ease-in-out infinite;
+  }
+  .np-verified {
+    border-color: oklch(0.65 0.18 250 / 0.7);
+    background: linear-gradient(180deg, oklch(0.6 0.18 250 / 0.16), transparent);
+    box-shadow: 0 0 10px oklch(0.6 0.18 250 / 0.35);
+    color: oklch(0.82 0.12 250);
+  }
+  .np-electric {
+    border-color: oklch(0.7 0.18 250);
+    background: linear-gradient(180deg, oklch(0.6 0.2 250 / 0.22), transparent);
+    color: oklch(0.86 0.12 250);
+    animation: np-flicker-blue 1.8s linear infinite;
+  }
+  .np-inferno {
+    border-color: oklch(0.66 0.22 35);
+    background: linear-gradient(180deg, oklch(0.6 0.24 35 / 0.26), oklch(0.55 0.22 15 / 0.1));
+    color: oklch(0.86 0.16 50);
+    animation: np-flicker-fire 1.5s ease-in-out infinite;
+  }
+  .np-champion {
+    border-color: var(--gold);
+    background: linear-gradient(180deg, oklch(0.78 0.16 85 / 0.26), transparent);
+    color: oklch(0.9 0.14 85);
+    animation: np-pulse-gold 2s ease-in-out infinite;
+  }
+  .np-premium {
+    color: oklch(0.98 0 0);
+    background: linear-gradient(90deg, oklch(0.55 0.22 15 / 0.32), oklch(0.6 0.18 300 / 0.32), oklch(0.65 0.18 260 / 0.32), oklch(0.55 0.22 15 / 0.32));
+    background-size: 300% 100%;
+    box-shadow: 0 0 14px oklch(0.6 0.18 300 / 0.45);
+    animation: np-shimmer 3s linear infinite;
+  }
+  .np-legend {
+    color: oklch(0.98 0 0);
+    background: linear-gradient(90deg, oklch(0.78 0.16 85 / 0.36), oklch(0.65 0.22 145 / 0.3), oklch(0.65 0.18 260 / 0.3), oklch(0.6 0.18 300 / 0.32), oklch(0.78 0.16 85 / 0.36));
+    background-size: 300% 100%;
+    box-shadow: 0 0 18px oklch(0.7 0.15 300 / 0.5);
+    animation: np-shimmer 4s linear infinite, np-pulse-gold 2.6s ease-in-out infinite;
+  }
+}
+
+@keyframes np-pulse-gold {
+  0%, 100% { box-shadow: 0 0 12px oklch(0.78 0.16 85 / 0.35); }
+  50% { box-shadow: 0 0 20px oklch(0.78 0.16 85 / 0.62); }
+}
+@keyframes np-flicker-blue {
+  0%, 100% { box-shadow: 0 0 12px oklch(0.6 0.2 250 / 0.45), inset 0 0 8px oklch(0.6 0.2 250 / 0.2); }
+  45% { box-shadow: 0 0 18px oklch(0.65 0.2 250 / 0.72), inset 0 0 10px oklch(0.65 0.2 250 / 0.3); }
+  55% { box-shadow: 0 0 10px oklch(0.6 0.2 250 / 0.4); }
+}
+@keyframes np-flicker-fire {
+  0%, 100% { box-shadow: 0 0 12px oklch(0.62 0.24 35 / 0.5), inset 0 0 8px oklch(0.62 0.24 35 / 0.25); }
+  50% { box-shadow: 0 0 22px oklch(0.66 0.24 40 / 0.78), inset 0 0 12px oklch(0.66 0.24 40 / 0.35); }
+}
+@keyframes np-shimmer {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 300% 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .np-gold, .np-electric, .np-inferno, .np-champion, .np-premium, .np-legend {
+    animation: none;
+  }
 }

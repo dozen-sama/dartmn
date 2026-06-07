@@ -13,6 +13,7 @@ import { formatAverage, formatDate, formatNumber, formatPercentage } from "@/lib
 import { cn } from "@/lib/utils"
 import { getTier } from "@/lib/rating"
 import { TierBadge } from "@/components/rating/TierBadge"
+import { NamePlate } from "@/components/cosmetic/NamePlate"
 import { PlayerCard } from "@/components/player/PlayerCard"
 import { PlayerAvatar } from "@/components/player/PlayerAvatar"
 import { AchievementTooltip, Achievement } from "@/components/achievements/AchievementBadge"
@@ -96,7 +97,9 @@ export function ProfileContent({ profile: p, isOwner, clubName, recentMatches, t
           {/* Name & info */}
           <div className="space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl font-bold">{p.display_name}</h1>
+              <h1 className="text-xl font-bold">
+                <NamePlate name={p.display_name} frame={p.equipped_frame} variant="full" />
+              </h1>
               <TierBadge rating={p.rating_points} avragaWins={p.avraga_wins ?? 0} size="md" />
             </div>
             <p className="text-muted-foreground text-sm">@{p.username}</p>
