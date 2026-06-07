@@ -1,6 +1,6 @@
 "use client"
 
-import type { CSSProperties } from "react"
+import { useEffect, useRef, useState, type CSSProperties } from "react"
 import { cn } from "@/lib/utils"
 import { getFrame } from "@/lib/frames"
 import { useCosmeticEffect } from "./EffectsProvider"
@@ -17,6 +17,23 @@ export const FONT_FAMILY: Record<string, string> = {
   mono: "var(--font-mono), monospace",
 }
 
+// Зөвхөн харагдаж буй үед true (lazy effect — гүйцэтгэл)
+function useInView(ref: { current: HTMLElement | null }, enabled: boolean) {
+  const [inView, setInView] = useState(false)
+  useEffect(() => {
+    if (!enabled) return
+    const el = ref.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      ([e]) => setInView(e.isIntersecting),
+      { rootMargin: "120px" }
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [ref, enabled])
+  return inView
+}
+
 interface Props {
   name: string
   frame?: string | null
@@ -29,28 +46,30 @@ interface Props {
 }
 
 /**
- * Тоглогч/клубын нэрийг сонгосон хүрээ + effect + өнгө/фонт/анивчилтаар харуулна.
- * Effect-ийн render тохиргоо EffectsProvider (DB)-ээс ирнэ.
+ * Тоглогч/клубын нэрийг хүрээ + effect + өнгө/фонтоор харуулна.
+ * Effect (Lottie) нь зөвхөн харагдаж буй үед (lazy) ачаалагдана.
  */
 export function NamePlate({ name, frame, effect, color, font, animated = true, variant = "inline", className }: Props) {
   const def = getFrame(frame)
   const noFrame = !def || def.theme === "none"
 
   const eff = useCosmeticEffect(effect)
-  // Effect (Lottie) зөвхөн full дээр (профайл/hero) — жагсаалтад гүйцэтгэлд хүнд
-  const showEffect = variant === "full" && !!eff?.lottie_url && animated
+  const hasEffect = !!eff?.lottie_url && animated
+  const ref = useRef<HTMLSpanElement>(null)
+  const inView = useInView(ref, hasEffect)
+  const showEffect = hasEffect && inView
 
   const style: CSSProperties = {}
   if (color) style.color = color
   if (font && FONT_FAMILY[font]) style.fontFamily = FONT_FAMILY[font]
   const labelStyle = Object.keys(style).length > 0 ? style : undefined
 
-  if (noFrame && !showEffect) {
+  if (noFrame && !hasEffect) {
     return <span className={className} style={labelStyle}>{name}</span>
   }
 
   return (
-    <span className={cn("np", noFrame ? "np-bare" : `np-${def!.theme}`, `np-${variant}`, showEffect && variant === "full" && "np-fixed", !animated && "np-static", className)}>
+    <span ref={ref} className={cn("np", noFrame ? "np-bare" : `np-${def!.theme}`, `np-${variant}`, hasEffect && variant === "full" && "np-fixed", !animated && "np-static", className)}>
       {showEffect && <EffectLayer file={eff!.lottie_url} fit={eff!.fit} scale={eff!.scale} scaleY={eff!.scale_y} offsetX={eff!.offset_x} offsetY={eff!.offset_y} single={variant !== "full"} />}
       <span className="np-label" style={labelStyle}>{name}</span>
     </span>

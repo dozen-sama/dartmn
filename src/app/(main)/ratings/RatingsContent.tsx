@@ -92,7 +92,7 @@ function PlayerRow({ player, rank, showProvince = false }: { player: PlayerRow; 
           {player.primary_club_tag && (
             <span className="text-[10px] font-mono text-primary/70 shrink-0">[{player.primary_club_tag}]</span>
           )}
-          <p className="text-base font-medium truncate"><PlayerName p={player} /></p>
+          <span className="text-base font-medium"><PlayerName p={player} variant="full" /></span>
           <TierBadge rating={player.rating_points} size="sm" />
         </div>
         <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
