@@ -30,9 +30,9 @@ export function EffectLayer({ file, fit = "cover", scale = 1, scaleY, offsetX = 
 
   const par = fit === "stretch" ? "none" : fit === "contain" ? "xMidYMid meet" : "xMidYMid slice"
   const renderer = { preserveAspectRatio: par }
-  // Голлуулах (-50%) + байрлал (offset) + хэмжээ (scale X, Y). Өндөрт түшиглэнэ → нэрний уртаас үл хамаарна
+  // Байрлал (offset) + хэмжээ (scale X, Y). Голоос томрох/сунгах (transform-origin: center)
   const sy = scaleY ?? scale
-  const style = { transform: `translate(-50%, -50%) translate(${offsetX}%, ${offsetY}%) scale(${scale}, ${sy})` }
+  const style = { transform: `translate(${offsetX}%, ${offsetY}%) scale(${scale}, ${sy})`, transformOrigin: "center" }
 
   return (
     <>

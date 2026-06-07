@@ -44,6 +44,7 @@ export function AdminCosmetics({ passes, effects }: { passes: Pass[]; effects: E
     effects.map((e) => ({ ...e, xp: Number(e.xp), scale: Number(e.scale), scale_y: Number(e.scale_y), offset_x: Number(e.offset_x), offset_y: Number(e.offset_y), sort_order: Number(e.sort_order) }))
   )
   const [previewKey, setPreviewKey] = useState<string | null>(rows[0]?.key ?? null)
+  const [sampleName, setSampleName] = useState("Тоглогчийн нэр")
   const preview = rows.find((r) => r.key === previewKey) ?? null
 
   // Preview-г чирж offset тааруулах
@@ -184,13 +185,15 @@ export function AdminCosmetics({ passes, effects }: { passes: Pass[]; effects: E
                 onPointerDown={onDragStart} onPointerMove={onDragMove} onPointerUp={onDragEnd}>
                 <EffectLayer key={preview.lottie_url} file={preview.lottie_url} fit={preview.fit as Fit}
                   scale={Number(preview.scale)} scaleY={Number(preview.scale_y)} offsetX={Number(preview.offset_x)} offsetY={Number(preview.offset_y)} />
-                <span className="np-label">{preview.name}</span>
+                <span className="np-label">{sampleName}</span>
               </span>
               <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                 <span>fit: {preview.fit} · X: {preview.scale} · Y: {preview.scale_y} · offset: {preview.offset_x},{preview.offset_y}</span>
                 <button onClick={() => patchRow(preview.id, { offset_x: 0, offset_y: 0 })} className="underline hover:text-foreground">reset</button>
               </div>
-              <p className="text-[10px] text-muted-foreground/60">🖐 чирж байрлуул · доор scale/fit тааруул · мөрийн 💾-ээр хадгал</p>
+              <Input value={sampleName} onChange={(ev) => setSampleName(ev.target.value)}
+                placeholder="Жишээ нэр (урт/богино шалгах)" className="bg-secondary/50 h-7 max-w-xs text-center text-xs" />
+              <p className="text-[10px] text-muted-foreground/60">🖐 чирж байрлуул · X/Y сунга · fit тааруул · мөрийн 💾-ээр хадгал</p>
             </div>
           )}
           {rows.map((e) => (
