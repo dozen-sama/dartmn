@@ -1,6 +1,6 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
-import { getEffect, computeXp } from "@/lib/frames"
+import { getEffect, computeXp, spentXp } from "@/lib/frames"
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -23,9 +23,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Subscription шаардлагатай" }, { status: 403 })
   }
 
-  const xp = computeXp(profile)
-  if (xp < eff.xp) {
-    return NextResponse.json({ error: `XP хүрэлцэхгүй (${xp}/${eff.xp})` }, { status: 400 })
+  // Аль хэдийн нээсэн effect-үүдэд зарцуулсан XP-г хасаж боломжит XP-г гаргах
+  const { data: existing } = await supabase
+    .from("player_unlocks")
+    .select("item_key")
+    .eq("player_id", user.id)
+    .eq("item_kind", "effect")
+
+  const ownedKeys = (existing ?? []).map((r) => r.item_key)
+  if (ownedKeys.includes(eff.key)) {
+    return NextResponse.json({ ok: true }) // аль хэдийн нээсэн
+  }
+
+  const available = computeXp(profile) - spentXp(ownedKeys)
+  if (available < eff.xp) {
+    return NextResponse.json({ error: `Боломжит XP хүрэлцэхгүй (${available}/${eff.xp})` }, { status: 400 })
   }
 
   // Насан туршийн нээлт — player_unlocks-д бүртгэх

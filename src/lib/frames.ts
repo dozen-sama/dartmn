@@ -142,12 +142,17 @@ export function getEffect(key?: string | null): EffectDef | undefined {
   return EFFECTS.find((e) => e.key === key)
 }
 
-// Effect-ийн төлөв (pass логик)
+// Нээсэн effect-үүдэд зарцуулсан нийт XP
+export function spentXp(ownedKeys: string[]): number {
+  return ownedKeys.reduce((sum, k) => sum + (getEffect(k)?.xp ?? 0), 0)
+}
+
+// Effect-ийн төлөв (дэлгүүр логик — available = олсон - зарцуулсан)
 export type EffectState = "owned" | "claimable" | "need_xp" | "need_sub"
 
-export function effectState(e: EffectDef, ctx: { owned: boolean; isPremium: boolean; xp: number }): EffectState {
+export function effectState(e: EffectDef, ctx: { owned: boolean; isPremium: boolean; available: number }): EffectState {
   if (e.key === "none" || ctx.owned) return "owned"
   if (!ctx.isPremium) return "need_sub"
-  if (ctx.xp < e.xp) return "need_xp"
+  if (ctx.available < e.xp) return "need_xp"
   return "claimable"
 }

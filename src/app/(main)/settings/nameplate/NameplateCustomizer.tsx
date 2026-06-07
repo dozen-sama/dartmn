@@ -7,7 +7,7 @@ import { Lock, Loader2, Save, Check, Sparkles, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { NamePlate, FONT_FAMILY } from "@/components/cosmetic/NamePlate"
-import { PROFILE_FRAMES, isFrameUnlocked, EFFECTS, effectState, COLOR_PRESETS, FONT_OPTIONS } from "@/lib/frames"
+import { PROFILE_FRAMES, isFrameUnlocked, EFFECTS, effectState, spentXp, COLOR_PRESETS, FONT_OPTIONS } from "@/lib/frames"
 import { cn } from "@/lib/utils"
 
 interface Props {
@@ -29,6 +29,9 @@ export function NameplateCustomizer({ displayName, initial, unlock, xp, ownedEff
   const [owned, setOwned] = useState<Set<string>>(new Set(ownedEffects))
   const [saving, setSaving] = useState(false)
   const [unlocking, setUnlocking] = useState<string | null>(null)
+
+  // Боломжит XP = олсон нийт − нээсэнд зарцуулсан
+  const available = xp - spentXp([...owned])
 
   async function save() {
     setSaving(true)
@@ -62,8 +65,8 @@ export function NameplateCustomizer({ displayName, initial, unlock, xp, ownedEff
       <Card className="border-primary/20 bg-card/80">
         <CardHeader className="pb-3 flex-row items-center justify-between">
           <CardTitle className="text-sm">Урьдчилан харах</CardTitle>
-          <span className="text-xs text-muted-foreground flex items-center gap-1">
-            <Zap className="h-3.5 w-3.5 text-yellow-400" /> {xp.toLocaleString()} XP
+          <span className="text-xs text-muted-foreground flex items-center gap-1" title="Боломжит / Нийт олсон XP">
+            <Zap className="h-3.5 w-3.5 text-yellow-400" /> {Math.max(0, available).toLocaleString()} / {xp.toLocaleString()} XP
           </span>
         </CardHeader>
         <CardContent className="flex items-center justify-center py-10 bg-secondary/20 rounded-b-lg">
@@ -109,7 +112,7 @@ export function NameplateCustomizer({ displayName, initial, unlock, xp, ownedEff
         </CardHeader>
         <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
           {EFFECTS.map((e) => {
-            const st = effectState(e, { owned: owned.has(e.key), isPremium: unlock.isPremium, xp })
+            const st = effectState(e, { owned: owned.has(e.key), isPremium: unlock.isPremium, available })
             const selected = effect === e.key
             return (
               <div key={e.key}
@@ -138,7 +141,7 @@ export function NameplateCustomizer({ displayName, initial, unlock, xp, ownedEff
                   </button>
                 )}
                 {st === "need_xp" && (
-                  <span className="text-[10px] text-muted-foreground flex items-center gap-0.5"><Lock className="h-3 w-3" />XP {xp}/{e.xp}</span>
+                  <span className="text-[10px] text-muted-foreground flex items-center gap-0.5"><Lock className="h-3 w-3" />XP {Math.max(0, available)}/{e.xp}</span>
                 )}
                 {st === "need_sub" && (
                   <span className="text-[10px] text-amber-400 flex items-center gap-0.5"><Lock className="h-3 w-3" />Subscription</span>
