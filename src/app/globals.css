@@ -194,35 +194,35 @@
 
   .np-bronze {
     border-color: oklch(0.66 0.11 60);
-    background: linear-gradient(180deg, oklch(0.42 0.09 55 / 0.5), oklch(0.16 0.04 50 / 0.55));
+    background: linear-gradient(180deg, oklch(0.42 0.09 55 / 0.16), oklch(0.16 0.04 50 / 0.2));
     box-shadow: 0 0 13px oklch(0.6 0.1 60 / 0.45);
     color: oklch(0.87 0.11 68);
     text-shadow: 0 0 7px oklch(0.6 0.1 60 / 0.7);
   }
   .np-silver {
     border-color: oklch(0.86 0.03 250);
-    background: linear-gradient(180deg, oklch(0.55 0.03 250 / 0.4), oklch(0.18 0.02 250 / 0.55));
+    background: linear-gradient(180deg, oklch(0.55 0.03 250 / 0.14), oklch(0.18 0.02 250 / 0.2));
     box-shadow: 0 0 13px oklch(0.85 0.03 250 / 0.45);
     color: oklch(0.96 0.02 250);
     text-shadow: 0 0 7px oklch(0.85 0.03 250 / 0.7);
   }
   .np-gold {
     border-color: var(--gold);
-    background: linear-gradient(180deg, oklch(0.5 0.13 85 / 0.42), oklch(0.18 0.05 80 / 0.55));
+    background: linear-gradient(180deg, oklch(0.5 0.13 85 / 0.16), oklch(0.18 0.05 80 / 0.2));
     color: oklch(0.92 0.15 88);
     text-shadow: 0 0 8px oklch(0.78 0.16 85 / 0.85);
     animation: np-pulse-gold 2.6s ease-in-out infinite;
   }
   .np-verified {
     border-color: oklch(0.68 0.18 250);
-    background: linear-gradient(180deg, oklch(0.45 0.16 250 / 0.4), oklch(0.16 0.06 250 / 0.55));
+    background: linear-gradient(180deg, oklch(0.45 0.16 250 / 0.14), oklch(0.16 0.06 250 / 0.2));
     box-shadow: 0 0 13px oklch(0.6 0.18 250 / 0.5);
     color: oklch(0.88 0.13 250);
     text-shadow: 0 0 7px oklch(0.6 0.18 250 / 0.75);
   }
   .np-electric {
     border-color: oklch(0.74 0.19 250);
-    background: linear-gradient(180deg, oklch(0.42 0.17 250 / 0.45), oklch(0.15 0.07 250 / 0.55));
+    background: linear-gradient(180deg, oklch(0.42 0.17 250 / 0.16), oklch(0.15 0.07 250 / 0.2));
     color: oklch(0.92 0.14 250);
     text-shadow: 0 0 9px oklch(0.72 0.19 250 / 0.95);
     box-shadow: 0 0 16px oklch(0.62 0.2 250 / 0.6), inset 0 0 12px oklch(0.62 0.2 250 / 0.3);
@@ -233,7 +233,7 @@
     isolation: isolate;
     overflow: hidden;
     border-color: oklch(0.86 0.17 92);
-    background: linear-gradient(180deg, oklch(0.26 0.09 40 / 0.9), oklch(0.12 0.05 30 / 0.94));
+    background: linear-gradient(180deg, oklch(0.42 0.12 40 / 0.16), oklch(0.16 0.06 30 / 0.2));
     color: oklch(0.99 0.02 95);
     text-shadow: 0 1px 2px oklch(0.1 0.05 40 / 0.92), 0 0 7px oklch(0.85 0.17 90 / 0.55);
     box-shadow: 0 0 22px oklch(0.82 0.17 88 / 0.8), 0 0 6px oklch(0.9 0.15 95 / 0.6);
@@ -254,7 +254,7 @@
   .np-label { position: relative; z-index: 1; }
   .np-champion {
     border-color: var(--gold);
-    background: linear-gradient(180deg, oklch(0.55 0.15 85 / 0.48), oklch(0.18 0.05 80 / 0.55));
+    background: linear-gradient(180deg, oklch(0.55 0.15 85 / 0.18), oklch(0.18 0.05 80 / 0.2));
     color: oklch(0.94 0.15 88);
     text-shadow: 0 0 9px oklch(0.78 0.16 85 / 0.95);
     animation: np-pulse-gold 2s ease-in-out infinite;
@@ -262,7 +262,7 @@
   .np-premium {
     border-color: oklch(0.7 0.16 300);
     color: oklch(0.99 0 0);
-    background: linear-gradient(90deg, oklch(0.5 0.22 15 / 0.55), oklch(0.55 0.18 300 / 0.55), oklch(0.6 0.18 260 / 0.55), oklch(0.5 0.22 15 / 0.55));
+    background: linear-gradient(90deg, oklch(0.5 0.22 15 / 0.22), oklch(0.55 0.18 300 / 0.22), oklch(0.6 0.18 260 / 0.22), oklch(0.5 0.22 15 / 0.22));
     background-size: 300% 100%;
     text-shadow: 0 0 8px oklch(0.7 0.16 320 / 0.7);
     box-shadow: 0 0 16px oklch(0.6 0.18 300 / 0.55);
@@ -271,7 +271,7 @@
   .np-legend {
     border-color: var(--gold);
     color: oklch(0.99 0 0);
-    background: linear-gradient(90deg, oklch(0.55 0.15 85 / 0.55), oklch(0.55 0.2 145 / 0.5), oklch(0.6 0.18 260 / 0.5), oklch(0.55 0.18 300 / 0.55), oklch(0.55 0.15 85 / 0.55));
+    background: linear-gradient(90deg, oklch(0.55 0.15 85 / 0.22), oklch(0.55 0.2 145 / 0.2), oklch(0.6 0.18 260 / 0.2), oklch(0.55 0.18 300 / 0.22), oklch(0.55 0.15 85 / 0.22));
     background-size: 300% 100%;
     text-shadow: 0 0 9px oklch(0.85 0.14 90 / 0.85);
     box-shadow: 0 0 20px oklch(0.7 0.15 300 / 0.55);
