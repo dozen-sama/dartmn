@@ -220,10 +220,6 @@ export function DashboardContent({ profile, todayTournaments, activeTournaments,
                     <span className={`text-sm font-bold w-5 text-center score-display ${
                       i === 0 ? "text-[oklch(0.78_0.16_85)]" : i === 1 ? "text-slate-400" : i === 2 ? "text-amber-700" : "text-muted-foreground"
                     }`}>{i + 1}</span>
-                    <Avatar className="h-7 w-7 shrink-0">
-                      <AvatarImage src={player.avatar_url ?? undefined} />
-                      <AvatarFallback className="text-[10px] bg-secondary">{player.display_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                    </Avatar>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate"><PlayerName p={player} /></p>
                       <p className="text-[11px] text-muted-foreground">Avg {formatAverage(player.average_score)} · {wr}% WR</p>

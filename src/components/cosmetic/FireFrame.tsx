@@ -13,7 +13,7 @@ type Fit = "cover" | "contain" | "stretch"
  * `file` нь /public доторх Lottie зам. fit/scale-аар хэмжээг тааруулна.
  * Файл байхгүй бол юу ч харуулахгүй.
  */
-export function EffectLayer({ file, fit = "cover", scale = 1, scaleY, offsetX = 0, offsetY = 0 }: { file: string; fit?: Fit; scale?: number; scaleY?: number; offsetX?: number; offsetY?: number }) {
+export function EffectLayer({ file, fit = "cover", scale = 1, scaleY, offsetX = 0, offsetY = 0, single = false }: { file: string; fit?: Fit; scale?: number; scaleY?: number; offsetX?: number; offsetY?: number; single?: boolean }) {
   const [data, setData] = useState<object | null>(null)
 
   useEffect(() => {
@@ -39,9 +39,11 @@ export function EffectLayer({ file, fit = "cover", scale = 1, scaleY, offsetX = 
       <span className="np-fire-lottie np-fire-back" style={style} aria-hidden="true">
         <Lottie animationData={data} loop autoplay rendererSettings={renderer} />
       </span>
-      <span className="np-fire-lottie np-fire-front" style={style} aria-hidden="true">
-        <Lottie animationData={data} loop autoplay rendererSettings={renderer} />
-      </span>
+      {!single && (
+        <span className="np-fire-lottie np-fire-front" style={style} aria-hidden="true">
+          <Lottie animationData={data} loop autoplay rendererSettings={renderer} />
+        </span>
+      )}
     </>
   )
 }

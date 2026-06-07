@@ -87,13 +87,6 @@ function PlayerRow({ player, rank, showProvince = false }: { player: PlayerRow; 
         rank === 1 ? "text-yellow-400" : rank === 2 ? "text-slate-400" : rank === 3 ? "text-amber-700" : "text-muted-foreground")}>
         {rank}
       </span>
-      <PlayerAvatar
-        displayName={player.display_name}
-        avatarUrl={player.avatar_url}
-        clubLogoUrl={player.primary_club_logo}
-        clubTag={player.primary_club_tag}
-        size="md"
-      />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           {player.primary_club_tag && (

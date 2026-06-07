@@ -217,10 +217,6 @@ export function ClubDetail({ club, members, currentUserId, myRole }: Props) {
                 return (
                   <Link key={i} href={`/profile/${p.username}`}
                     className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/40 transition-colors border-b border-border/20 last:border-0">
-                    <Avatar className="h-9 w-9">
-                      <AvatarImage src={p.avatar_url ?? undefined} />
-                      <AvatarFallback className="text-xs bg-secondary">{p.display_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                    </Avatar>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         {club.tag && <span className="text-[10px] font-mono text-primary/70">[{club.tag}]</span>}

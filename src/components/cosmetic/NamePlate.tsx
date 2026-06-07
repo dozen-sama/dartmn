@@ -37,7 +37,7 @@ export function NamePlate({ name, frame, effect, color, font, animated = true, v
   const noFrame = !def || def.theme === "none"
 
   const eff = useCosmeticEffect(effect)
-  const showEffect = variant === "full" && !!eff?.lottie_url && animated
+  const showEffect = !!eff?.lottie_url && animated
 
   const style: CSSProperties = {}
   if (color) style.color = color
@@ -50,7 +50,7 @@ export function NamePlate({ name, frame, effect, color, font, animated = true, v
 
   return (
     <span className={cn("np", noFrame ? "np-bare" : `np-${def!.theme}`, `np-${variant}`, showEffect && "np-fixed", !animated && "np-static", className)}>
-      {showEffect && <EffectLayer file={eff!.lottie_url} fit={eff!.fit} scale={eff!.scale} scaleY={eff!.scale_y} offsetX={eff!.offset_x} offsetY={eff!.offset_y} />}
+      {showEffect && <EffectLayer file={eff!.lottie_url} fit={eff!.fit} scale={eff!.scale} scaleY={eff!.scale_y} offsetX={eff!.offset_x} offsetY={eff!.offset_y} single={variant !== "full"} />}
       <span className="np-label" style={labelStyle}>{name}</span>
     </span>
   )
