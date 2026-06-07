@@ -27,7 +27,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
     .from("profiles").select("*").eq("username", username).single()
   if (!profile) notFound()
 
-  const [matchesResult, tournamentResult, clubResult, allAchievementsResult, earnedResult] = await Promise.all([
+  const [matchesResult, tournamentResult, clubResult, allAchievementsResult, earnedResult, unlocksResult] = await Promise.all([
     supabase.from("matches")
       .select("*, winner:profiles!matches_winner_id_fkey(display_name, username)")
       .or(`player1_id.eq.${profile.id},player2_id.eq.${profile.id}`)
@@ -39,9 +39,11 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
     supabase.from("achievements").select("*").order("sort_order"),
     supabase.from("player_achievements")
       .select("achievement_key, earned_at").eq("player_id", profile.id),
+    supabase.from("player_unlocks").select("item_key").eq("player_id", profile.id).eq("item_kind", "effect"),
   ])
 
   const clubName = (clubResult.data?.clubs as unknown as { name: string } | null)?.name ?? null
+  const ownedEffects = (unlocksResult.data ?? []).map((u) => u.item_key)
 
   return (
     <ProfileContent
@@ -52,6 +54,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
       tournaments={(tournamentResult.data ?? []) as unknown as RegistrationWithTournament[]}
       allAchievements={(allAchievementsResult.data ?? []) as any[]}
       earnedAchievements={(earnedResult.data ?? []) as { achievement_key: string; earned_at: string }[]}
+      ownedEffects={ownedEffects}
     />
   )
 }

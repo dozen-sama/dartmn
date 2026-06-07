@@ -7,6 +7,7 @@ import { ArrowLeft, Sparkles } from "lucide-react"
 import { buttonVariants } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/server"
 import { cn } from "@/lib/utils"
+import { computeXp } from "@/lib/frames"
 import { NameplateCustomizer } from "./NameplateCustomizer"
 
 export const metadata: Metadata = { title: "Нэрийн хээ — Тохиргоо" }
@@ -16,13 +17,17 @@ export default async function NameplateSettingsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, username, display_name, equipped_frame, name_effect, name_color, name_font, name_animated, rating_points, is_premium")
-    .eq("id", user.id)
-    .single()
+  const [{ data: profile }, { data: unlocks }] = await Promise.all([
+    supabase.from("profiles")
+      .select("id, username, display_name, equipped_frame, name_effect, name_color, name_font, name_animated, rating_points, is_premium, matches_played, matches_won, count_180, tournament_wins, avraga_wins")
+      .eq("id", user.id).single(),
+    supabase.from("player_unlocks").select("item_key").eq("player_id", user.id).eq("item_kind", "effect"),
+  ])
 
   if (!profile) redirect("/login")
+
+  const xp = computeXp(profile)
+  const ownedEffects = (unlocks ?? []).map((u) => u.item_key)
 
   return (
     <div className="max-w-xl mx-auto space-y-5 pb-10">
@@ -50,6 +55,8 @@ export default async function NameplateSettingsPage() {
           animated: profile.name_animated,
         }}
         unlock={{ rating: profile.rating_points, isPremium: profile.is_premium }}
+        xp={xp}
+        ownedEffects={ownedEffects}
       />
     </div>
   )

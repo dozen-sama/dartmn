@@ -208,6 +208,26 @@ export interface Database {
         }
         Relationships: []
       }
+      player_unlocks: {
+        Row: {
+          id: string
+          player_id: string
+          item_kind: string
+          item_key: string
+          unlocked_at: string
+        }
+        Insert: {
+          id?: string
+          player_id: string
+          item_kind: string
+          item_key: string
+        }
+        Update: {
+          item_kind?: string
+          item_key?: string
+        }
+        Relationships: []
+      }
       tournaments: {
         Row: {
           id: string

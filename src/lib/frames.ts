@@ -91,21 +91,63 @@ export function isFrameUnlocked(f: FrameDef, ctx: UnlockContext): boolean {
   return isUnlocked(f.unlock, ctx)
 }
 
+// ===== XP — статистикаас тооцоолно =====
+export interface XpStats {
+  matches_played?: number
+  matches_won?: number
+  count_180?: number
+  tournament_wins?: number
+  avraga_wins?: number
+}
+
+export function computeXp(s: XpStats): number {
+  return (s.matches_played ?? 0) * 10
+    + (s.matches_won ?? 0) * 15
+    + (s.count_180 ?? 0) * 20
+    + (s.tournament_wins ?? 0) * 100
+    + (s.avraga_wins ?? 0) * 150
+}
+
 // ===== Animation effect-үүд (хүрээнээс хамааралгүй, тусдаа сонгоно) =====
-// Шинэ effect нэмэх: /public/lottie/<key>.json файл тавиад энд бичнэ
+// Шинэ effect нэмэх: /public/lottie/<key>.json файл тавиад энд бичнэ.
+// xp = нээхэд шаардлагатай XP (subscription заавал). 0 = үнэгүй.
 export interface EffectDef {
   key: string
   name: string
   file: string // /public доторх Lottie зам ("" = байхгүй)
-  unlock: UnlockRule
+  xp: number
 }
 
 export const EFFECTS: EffectDef[] = [
-  { key: "none", name: "Байхгүй", file: "", unlock: { type: "free" } },
-  { key: "fire", name: "Гал", file: "/lottie/fire.json", unlock: { type: "subscription" } },
+  { key: "none", name: "Байхгүй", file: "", xp: 0 },
+  { key: "campfire", name: "Бамбар", file: "/lottie/campfire.json", xp: 300 },
+  { key: "fire", name: "Гал", file: "/lottie/fire.json", xp: 500 },
+  { key: "lightning1", name: "Цахилгаан 1", file: "/lottie/lightning1.json", xp: 700 },
+  { key: "lightning2", name: "Цахилгаан 2", file: "/lottie/lightning2.json", xp: 700 },
+  { key: "lightning3", name: "Цахилгаан 3", file: "/lottie/lightning3.json", xp: 700 },
+  { key: "neon", name: "Неон", file: "/lottie/neon.json", xp: 900 },
+  { key: "wave", name: "Долгион", file: "/lottie/wave.json", xp: 1000 },
+  { key: "rainbow", name: "Солонго", file: "/lottie/rainbow.json", xp: 1200 },
+  { key: "fx14", name: "FX 14", file: "/lottie/fx14.json", xp: 1500 },
+  { key: "fxa", name: "Эффект A", file: "/lottie/fxa.json", xp: 600 },
+  { key: "fxb", name: "Эффект B", file: "/lottie/fxb.json", xp: 600 },
+  { key: "fxc", name: "Эффект C", file: "/lottie/fxc.json", xp: 600 },
+  { key: "fxd", name: "Эффект D", file: "/lottie/fxd.json", xp: 600 },
+  { key: "fxe", name: "Эффект E", file: "/lottie/fxe.json", xp: 600 },
+  { key: "fxf", name: "Эффект F", file: "/lottie/fxf.json", xp: 600 },
 ]
 
 export function getEffect(key?: string | null): EffectDef | undefined {
   if (!key) return undefined
   return EFFECTS.find((e) => e.key === key)
+}
+
+// Effect-ийн төлөв (pass логик)
+export type EffectState = "owned" | "claimable" | "need_xp" | "need_sub"
+
+export function effectState(e: EffectDef, ctx: { owned: boolean; isPremium: boolean; xp: number }): EffectState {
+  if (e.key === "none" || ctx.owned) return "owned"
+  if (!ctx.isPremium) return "need_sub"
+  if (ctx.xp < e.xp) return "need_xp"
+  return "claimable"
 }
