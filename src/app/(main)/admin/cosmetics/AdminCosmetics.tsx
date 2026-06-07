@@ -3,11 +3,14 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { Loader2, Plus, Trash2, Upload, Save } from "lucide-react"
+import { Loader2, Plus, Trash2, Upload, Save, Eye } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { EffectLayer } from "@/components/cosmetic/FireFrame"
 import { cn } from "@/lib/utils"
+
+type Fit = "cover" | "contain" | "stretch"
 
 interface Pass { id: string; name: string; starts_at: string | null; ends_at: string | null }
 interface Effect {
@@ -36,8 +39,12 @@ export function AdminCosmetics({ passes, effects }: { passes: Pass[]; effects: E
   const [ePass, setEPass] = useState("")
   const [eFile, setEFile] = useState<string | null>(null)
 
-  // Effect local edit state
-  const [rows, setRows] = useState<Effect[]>(effects)
+  // Effect local edit state — numeric багана supabase-аас string ирдэг тул тоо болгоно
+  const [rows, setRows] = useState<Effect[]>(
+    effects.map((e) => ({ ...e, xp: Number(e.xp), scale: Number(e.scale), sort_order: Number(e.sort_order) }))
+  )
+  const [previewKey, setPreviewKey] = useState<string | null>(rows[0]?.key ?? null)
+  const preview = rows.find((r) => r.key === previewKey) ?? null
 
   async function createPass() {
     if (!passName.trim()) return toast.error("Нэр оруул")
@@ -87,7 +94,7 @@ export function AdminCosmetics({ passes, effects }: { passes: Pass[]; effects: E
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: e.id, key: e.key, name: e.name, xp: e.xp, fit: e.fit, scale: e.scale, scope: e.scope, pass_id: e.pass_id, sort_order: e.sort_order, is_active: e.is_active }),
     })
-    if (res.ok) toast.success("Хадгалагдлаа"); else toast.error("Алдаа")
+    if (res.ok) { toast.success("Хадгалагдлаа"); router.refresh() } else toast.error("Алдаа")
     setBusy(false)
   }
 
@@ -152,6 +159,16 @@ export function AdminCosmetics({ passes, effects }: { passes: Pass[]; effects: E
       <Card className="border-border/50 bg-card/80">
         <CardHeader className="pb-3"><CardTitle className="text-sm">Effect-үүд ({rows.length}) — fit/scale/xp тааруулах</CardTitle></CardHeader>
         <CardContent className="space-y-2">
+          {/* Шууд preview — 👁 дарж сонгосон effect, fit/scale-ийг шууд харна */}
+          {preview && (
+            <div className="flex flex-col items-center gap-1 py-6 bg-secondary/20 rounded-lg sticky top-2 z-10 border border-border/40">
+              <span className="np np-bare np-full text-2xl">
+                <EffectLayer key={preview.lottie_url} file={preview.lottie_url} fit={preview.fit as Fit} scale={Number(preview.scale)} />
+                <span className="np-label">{preview.name}</span>
+              </span>
+              <span className="text-[10px] text-muted-foreground">{preview.name} · fit: {preview.fit} · scale: {preview.scale}</span>
+            </div>
+          )}
           {rows.map((e) => (
             <div key={e.id} className="grid grid-cols-2 sm:grid-cols-7 gap-2 items-center bg-secondary/20 rounded px-2 py-2 text-sm">
               <span className="font-medium truncate">{e.name}<span className="text-[10px] text-muted-foreground ml-1">{e.key}</span></span>
@@ -172,6 +189,7 @@ export function AdminCosmetics({ passes, effects }: { passes: Pass[]; effects: E
                 <input type="checkbox" checked={e.is_active} onChange={(ev) => patchRow(e.id, { is_active: ev.target.checked })} />идэвхтэй
               </label>
               <div className="flex gap-1">
+                <Button size="sm" variant="outline" onClick={() => setPreviewKey(e.key)} className={cn(previewKey === e.key && "border-primary text-primary")}><Eye className="h-3.5 w-3.5" /></Button>
                 <Button size="sm" variant="outline" onClick={() => saveRow(e)} disabled={busy}><Save className="h-3.5 w-3.5" /></Button>
                 <Button size="sm" variant="outline" onClick={() => deleteEffect(e.id)} className="text-destructive border-destructive/30"><Trash2 className="h-3.5 w-3.5" /></Button>
               </div>
