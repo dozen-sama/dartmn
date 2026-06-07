@@ -99,7 +99,7 @@ export function ProfileContent({ profile: p, isOwner, clubName, recentMatches, t
           <div className="space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl font-bold">
-                <NamePlate name={p.display_name} frame={p.equipped_frame} color={p.name_color} font={p.name_font} animated={p.name_animated} variant="full" />
+                <NamePlate name={p.display_name} frame={p.equipped_frame} effect={p.name_effect} color={p.name_color} font={p.name_font} animated={p.name_animated} variant="full" />
               </h1>
               <TierBadge rating={p.rating_points} avragaWins={p.avraga_wins ?? 0} size="md" />
             </div>
@@ -153,7 +153,7 @@ export function ProfileContent({ profile: p, isOwner, clubName, recentMatches, t
             <NameplateCustomizer
               profileId={p.id}
               displayName={p.display_name}
-              initial={{ frame: p.equipped_frame, color: p.name_color, font: p.name_font, animated: p.name_animated }}
+              initial={{ frame: p.equipped_frame, effect: p.name_effect, color: p.name_color, font: p.name_font, animated: p.name_animated }}
               unlock={{ rating: p.rating_points, isPremium: p.is_premium }}
             />
           </TabsContent>

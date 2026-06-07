@@ -78,11 +78,34 @@ export const FONT_OPTIONS: { key: string; label: string }[] = [
   { key: "mono", label: "Моно" },
 ]
 
-export function isFrameUnlocked(f: FrameDef, ctx: UnlockContext): boolean {
-  switch (f.unlock.type) {
+export function isUnlocked(rule: UnlockRule, ctx: UnlockContext): boolean {
+  switch (rule.type) {
     case "free": return true
-    case "rating": return (ctx.rating ?? 0) >= f.unlock.min
+    case "rating": return (ctx.rating ?? 0) >= rule.min
     case "subscription": return !!ctx.isPremium
     case "verified": return !!ctx.isVerified
   }
+}
+
+export function isFrameUnlocked(f: FrameDef, ctx: UnlockContext): boolean {
+  return isUnlocked(f.unlock, ctx)
+}
+
+// ===== Animation effect-үүд (хүрээнээс хамааралгүй, тусдаа сонгоно) =====
+// Шинэ effect нэмэх: /public/lottie/<key>.json файл тавиад энд бичнэ
+export interface EffectDef {
+  key: string
+  name: string
+  file: string // /public доторх Lottie зам ("" = байхгүй)
+  unlock: UnlockRule
+}
+
+export const EFFECTS: EffectDef[] = [
+  { key: "none", name: "Байхгүй", file: "", unlock: { type: "free" } },
+  { key: "fire", name: "Гал", file: "/lottie/fire.json", unlock: { type: "subscription" } },
+]
+
+export function getEffect(key?: string | null): EffectDef | undefined {
+  if (!key) return undefined
+  return EFFECTS.find((e) => e.key === key)
 }

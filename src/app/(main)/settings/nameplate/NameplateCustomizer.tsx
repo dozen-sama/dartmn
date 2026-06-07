@@ -8,19 +8,20 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { createClient } from "@/lib/supabase/client"
 import { NamePlate, FONT_FAMILY } from "@/components/cosmetic/NamePlate"
-import { PROFILE_FRAMES, isFrameUnlocked, COLOR_PRESETS, FONT_OPTIONS } from "@/lib/frames"
+import { PROFILE_FRAMES, isFrameUnlocked, isUnlocked, EFFECTS, COLOR_PRESETS, FONT_OPTIONS } from "@/lib/frames"
 import { cn } from "@/lib/utils"
 
 interface Props {
   profileId: string
   displayName: string
-  initial: { frame: string | null; color: string | null; font: string | null; animated: boolean }
+  initial: { frame: string | null; effect: string | null; color: string | null; font: string | null; animated: boolean }
   unlock: { rating: number; isPremium: boolean }
 }
 
 export function NameplateCustomizer({ profileId, displayName, initial, unlock }: Props) {
   const router = useRouter()
   const [frame, setFrame] = useState(initial.frame ?? "none")
+  const [effect, setEffect] = useState(initial.effect ?? "none")
   const [color, setColor] = useState(initial.color ?? "")
   const [font, setFont] = useState(initial.font ?? "")
   const [animated, setAnimated] = useState(initial.animated)
@@ -31,6 +32,7 @@ export function NameplateCustomizer({ profileId, displayName, initial, unlock }:
     const supabase = createClient()
     const { error } = await supabase.from("profiles").update({
       equipped_frame: frame === "none" ? null : frame,
+      name_effect: effect === "none" ? null : effect,
       name_color: color || null,
       name_font: font || null,
       name_animated: animated,
@@ -47,7 +49,7 @@ export function NameplateCustomizer({ profileId, displayName, initial, unlock }:
         <CardHeader className="pb-3"><CardTitle className="text-sm">Урьдчилан харах</CardTitle></CardHeader>
         <CardContent className="flex items-center justify-center py-10 bg-secondary/20 rounded-b-lg">
           <div className="text-2xl">
-            <NamePlate name={displayName} frame={frame} color={color} font={font} animated={animated} variant="full" />
+            <NamePlate name={displayName} frame={frame} effect={effect} color={color} font={font} animated={animated} variant="full" />
           </div>
         </CardContent>
       </Card>
@@ -74,6 +76,34 @@ export function NameplateCustomizer({ profileId, displayName, initial, unlock }:
                   <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-lg bg-background/70 text-[10px] text-muted-foreground">
                     <Lock className="h-3.5 w-3.5" />
                     {f.desc}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </CardContent>
+      </Card>
+
+      {/* Effect (animation) */}
+      <Card className="border-border/50 bg-card/80">
+        <CardHeader className="pb-3"><CardTitle className="text-sm">Animation effect</CardTitle></CardHeader>
+        <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          {EFFECTS.map((e) => {
+            const unlocked = isUnlocked(e.unlock, unlock)
+            const selected = effect === e.key
+            return (
+              <button key={e.key} type="button" disabled={!unlocked}
+                onClick={() => setEffect(e.key)}
+                className={cn(
+                  "relative rounded-lg border-2 p-3 text-sm font-medium transition-all min-h-[52px]",
+                  selected ? "border-primary bg-primary/10 text-primary" : "border-border/40 hover:border-border text-foreground/80",
+                  !unlocked && "opacity-50 cursor-not-allowed",
+                )}>
+                {e.name}
+                {selected && <Check className="absolute top-1.5 right-1.5 h-3.5 w-3.5 text-primary" />}
+                {!unlocked && (
+                  <span className="absolute inset-0 flex items-center justify-center gap-1 rounded-lg bg-background/70 text-[10px] text-muted-foreground">
+                    <Lock className="h-3 w-3" /> Subscription
                   </span>
                 )}
               </button>

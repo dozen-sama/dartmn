@@ -36,6 +36,7 @@ export interface Database {
           name_color: string | null
           name_font: string | null
           name_animated: boolean
+          name_effect: string | null
           created_at: string
           updated_at: string
         }
@@ -84,6 +85,7 @@ export interface Database {
           name_color?: string | null
           name_font?: string | null
           name_animated?: boolean
+          name_effect?: string | null
         }
         Relationships: []
       }
@@ -117,6 +119,7 @@ export interface Database {
           name_color: string | null
           name_font: string | null
           name_animated: boolean
+          name_effect: string | null
           created_at: string
           updated_at: string
         }
@@ -163,6 +166,7 @@ export interface Database {
           name_color?: string | null
           name_font?: string | null
           name_animated?: boolean
+          name_effect?: string | null
         }
         Relationships: []
       }

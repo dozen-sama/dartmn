@@ -9,30 +9,29 @@ const Lottie = dynamic(() => import("lottie-react"), { ssr: false })
 const RENDERER = { preserveAspectRatio: "xMidYMid slice" }
 
 /**
- * Шатаж буй хүрээ — Lottie галын animation, нэрний АРД ба ӨМНӨ давхарлана.
- * /public/lottie/fire.json-г runtime-д татна. Файл байхгүй бол юу ч харуулахгүй.
+ * Animation effect давхарга — Lottie-г нэрний АРД ба ӨМНӨ давхарлана.
+ * `file` нь /public доторх Lottie зам. Файл байхгүй бол юу ч харуулахгүй.
  */
-export function FireFrame() {
+export function EffectLayer({ file }: { file: string }) {
   const [data, setData] = useState<object | null>(null)
 
   useEffect(() => {
+    if (!file) return
     let active = true
-    fetch("/lottie/fire.json")
+    fetch(file)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("no asset"))))
       .then((d) => { if (active) setData(d) })
       .catch(() => { /* asset байхгүй — алгасна */ })
     return () => { active = false }
-  }, [])
+  }, [file])
 
   if (!data) return null
 
   return (
     <>
-      {/* Нэрний ард */}
       <span className="np-fire-lottie np-fire-back" aria-hidden="true">
         <Lottie animationData={data} loop autoplay rendererSettings={RENDERER} />
       </span>
-      {/* Нэрний өмнө (зөвхөн тод дөл харагдана) */}
       <span className="np-fire-lottie np-fire-front" aria-hidden="true">
         <Lottie animationData={data} loop autoplay rendererSettings={RENDERER} />
       </span>

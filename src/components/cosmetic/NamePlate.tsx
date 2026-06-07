@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react"
 import { cn } from "@/lib/utils"
-import { getFrame } from "@/lib/frames"
-import { FireFrame } from "./FireFrame"
+import { getFrame, getEffect } from "@/lib/frames"
+import { EffectLayer } from "./FireFrame"
 
 // Сонгож болох фонтууд (customize)
 export const FONT_FAMILY: Record<string, string> = {
@@ -17,6 +17,7 @@ export const FONT_FAMILY: Record<string, string> = {
 interface Props {
   name: string
   frame?: string | null
+  effect?: string | null
   color?: string | null
   font?: string | null
   animated?: boolean
@@ -25,25 +26,30 @@ interface Props {
 }
 
 /**
- * Тоглогч/клубын нэрийг сонгосон cosmetic хүрээ + өнгө/фонт/анивчилтаар харуулна.
+ * Тоглогч/клубын нэрийг сонгосон хүрээ + effect + өнгө/фонт/анивчилтаар харуулна.
+ * Хүрээ ба effect тус тусдаа (effect нь ямар ч хүрээтэй ажиллана).
  */
-export function NamePlate({ name, frame, color, font, animated = true, variant = "inline", className }: Props) {
+export function NamePlate({ name, frame, effect, color, font, animated = true, variant = "inline", className }: Props) {
   const def = getFrame(frame)
+  const noFrame = !def || def.theme === "none"
+
+  const effectFile = getEffect(effect)?.file || ""
+  const showEffect = variant === "full" && !!effectFile && animated
 
   const style: CSSProperties = {}
   if (color) style.color = color
   if (font && FONT_FAMILY[font]) style.fontFamily = FONT_FAMILY[font]
-  const hasStyle = Object.keys(style).length > 0
+  const labelStyle = Object.keys(style).length > 0 ? style : undefined
 
-  if (!def || def.theme === "none") {
-    return <span className={className} style={hasStyle ? style : undefined}>{name}</span>
+  // Хүрээ ч үгүй, effect ч үгүй бол энгийн текст
+  if (noFrame && !showEffect) {
+    return <span className={className} style={labelStyle}>{name}</span>
   }
 
-  const showFire = def.theme === "inferno" && variant === "full" && animated
   return (
-    <span className={cn("np", `np-${def.theme}`, `np-${variant}`, !animated && "np-static", className)}>
-      {showFire && <FireFrame />}
-      <span className="np-label" style={hasStyle ? style : undefined}>{name}</span>
+    <span className={cn("np", noFrame ? "np-bare" : `np-${def!.theme}`, `np-${variant}`, !animated && "np-static", className)}>
+      {showEffect && <EffectLayer file={effectFile} />}
+      <span className="np-label" style={labelStyle}>{name}</span>
     </span>
   )
 }

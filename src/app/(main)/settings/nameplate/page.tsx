@@ -18,7 +18,7 @@ export default async function NameplateSettingsPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, username, display_name, equipped_frame, name_color, name_font, name_animated, rating_points, is_premium")
+    .select("id, username, display_name, equipped_frame, name_effect, name_color, name_font, name_animated, rating_points, is_premium")
     .eq("id", user.id)
     .single()
 
@@ -44,6 +44,7 @@ export default async function NameplateSettingsPage() {
         displayName={profile.display_name}
         initial={{
           frame: profile.equipped_frame,
+          effect: profile.name_effect,
           color: profile.name_color,
           font: profile.name_font,
           animated: profile.name_animated,
