@@ -233,15 +233,15 @@
     box-shadow: 0 0 20px oklch(0.66 0.24 40 / 0.7);
     animation: np-flicker-fire 1.3s ease-in-out infinite;
   }
-  /* Шатаж буй хүрээ — Lottie гал хайрцагт дүүрэн background */
+  /* Шатаж буй хүрээ — Lottie гал, нэрний ард ба өмнө давхарлана */
   .np-fire-lottie {
     position: absolute;
     inset: 0;
     pointer-events: none;
-    z-index: 0;
-    opacity: 0.85;
   }
   .np-fire-lottie > * { width: 100%; height: 100%; }
+  .np-fire-back { z-index: 0; opacity: 0.9; }
+  .np-fire-front { z-index: 2; opacity: 0.45; mix-blend-mode: screen; }
   .np-label { position: relative; z-index: 1; }
   .np-champion {
     border-color: var(--gold);

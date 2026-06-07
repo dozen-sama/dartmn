@@ -33,6 +33,8 @@ export interface Database {
           primary_club_logo: string | null
           primary_club_tag: string | null
           equipped_frame: string | null
+          name_color: string | null
+          name_font: string | null
           created_at: string
           updated_at: string
         }
@@ -78,6 +80,8 @@ export interface Database {
           primary_club_logo?: string | null
           primary_club_tag?: string | null
           equipped_frame?: string | null
+          name_color?: string | null
+          name_font?: string | null
         }
         Relationships: []
       }
@@ -108,6 +112,8 @@ export interface Database {
           subscription_plan: "basic" | "pro" | "enterprise" | null
           subscription_expires_at: string | null
           equipped_frame: string | null
+          name_color: string | null
+          name_font: string | null
           created_at: string
           updated_at: string
         }
@@ -151,6 +157,8 @@ export interface Database {
           subscription_plan?: "basic" | "pro" | "enterprise" | null
           subscription_expires_at?: string | null
           equipped_frame?: string | null
+          name_color?: string | null
+          name_font?: string | null
         }
         Relationships: []
       }

@@ -6,10 +6,11 @@ import dynamic from "next/dynamic"
 // lottie-web нь window/document шаарддаг тул зөвхөн client-д ачаална
 const Lottie = dynamic(() => import("lottie-react"), { ssr: false })
 
+const RENDERER = { preserveAspectRatio: "xMidYMid slice" }
+
 /**
- * Шатаж буй хүрээ — Lottie галын animation.
- * /public/lottie/fire.json файлыг runtime-д татаж тоглуулна.
- * Файл байхгүй бол юу ч харуулахгүй (хүрээ зүгээр гэрэлтэнэ).
+ * Шатаж буй хүрээ — Lottie галын animation, нэрний АРД ба ӨМНӨ давхарлана.
+ * /public/lottie/fire.json-г runtime-д татна. Файл байхгүй бол юу ч харуулахгүй.
  */
 export function FireFrame() {
   const [data, setData] = useState<object | null>(null)
@@ -26,8 +27,15 @@ export function FireFrame() {
   if (!data) return null
 
   return (
-    <span className="np-fire-lottie" aria-hidden="true">
-      <Lottie animationData={data} loop autoplay rendererSettings={{ preserveAspectRatio: "xMidYMid slice" }} />
-    </span>
+    <>
+      {/* Нэрний ард */}
+      <span className="np-fire-lottie np-fire-back" aria-hidden="true">
+        <Lottie animationData={data} loop autoplay rendererSettings={RENDERER} />
+      </span>
+      {/* Нэрний өмнө (зөвхөн тод дөл харагдана) */}
+      <span className="np-fire-lottie np-fire-front" aria-hidden="true">
+        <Lottie animationData={data} loop autoplay rendererSettings={RENDERER} />
+      </span>
+    </>
   )
 }
