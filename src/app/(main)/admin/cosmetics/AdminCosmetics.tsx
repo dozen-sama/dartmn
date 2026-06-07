@@ -15,7 +15,7 @@ type Fit = "cover" | "contain" | "stretch"
 interface Pass { id: string; name: string; starts_at: string | null; ends_at: string | null }
 interface Effect {
   id: string; key: string; name: string; lottie_url: string; xp: number
-  fit: string; scale: number; offset_x: number; offset_y: number; scope: string; pass_id: string | null; sort_order: number; is_active: boolean
+  fit: string; scale: number; scale_y: number; offset_x: number; offset_y: number; scope: string; pass_id: string | null; sort_order: number; is_active: boolean
 }
 
 const FIT_OPTIONS = ["cover", "contain", "stretch"]
@@ -41,7 +41,7 @@ export function AdminCosmetics({ passes, effects }: { passes: Pass[]; effects: E
 
   // Effect local edit state — numeric багана supabase-аас string ирдэг тул тоо болгоно
   const [rows, setRows] = useState<Effect[]>(
-    effects.map((e) => ({ ...e, xp: Number(e.xp), scale: Number(e.scale), offset_x: Number(e.offset_x), offset_y: Number(e.offset_y), sort_order: Number(e.sort_order) }))
+    effects.map((e) => ({ ...e, xp: Number(e.xp), scale: Number(e.scale), scale_y: Number(e.scale_y), offset_x: Number(e.offset_x), offset_y: Number(e.offset_y), sort_order: Number(e.sort_order) }))
   )
   const [previewKey, setPreviewKey] = useState<string | null>(rows[0]?.key ?? null)
   const preview = rows.find((r) => r.key === previewKey) ?? null
@@ -109,7 +109,7 @@ export function AdminCosmetics({ passes, effects }: { passes: Pass[]; effects: E
     setBusy(true)
     const res = await fetch("/api/admin/cosmetics/effect", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: e.id, key: e.key, name: e.name, xp: e.xp, fit: e.fit, scale: e.scale, offset_x: e.offset_x, offset_y: e.offset_y, scope: e.scope, pass_id: e.pass_id, sort_order: e.sort_order, is_active: e.is_active }),
+      body: JSON.stringify({ id: e.id, key: e.key, name: e.name, xp: e.xp, fit: e.fit, scale: e.scale, scale_y: e.scale_y, offset_x: e.offset_x, offset_y: e.offset_y, scope: e.scope, pass_id: e.pass_id, sort_order: e.sort_order, is_active: e.is_active }),
     })
     if (res.ok) { toast.success("Хадгалагдлаа"); router.refresh() } else toast.error("Алдаа")
     setBusy(false)
@@ -180,20 +180,21 @@ export function AdminCosmetics({ passes, effects }: { passes: Pass[]; effects: E
           {preview && (
             <div className="flex flex-col items-center gap-1.5 py-6 bg-secondary/20 rounded-lg sticky top-2 z-10 border border-border/40">
               <span className="np np-bare np-full text-2xl cursor-move select-none touch-none"
+                style={{ borderColor: "rgba(255,255,255,0.45)", borderStyle: "dashed" }}
                 onPointerDown={onDragStart} onPointerMove={onDragMove} onPointerUp={onDragEnd}>
                 <EffectLayer key={preview.lottie_url} file={preview.lottie_url} fit={preview.fit as Fit}
-                  scale={Number(preview.scale)} offsetX={Number(preview.offset_x)} offsetY={Number(preview.offset_y)} />
+                  scale={Number(preview.scale)} scaleY={Number(preview.scale_y)} offsetX={Number(preview.offset_x)} offsetY={Number(preview.offset_y)} />
                 <span className="np-label">{preview.name}</span>
               </span>
               <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                <span>fit: {preview.fit} · scale: {preview.scale} · offset: {preview.offset_x},{preview.offset_y}</span>
+                <span>fit: {preview.fit} · X: {preview.scale} · Y: {preview.scale_y} · offset: {preview.offset_x},{preview.offset_y}</span>
                 <button onClick={() => patchRow(preview.id, { offset_x: 0, offset_y: 0 })} className="underline hover:text-foreground">reset</button>
               </div>
               <p className="text-[10px] text-muted-foreground/60">🖐 чирж байрлуул · доор scale/fit тааруул · мөрийн 💾-ээр хадгал</p>
             </div>
           )}
           {rows.map((e) => (
-            <div key={e.id} className="grid grid-cols-2 sm:grid-cols-7 gap-2 items-center bg-secondary/20 rounded px-2 py-2 text-sm">
+            <div key={e.id} className="grid grid-cols-2 sm:grid-cols-8 gap-2 items-center bg-secondary/20 rounded px-2 py-2 text-sm">
               <span className="font-medium truncate">{e.name}<span className="text-[10px] text-muted-foreground ml-1">{e.key}</span></span>
               <label className="text-xs text-muted-foreground">XP<Input type="number" value={e.xp} onChange={(ev) => patchRow(e.id, { xp: +ev.target.value })} className="bg-secondary/50 h-8" /></label>
               <label className="text-xs text-muted-foreground">fit
@@ -201,7 +202,8 @@ export function AdminCosmetics({ passes, effects }: { passes: Pass[]; effects: E
                   {FIT_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}
                 </select>
               </label>
-              <label className="text-xs text-muted-foreground">scale<Input type="number" step="0.1" value={e.scale} onChange={(ev) => patchRow(e.id, { scale: +ev.target.value })} className="bg-secondary/50 h-8" /></label>
+              <label className="text-xs text-muted-foreground">өргөн X<Input type="number" step="0.1" value={e.scale} onChange={(ev) => patchRow(e.id, { scale: +ev.target.value })} className="bg-secondary/50 h-8" /></label>
+              <label className="text-xs text-muted-foreground">өндөр Y<Input type="number" step="0.1" value={e.scale_y} onChange={(ev) => patchRow(e.id, { scale_y: +ev.target.value })} className="bg-secondary/50 h-8" /></label>
               <label className="text-xs text-muted-foreground">pass
                 <select value={e.pass_id ?? ""} onChange={(ev) => patchRow(e.id, { pass_id: ev.target.value || null })} className="w-full rounded bg-secondary/50 border border-border/60 h-8 text-sm">
                   <option value="">үргэлж</option>

@@ -259,6 +259,7 @@ export interface Database {
           xp: number
           fit: string
           scale: number
+          scale_y: number
           offset_x: number
           offset_y: number
           scope: string
@@ -275,6 +276,7 @@ export interface Database {
           xp?: number
           fit?: string
           scale?: number
+          scale_y?: number
           offset_x?: number
           offset_y?: number
           scope?: string
@@ -289,6 +291,7 @@ export interface Database {
           xp?: number
           fit?: string
           scale?: number
+          scale_y?: number
           offset_x?: number
           offset_y?: number
           scope?: string

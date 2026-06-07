@@ -9,6 +9,7 @@ export interface EffectRow {
   xp: number
   fit: Fit
   scale: number
+  scale_y: number
   offset_x: number
   offset_y: number
   scope: string

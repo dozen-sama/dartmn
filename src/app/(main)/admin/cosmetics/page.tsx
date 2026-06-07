@@ -15,7 +15,7 @@ export default async function AdminCosmeticsPage() {
 
   const [{ data: passes }, { data: effects }] = await Promise.all([
     supabase.from("cosmetic_passes").select("id, name, starts_at, ends_at").order("created_at", { ascending: false }),
-    supabase.from("cosmetic_effects").select("id, key, name, lottie_url, xp, fit, scale, offset_x, offset_y, scope, pass_id, sort_order, is_active").order("sort_order"),
+    supabase.from("cosmetic_effects").select("id, key, name, lottie_url, xp, fit, scale, scale_y, offset_x, offset_y, scope, pass_id, sort_order, is_active").order("sort_order"),
   ])
 
   return (

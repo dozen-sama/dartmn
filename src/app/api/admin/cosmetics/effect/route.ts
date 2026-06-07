@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
     xp: Number(body.xp) || 0,
     fit: body.fit || "cover",
     scale: Number(body.scale) || 1,
+    scale_y: Number(body.scale_y) || 1,
     offset_x: Number(body.offset_x) || 0,
     offset_y: Number(body.offset_y) || 0,
     scope: body.scope || "profile",

@@ -50,7 +50,7 @@ export function NamePlate({ name, frame, effect, color, font, animated = true, v
 
   return (
     <span className={cn("np", noFrame ? "np-bare" : `np-${def!.theme}`, `np-${variant}`, !animated && "np-static", className)}>
-      {showEffect && <EffectLayer file={eff!.lottie_url} fit={eff!.fit} scale={eff!.scale} offsetX={eff!.offset_x} offsetY={eff!.offset_y} />}
+      {showEffect && <EffectLayer file={eff!.lottie_url} fit={eff!.fit} scale={eff!.scale} scaleY={eff!.scale_y} offsetX={eff!.offset_x} offsetY={eff!.offset_y} />}
       <span className="np-label" style={labelStyle}>{name}</span>
     </span>
   )

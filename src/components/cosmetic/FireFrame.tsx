@@ -13,7 +13,7 @@ type Fit = "cover" | "contain" | "stretch"
  * `file` нь /public доторх Lottie зам. fit/scale-аар хэмжээг тааруулна.
  * Файл байхгүй бол юу ч харуулахгүй.
  */
-export function EffectLayer({ file, fit = "cover", scale = 1, offsetX = 0, offsetY = 0 }: { file: string; fit?: Fit; scale?: number; offsetX?: number; offsetY?: number }) {
+export function EffectLayer({ file, fit = "cover", scale = 1, scaleY, offsetX = 0, offsetY = 0 }: { file: string; fit?: Fit; scale?: number; scaleY?: number; offsetX?: number; offsetY?: number }) {
   const [data, setData] = useState<object | null>(null)
 
   useEffect(() => {
@@ -30,8 +30,9 @@ export function EffectLayer({ file, fit = "cover", scale = 1, offsetX = 0, offse
 
   const par = fit === "stretch" ? "none" : fit === "contain" ? "xMidYMid meet" : "xMidYMid slice"
   const renderer = { preserveAspectRatio: par }
-  // Голлуулах (-50%) + байрлал (offset) + хэмжээ (scale). Бүгд өндөрт түшиглэнэ → нэрний уртаас үл хамаарна
-  const style = { transform: `translate(-50%, -50%) translate(${offsetX}%, ${offsetY}%) scale(${scale})` }
+  // Голлуулах (-50%) + байрлал (offset) + хэмжээ (scale X, Y). Өндөрт түшиглэнэ → нэрний уртаас үл хамаарна
+  const sy = scaleY ?? scale
+  const style = { transform: `translate(-50%, -50%) translate(${offsetX}%, ${offsetY}%) scale(${scale}, ${sy})` }
 
   return (
     <>
