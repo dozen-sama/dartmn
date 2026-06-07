@@ -27,7 +27,7 @@ export function FireFrame() {
 
   return (
     <span className="np-fire-lottie" aria-hidden="true">
-      <Lottie animationData={data} loop autoplay />
+      <Lottie animationData={data} loop autoplay rendererSettings={{ preserveAspectRatio: "none" }} />
     </span>
   )
 }
