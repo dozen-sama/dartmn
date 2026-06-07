@@ -14,9 +14,10 @@ import { getTier, TIERS } from "@/lib/rating"
 import { PROVINCE_NAMES as MONGOLIAN_PROVINCES } from "@/lib/provinces"
 import { PlayerAvatar } from "@/components/player/PlayerAvatar"
 import { TierBadge } from "@/components/rating/TierBadge"
+import { PlayerName } from "@/components/cosmetic/PlayerName"
 import { cn } from "@/lib/utils"
 
-type PlayerRow = Pick<Profile, "id" | "username" | "display_name" | "avatar_url" | "rating_points" | "matches_played" | "matches_won" | "average_score" | "count_180" | "highest_checkout" | "city" | "province" | "primary_club_logo" | "primary_club_tag">
+type PlayerRow = Pick<Profile, "id" | "username" | "display_name" | "avatar_url" | "rating_points" | "matches_played" | "matches_won" | "average_score" | "count_180" | "highest_checkout" | "city" | "province" | "primary_club_logo" | "primary_club_tag" | "equipped_frame" | "name_effect" | "name_color" | "name_font" | "name_animated">
 
 type ClubRow = {
   id: string
@@ -59,7 +60,7 @@ function Podium({ players }: { players: PlayerRow[] }) {
             </Avatar>
             <div className="text-center">
               <p className="text-2xl">{icons[idx]}</p>
-              <p className={cn("font-bold", rank === 1 ? "text-base" : "text-sm")}>{p.display_name}</p>
+              <p className={cn("font-bold", rank === 1 ? "text-base" : "text-sm")}><PlayerName p={p} /></p>
               <p className="text-xs text-muted-foreground">@{p.username}</p>
               <TierBadge rating={p.rating_points} size="sm" />
               <p className="text-sm font-bold text-[oklch(0.78_0.16_85)] mt-1 score-display">{formatNumber(p.rating_points)}</p>
@@ -98,7 +99,7 @@ function PlayerRow({ player, rank, showProvince = false }: { player: PlayerRow; 
           {player.primary_club_tag && (
             <span className="text-[10px] font-mono text-primary/70 shrink-0">[{player.primary_club_tag}]</span>
           )}
-          <p className="text-sm font-medium truncate">{player.display_name}</p>
+          <p className="text-sm font-medium truncate"><PlayerName p={player} /></p>
           <TierBadge rating={player.rating_points} size="sm" />
         </div>
         <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">

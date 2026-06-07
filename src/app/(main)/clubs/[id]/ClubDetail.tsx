@@ -19,11 +19,12 @@ import { getTier } from "@/lib/rating"
 import { cn } from "@/lib/utils"
 import { Club, Profile } from "@/types/database"
 import { formatNumber } from "@/lib/utils/format"
+import { PlayerName } from "@/components/cosmetic/PlayerName"
 
 type ClubWithExtra = Club & { features: string[] }
 type MemberRow = {
   role: string
-  profiles: Pick<Profile, "id" | "display_name" | "username" | "avatar_url" | "rating_points"> | null
+  profiles: Pick<Profile, "id" | "display_name" | "username" | "avatar_url" | "rating_points" | "equipped_frame" | "name_effect" | "name_color" | "name_font" | "name_animated"> | null
 }
 
 interface Props {
@@ -223,7 +224,7 @@ export function ClubDetail({ club, members, currentUserId, myRole }: Props) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         {club.tag && <span className="text-[10px] font-mono text-primary/70">[{club.tag}]</span>}
-                        <p className="text-sm font-medium truncate">{p.display_name}</p>
+                        <p className="text-sm font-medium truncate"><PlayerName p={p} /></p>
                       </div>
                       <p className="text-xs text-muted-foreground">@{p.username} · <span className={tier.color}>{tier.icon} {tier.tier}</span></p>
                     </div>

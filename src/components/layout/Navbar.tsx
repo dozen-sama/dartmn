@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { Search, Target, Trophy } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { PlayerName } from "@/components/cosmetic/PlayerName"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -104,7 +105,7 @@ export function Navbar({ profile }: NavbarProps) {
                       </AvatarFallback>
                     </Avatar>
                     <div className="hidden sm:flex flex-col items-start min-w-0">
-                      <span className="text-xs font-semibold truncate max-w-[100px]">{profile.display_name}</span>
+                      <span className="text-xs font-semibold truncate max-w-[120px]"><PlayerName p={profile} /></span>
                       {tier && (
                         <span className={cn("text-[10px] font-medium", tier.color)}>
                           {tier.icon} {tier.tier}
@@ -124,7 +125,7 @@ export function Navbar({ profile }: NavbarProps) {
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold truncate">{profile.display_name}</p>
+                          <p className="text-sm font-semibold truncate"><PlayerName p={profile} /></p>
                           <p className="text-xs text-muted-foreground">@{profile.username}</p>
                           <div className="flex items-center gap-1.5 mt-1">
                             <Trophy className="h-3 w-3 text-[oklch(0.78_0.16_85)]" />

@@ -25,7 +25,7 @@ export default async function ClubPage({ params }: { params: Promise<{ id: strin
 
   const [membersResult, myMemberResult] = await Promise.all([
     supabase.from("club_members")
-      .select("*, profiles(id, display_name, username, avatar_url, rating_points)")
+      .select("*, profiles(id, display_name, username, avatar_url, rating_points, equipped_frame, name_effect, name_color, name_font, name_animated)")
       .eq("club_id", id)
       .order("role")
       .limit(20),

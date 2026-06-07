@@ -8,11 +8,17 @@ import { Card } from "@/components/ui/card"
 import { createClient } from "@/lib/supabase/client"
 import { formatRelativeTime } from "@/lib/utils/format"
 import { cn } from "@/lib/utils"
+import { PlayerName } from "@/components/cosmetic/PlayerName"
 
 interface Sender {
   display_name: string
   username: string
   avatar_url: string | null
+  equipped_frame?: string | null
+  name_effect?: string | null
+  name_color?: string | null
+  name_font?: string | null
+  name_animated?: boolean | null
 }
 interface Msg {
   id: string
@@ -52,7 +58,7 @@ export function ClubChat({ clubId, currentUserId }: Props) {
       // Илгээгчдийн профайлыг тусад нь татах
       const ids = [...new Set((rows ?? []).map((r) => r.player_id))]
       const { data: profs } = ids.length
-        ? await supabase.from("profiles").select("id, display_name, username, avatar_url").in("id", ids)
+        ? await supabase.from("profiles").select("id, display_name, username, avatar_url, equipped_frame, name_effect, name_color, name_font, name_animated").in("id", ids)
         : { data: [] }
       for (const p of profs ?? []) {
         cacheRef.current.set(p.id, { display_name: p.display_name, username: p.username, avatar_url: p.avatar_url })
@@ -81,7 +87,7 @@ export function ClubChat({ clubId, currentUserId }: Props) {
         if (!sender) {
           const { data: prof } = await supabase
             .from("profiles")
-            .select("display_name, username, avatar_url")
+            .select("display_name, username, avatar_url, equipped_frame, name_effect, name_color, name_font, name_animated")
             .eq("id", row.player_id)
             .single()
           sender = prof ?? null
@@ -143,7 +149,7 @@ export function ClubChat({ clubId, currentUserId }: Props) {
                 </Avatar>
                 <div className={cn("min-w-0 max-w-[75%]", mine && "items-end flex flex-col")}>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-medium truncate">{mine ? "Та" : (m.sender?.display_name ?? "?")}</span>
+                    <span className="text-xs font-medium truncate">{mine ? "Та" : (m.sender ? <PlayerName p={m.sender} /> : "?")}</span>
                     <span className="text-[10px] text-muted-foreground/60">{formatRelativeTime(m.created_at)}</span>
                   </div>
                   <div className={cn(
