@@ -42,7 +42,7 @@ export default async function DashboardPage() {
 
     supabase
       .from("profiles")
-      .select("id, username, display_name, avatar_url, rating_points, matches_played, matches_won, average_score")
+      .select("id, username, display_name, avatar_url, rating_points, matches_played, matches_won, average_score, equipped_frame, name_effect, name_color, name_font, name_animated")
       .order("rating_points", { ascending: false })
       .limit(10),
   ])

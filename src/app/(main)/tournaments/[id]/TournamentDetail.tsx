@@ -26,6 +26,7 @@ import { OrganizerPanel } from "@/components/tournament/OrganizerPanel"
 import { QRJoin } from "@/components/tournament/QRJoin"
 import { QPay } from "@/components/tournament/QPay"
 import { useLiveTournament } from "@/hooks/useLiveTournament"
+import { PlayerName } from "@/components/cosmetic/PlayerName"
 
 type TournamentWithRelations = Tournament & {
   profiles: { id: string; display_name: string; username: string; avatar_url: string | null } | null
@@ -33,7 +34,7 @@ type TournamentWithRelations = Tournament & {
 }
 
 type RegistrationWithProfile = TournamentRegistration & {
-  profiles: Pick<Profile, "id" | "display_name" | "username" | "avatar_url" | "rating_points"> | null
+  profiles: Pick<Profile, "id" | "display_name" | "username" | "avatar_url" | "rating_points" | "equipped_frame" | "name_effect" | "name_color" | "name_font" | "name_animated"> | null
 }
 
 const statusColors: Record<Tournament["status"], string> = {
@@ -326,7 +327,7 @@ export function TournamentDetail({ tournament: t, registrations, currentUserId, 
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{reg.profiles?.display_name}</p>
+                      <p className="text-sm font-medium truncate">{reg.profiles ? <PlayerName p={reg.profiles} /> : "?"}</p>
                       <p className="text-xs text-muted-foreground">@{reg.profiles?.username}</p>
                     </div>
                     <div className="flex items-center gap-2">

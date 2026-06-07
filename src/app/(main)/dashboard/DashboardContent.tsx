@@ -11,6 +11,7 @@ import { mn } from "@/locales/mn"
 import { Profile, Tournament } from "@/types/database"
 import { formatCurrency, formatDate, formatNumber, formatAverage } from "@/lib/utils/format"
 import { cn } from "@/lib/utils"
+import { PlayerName } from "@/components/cosmetic/PlayerName"
 
 type TournamentWithOrganizer = Tournament & {
   profiles: { display_name: string; avatar_url: string | null; username: string } | null
@@ -20,7 +21,7 @@ interface DashboardContentProps {
   profile: Profile | null
   todayTournaments: TournamentWithOrganizer[]
   activeTournaments: TournamentWithOrganizer[]
-  topPlayers: Pick<Profile, "id" | "username" | "display_name" | "avatar_url" | "rating_points" | "matches_played" | "matches_won" | "average_score">[]
+  topPlayers: Pick<Profile, "id" | "username" | "display_name" | "avatar_url" | "rating_points" | "matches_played" | "matches_won" | "average_score" | "equipped_frame" | "name_effect" | "name_color" | "name_font" | "name_animated">[]
 }
 
 const statusColors: Record<Tournament["status"], string> = {
@@ -109,7 +110,7 @@ export function DashboardContent({ profile, todayTournaments, activeTournaments,
               </Avatar>
               <div>
                 <p className="text-muted-foreground text-sm">Сайн байна уу,</p>
-                <h1 className="text-xl font-bold">{profile.display_name}</h1>
+                <h1 className="text-xl font-bold"><PlayerName p={profile} variant="full" /></h1>
                 <div className="flex items-center gap-3 mt-1 flex-wrap">
                   <span className="flex items-center gap-1 text-sm font-semibold text-[oklch(0.78_0.16_85)]">
                     <Trophy className="h-3.5 w-3.5" />
@@ -224,7 +225,7 @@ export function DashboardContent({ profile, todayTournaments, activeTournaments,
                       <AvatarFallback className="text-[10px] bg-secondary">{player.display_name.slice(0, 2).toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{player.display_name}</p>
+                      <p className="text-sm font-medium truncate"><PlayerName p={player} /></p>
                       <p className="text-[11px] text-muted-foreground">Avg {formatAverage(player.average_score)} · {wr}% WR</p>
                     </div>
                     <span className="text-sm font-bold score-display text-[oklch(0.78_0.16_85)]">{formatNumber(player.rating_points)}</span>

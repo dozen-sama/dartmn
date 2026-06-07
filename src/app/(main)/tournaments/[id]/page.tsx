@@ -12,7 +12,7 @@ type TournamentWithRelations = Tournament & {
 }
 
 type RegistrationWithProfile = TournamentRegistration & {
-  profiles: Pick<Profile, "id" | "display_name" | "username" | "avatar_url" | "rating_points"> | null
+  profiles: Pick<Profile, "id" | "display_name" | "username" | "avatar_url" | "rating_points" | "equipped_frame" | "name_effect" | "name_color" | "name_font" | "name_animated"> | null
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
@@ -39,7 +39,7 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
       .single(),
     supabase
       .from("tournament_registrations")
-      .select("*, profiles(id, display_name, username, avatar_url, rating_points)")
+      .select("*, profiles(id, display_name, username, avatar_url, rating_points, equipped_frame, name_effect, name_color, name_font, name_animated)")
       .eq("tournament_id", id)
       .order("seed", { ascending: true }),
   ])
