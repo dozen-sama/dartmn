@@ -6,7 +6,7 @@ import dynamic from "next/dynamic"
 // lottie-web нь window/document шаарддаг тул зөвхөн client-д ачаална
 const Lottie = dynamic(() => import("lottie-react"), { ssr: false })
 
-const RENDERER = { preserveAspectRatio: "xMidYMid slice" }
+const RENDERER = { preserveAspectRatio: "none" }
 
 /**
  * Шатаж буй хүрээ — Lottie галын animation, нэрний АРД ба ӨМНӨ давхарлана.
