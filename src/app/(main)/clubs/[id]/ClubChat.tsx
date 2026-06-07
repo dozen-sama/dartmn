@@ -149,7 +149,7 @@ export function ClubChat({ clubId, currentUserId }: Props) {
                 </Avatar>
                 <div className={cn("min-w-0 max-w-[75%]", mine && "items-end flex flex-col")}>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-medium truncate">{mine ? "Та" : (m.sender ? <PlayerName p={m.sender} /> : "?")}</span>
+                    <span className="text-xs font-medium truncate">{m.sender ? <PlayerName p={m.sender} /> : (mine ? "Та" : "?")}</span>
                     <span className="text-[10px] text-muted-foreground/60">{formatRelativeTime(m.created_at)}</span>
                   </div>
                   <div className={cn(

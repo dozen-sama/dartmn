@@ -37,7 +37,8 @@ export function NamePlate({ name, frame, effect, color, font, animated = true, v
   const noFrame = !def || def.theme === "none"
 
   const eff = useCosmeticEffect(effect)
-  const showEffect = !!eff?.lottie_url && animated
+  // Effect (Lottie) зөвхөн full дээр (профайл/hero) — жагсаалтад гүйцэтгэлд хүнд
+  const showEffect = variant === "full" && !!eff?.lottie_url && animated
 
   const style: CSSProperties = {}
   if (color) style.color = color

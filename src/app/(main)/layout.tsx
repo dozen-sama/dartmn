@@ -12,22 +12,19 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   // Security-sensitive pages (settings, admin) call getUser() themselves
   const { data: { session } } = await supabase.auth.getSession()
 
-  let profile = null
-  if (session?.user) {
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", session.user.id)
-      .single()
-    profile = data
-  }
-
-  // Идэвхтэй cosmetic effect-үүд (NamePlate-д ашиглана)
-  const { data: effects } = await supabase
-    .from("cosmetic_effects")
-    .select("key, name, lottie_url, xp, fit, scale, scale_y, offset_x, offset_y, scope, pass_id, is_active, sort_order")
-    .eq("is_active", true)
-    .order("sort_order")
+  // Профайл + cosmetic effect-үүдийг зэрэг татах (нэг round-trip-ээр хурдан)
+  const [profileRes, effectsRes] = await Promise.all([
+    session?.user
+      ? supabase.from("profiles").select("*").eq("id", session.user.id).single()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("cosmetic_effects")
+      .select("key, name, lottie_url, xp, fit, scale, scale_y, offset_x, offset_y, scope, pass_id, is_active, sort_order")
+      .eq("is_active", true)
+      .order("sort_order"),
+  ])
+  const profile = profileRes.data
+  const effects = effectsRes.data
 
   return (
     <EffectsProvider effects={(effects ?? []) as EffectRow[]}>
