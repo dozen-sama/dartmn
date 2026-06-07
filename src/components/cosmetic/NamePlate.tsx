@@ -33,7 +33,8 @@ export function NamePlate({ name, frame, effect, color, font, animated = true, v
   const def = getFrame(frame)
   const noFrame = !def || def.theme === "none"
 
-  const effectFile = getEffect(effect)?.file || ""
+  const eff = getEffect(effect)
+  const effectFile = eff?.file || ""
   const showEffect = variant === "full" && !!effectFile && animated
 
   const style: CSSProperties = {}
@@ -48,7 +49,7 @@ export function NamePlate({ name, frame, effect, color, font, animated = true, v
 
   return (
     <span className={cn("np", noFrame ? "np-bare" : `np-${def!.theme}`, `np-${variant}`, !animated && "np-static", className)}>
-      {showEffect && <EffectLayer file={effectFile} />}
+      {showEffect && <EffectLayer file={effectFile} fit={eff?.fit} scale={eff?.scale} />}
       <span className="np-label" style={labelStyle}>{name}</span>
     </span>
   )

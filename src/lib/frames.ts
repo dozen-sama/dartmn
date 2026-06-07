@@ -116,25 +116,27 @@ export interface EffectDef {
   name: string
   file: string // /public доторх Lottie зам ("" = байхгүй)
   xp: number
+  fit?: "cover" | "contain" | "stretch" // default: cover
+  scale?: number // нэмэлт томруулалт (1 = хэвийн)
 }
 
 export const EFFECTS: EffectDef[] = [
   { key: "none", name: "Байхгүй", file: "", xp: 0 },
-  { key: "campfire", name: "Бамбар", file: "/lottie/campfire.json", xp: 300 },
-  { key: "fire", name: "Гал", file: "/lottie/fire.json", xp: 500 },
-  { key: "lightning1", name: "Цахилгаан 1", file: "/lottie/lightning1.json", xp: 700 },
-  { key: "lightning2", name: "Цахилгаан 2", file: "/lottie/lightning2.json", xp: 700 },
-  { key: "lightning3", name: "Цахилгаан 3", file: "/lottie/lightning3.json", xp: 700 },
-  { key: "neon", name: "Неон", file: "/lottie/neon.json", xp: 900 },
-  { key: "wave", name: "Долгион", file: "/lottie/wave.json", xp: 1000 },
-  { key: "rainbow", name: "Солонго", file: "/lottie/rainbow.json", xp: 1200 },
-  { key: "fx14", name: "FX 14", file: "/lottie/fx14.json", xp: 1500 },
-  { key: "fxa", name: "Эффект A", file: "/lottie/fxa.json", xp: 600 },
-  { key: "fxb", name: "Эффект B", file: "/lottie/fxb.json", xp: 600 },
-  { key: "fxc", name: "Эффект C", file: "/lottie/fxc.json", xp: 600 },
-  { key: "fxd", name: "Эффект D", file: "/lottie/fxd.json", xp: 600 },
-  { key: "fxe", name: "Эффект E", file: "/lottie/fxe.json", xp: 600 },
-  { key: "fxf", name: "Эффект F", file: "/lottie/fxf.json", xp: 600 },
+  { key: "campfire", name: "Бамбар", file: "/lottie/campfire.json", xp: 300, fit: "contain" },
+  { key: "fire", name: "Гал", file: "/lottie/fire.json", xp: 500, fit: "cover" },
+  { key: "lightning1", name: "Цахилгаан 1", file: "/lottie/lightning1.json", xp: 700, fit: "contain" },
+  { key: "lightning2", name: "Цахилгаан 2", file: "/lottie/lightning2.json", xp: 700, fit: "contain" },
+  { key: "lightning3", name: "Цахилгаан 3", file: "/lottie/lightning3.json", xp: 700, fit: "contain" },
+  { key: "neon", name: "Неон", file: "/lottie/neon.json", xp: 900, fit: "cover" },
+  { key: "wave", name: "Долгион", file: "/lottie/wave.json", xp: 1000, fit: "cover" },
+  { key: "rainbow", name: "Солонго", file: "/lottie/rainbow.json", xp: 1200, fit: "cover" },
+  { key: "fx14", name: "FX 14", file: "/lottie/fx14.json", xp: 1500, fit: "cover" },
+  { key: "fxa", name: "Эффект A", file: "/lottie/fxa.json", xp: 600, fit: "contain" },
+  { key: "fxb", name: "Эффект B", file: "/lottie/fxb.json", xp: 600, fit: "contain" },
+  { key: "fxc", name: "Эффект C", file: "/lottie/fxc.json", xp: 600, fit: "cover" },
+  { key: "fxd", name: "Эффект D", file: "/lottie/fxd.json", xp: 600, fit: "contain" },
+  { key: "fxe", name: "Эффект E", file: "/lottie/fxe.json", xp: 600, fit: "cover" },
+  { key: "fxf", name: "Эффект F", file: "/lottie/fxf.json", xp: 600, fit: "cover" },
 ]
 
 export function getEffect(key?: string | null): EffectDef | undefined {

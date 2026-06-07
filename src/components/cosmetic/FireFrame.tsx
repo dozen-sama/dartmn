@@ -6,13 +6,14 @@ import dynamic from "next/dynamic"
 // lottie-web нь window/document шаарддаг тул зөвхөн client-д ачаална
 const Lottie = dynamic(() => import("lottie-react"), { ssr: false })
 
-const RENDERER = { preserveAspectRatio: "xMidYMid slice" }
+type Fit = "cover" | "contain" | "stretch"
 
 /**
  * Animation effect давхарга — Lottie-г нэрний АРД ба ӨМНӨ давхарлана.
- * `file` нь /public доторх Lottie зам. Файл байхгүй бол юу ч харуулахгүй.
+ * `file` нь /public доторх Lottie зам. fit/scale-аар хэмжээг тааруулна.
+ * Файл байхгүй бол юу ч харуулахгүй.
  */
-export function EffectLayer({ file }: { file: string }) {
+export function EffectLayer({ file, fit = "cover", scale = 1 }: { file: string; fit?: Fit; scale?: number }) {
   const [data, setData] = useState<object | null>(null)
 
   useEffect(() => {
@@ -27,13 +28,17 @@ export function EffectLayer({ file }: { file: string }) {
 
   if (!data) return null
 
+  const par = fit === "stretch" ? "none" : fit === "contain" ? "xMidYMid meet" : "xMidYMid slice"
+  const renderer = { preserveAspectRatio: par }
+  const style = scale !== 1 ? { transform: `scale(${scale})` } : undefined
+
   return (
     <>
-      <span className="np-fire-lottie np-fire-back" aria-hidden="true">
-        <Lottie animationData={data} loop autoplay rendererSettings={RENDERER} />
+      <span className="np-fire-lottie np-fire-back" style={style} aria-hidden="true">
+        <Lottie animationData={data} loop autoplay rendererSettings={renderer} />
       </span>
-      <span className="np-fire-lottie np-fire-front" aria-hidden="true">
-        <Lottie animationData={data} loop autoplay rendererSettings={RENDERER} />
+      <span className="np-fire-lottie np-fire-front" style={style} aria-hidden="true">
+        <Lottie animationData={data} loop autoplay rendererSettings={renderer} />
       </span>
     </>
   )
