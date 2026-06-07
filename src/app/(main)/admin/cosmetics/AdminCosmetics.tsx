@@ -180,7 +180,7 @@ export function AdminCosmetics({ passes, effects }: { passes: Pass[]; effects: E
           {/* Шууд preview — 👁 дарж сонгосон effect, fit/scale-ийг шууд харна */}
           {preview && (
             <div className="flex flex-col items-center gap-1.5 py-6 bg-secondary/20 rounded-lg sticky top-2 z-10 border border-border/40">
-              <span className="np np-bare np-full text-2xl cursor-move select-none touch-none"
+              <span className="np np-bare np-full np-fixed text-xl cursor-move select-none touch-none"
                 style={{ borderColor: "rgba(255,255,255,0.45)", borderStyle: "dashed" }}
                 onPointerDown={onDragStart} onPointerMove={onDragMove} onPointerUp={onDragEnd}>
                 <EffectLayer key={preview.lottie_url} file={preview.lottie_url} fit={preview.fit as Fit}
