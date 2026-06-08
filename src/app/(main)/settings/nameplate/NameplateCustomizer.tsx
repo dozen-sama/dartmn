@@ -7,7 +7,7 @@ import { Lock, Loader2, Save, Check, Sparkles, Zap, CalendarClock } from "lucide
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { NamePlate, FONT_FAMILY } from "@/components/cosmetic/NamePlate"
-import { PROFILE_FRAMES, isFrameUnlocked, COLOR_PRESETS, FONT_OPTIONS } from "@/lib/frames"
+import { PROFILE_FRAMES, COLOR_PRESETS, FONT_OPTIONS } from "@/lib/frames"
 import { effectState, spentXp, type EffectRow } from "@/lib/cosmetics"
 import { cn } from "@/lib/utils"
 
@@ -19,10 +19,11 @@ interface Props {
   unlock: { rating: number; isPremium: boolean }
   xp: number
   ownedEffects: string[]
+  unlockedFrames: string[]
   effects: EffectWithPass[]
 }
 
-export function NameplateCustomizer({ displayName, initial, unlock, xp, ownedEffects, effects }: Props) {
+export function NameplateCustomizer({ displayName, initial, unlock, xp, ownedEffects, unlockedFrames, effects }: Props) {
   const router = useRouter()
   const [frame, setFrame] = useState(initial.frame ?? "none")
   const [effect, setEffect] = useState(initial.effect ?? "none")
@@ -79,7 +80,7 @@ export function NameplateCustomizer({ displayName, initial, unlock, xp, ownedEff
         <CardHeader className="pb-3"><CardTitle className="text-sm">Хүрээ сонгох</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
           {PROFILE_FRAMES.map((f) => {
-            const unlocked = isFrameUnlocked(f, unlock)
+            const unlocked = f.key === "none" || unlockedFrames.includes(f.key)
             const selected = frame === f.key
             return (
               <button key={f.key} type="button" disabled={!unlocked} onClick={() => setFrame(f.key)}

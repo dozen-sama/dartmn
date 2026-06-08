@@ -32,6 +32,7 @@ interface Props {
   earnedAchievements: { achievement_key: string; earned_at: string }[]
   ownedEffects: string[]
   effects: (EffectRow & { passActive: boolean })[]
+  unlockedFrames: string[]
 }
 
 const MONGOLIAN_PROVINCES = [
@@ -54,7 +55,7 @@ function StatCard({ label, value, sub, highlight }: { label: string; value: stri
   )
 }
 
-export function ProfileContent({ profile: p, isOwner, clubName, recentMatches, tournaments, allAchievements, earnedAchievements, ownedEffects, effects }: Props) {
+export function ProfileContent({ profile: p, isOwner, clubName, recentMatches, tournaments, allAchievements, earnedAchievements, ownedEffects, effects, unlockedFrames }: Props) {
   const winRate = p.matches_played > 0 ? Math.round((p.matches_won / p.matches_played) * 100) : 0
   const lossCount = p.matches_played - p.matches_won
   const tier = getTier(p.rating_points)
@@ -160,6 +161,7 @@ export function ProfileContent({ profile: p, isOwner, clubName, recentMatches, t
               xp={computeXp(p)}
               ownedEffects={ownedEffects}
               effects={effects}
+              unlockedFrames={unlockedFrames}
             />
           </TabsContent>
         )}

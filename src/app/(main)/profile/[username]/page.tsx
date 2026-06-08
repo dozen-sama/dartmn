@@ -6,6 +6,7 @@ import { notFound } from "next/navigation"
 import { ProfileContent } from "./ProfileContent"
 import { Match, Profile, Tournament, TournamentRegistration } from "@/types/database"
 import { isPassActive, type EffectRow, type PassRow } from "@/lib/cosmetics"
+import { resolveUnlockedFrames } from "@/lib/cosmetics-server"
 
 type MatchWithWinner = Match & {
   winner: { display_name: string; username: string } | null
@@ -52,11 +53,15 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
     ...e,
     passActive: isPassActive(e.pass_id ? passMap.get(e.pass_id) : null),
   }))
+  const isOwner = user?.id === profile.id
+  const unlockedFrames = isOwner
+    ? await resolveUnlockedFrames(profile.id, { rating: profile.rating_points, isPremium: profile.is_premium })
+    : []
 
   return (
     <ProfileContent
       profile={profile as Profile}
-      isOwner={user?.id === profile.id}
+      isOwner={isOwner}
       clubName={clubName}
       recentMatches={(matchesResult.data ?? []) as unknown as MatchWithWinner[]}
       tournaments={(tournamentResult.data ?? []) as unknown as RegistrationWithTournament[]}
@@ -64,6 +69,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
       earnedAchievements={(earnedResult.data ?? []) as { achievement_key: string; earned_at: string }[]}
       ownedEffects={ownedEffects}
       effects={effects}
+      unlockedFrames={unlockedFrames}
     />
   )
 }

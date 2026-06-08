@@ -8,6 +8,7 @@ import { buttonVariants } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/server"
 import { cn } from "@/lib/utils"
 import { computeXp, isPassActive, type EffectRow, type PassRow } from "@/lib/cosmetics"
+import { resolveUnlockedFrames } from "@/lib/cosmetics-server"
 import { NameplateCustomizer } from "./NameplateCustomizer"
 
 export const metadata: Metadata = { title: "Нэрийн хээ — Тохиргоо" }
@@ -30,6 +31,7 @@ export default async function NameplateSettingsPage() {
 
   const xp = computeXp(profile)
   const ownedEffects = (unlocks ?? []).map((u) => u.item_key)
+  const unlockedFrames = await resolveUnlockedFrames(user.id, { rating: profile.rating_points, isPremium: profile.is_premium })
   const passMap = new Map((passes ?? []).map((p) => [p.id, p as PassRow]))
   const effects = ((effectsRaw ?? []) as EffectRow[]).map((e) => ({
     ...e,
@@ -63,6 +65,7 @@ export default async function NameplateSettingsPage() {
         unlock={{ rating: profile.rating_points, isPremium: profile.is_premium }}
         xp={xp}
         ownedEffects={ownedEffects}
+        unlockedFrames={unlockedFrames}
         effects={effects}
       />
     </div>

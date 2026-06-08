@@ -21,7 +21,12 @@ export async function POST(req: NextRequest) {
   if (frameKey) {
     const f = getFrame(frameKey)
     if (!f) return NextResponse.json({ error: "Буруу хүрээ" }, { status: 400 })
-    if (!isFrameUnlocked(f, { rating: profile.rating_points, isPremium: profile.is_premium })) {
+    // Насан туршийн нээлт (player_unlocks) эсвэл одоо эрхтэй эсэх
+    const { data: ownedFrame } = await supabase
+      .from("player_unlocks").select("id")
+      .eq("player_id", user.id).eq("item_kind", "frame").eq("item_key", frameKey).maybeSingle()
+    const eligible = isFrameUnlocked(f, { rating: profile.rating_points, isPremium: profile.is_premium })
+    if (!ownedFrame && !eligible) {
       return NextResponse.json({ error: "Хүрээ нээгдээгүй байна" }, { status: 403 })
     }
   }
