@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useRef } from "react"
 import {
   ArrowLeft, Delete, Minus, Pencil, Plus, RotateCcw, Users, X, Zap,
 } from "lucide-react"
@@ -64,6 +64,9 @@ export function TogetherGame() {
   const [input, setInput] = useState("")
   const [dartsUsed, setDartsUsed] = useState(3)
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
+  // Засах горимд эхний цохилт хуучин утгыг орлох эсэх
+  const freshRef = useRef(false)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   const legsToWin = Math.ceil(bestOf / 2)
   const startScore = parseInt(format) || 501
@@ -186,18 +189,19 @@ export function TogetherGame() {
   const isBullInput = inputNum === 50 || inputNum === 25
 
   function keypad(k: number | string) {
-    if (k === "DEL") { setInput(p => p.slice(0, -1)); return }
-    if (k === "*") { setInput(""); return }
-    const next = input + k
-    if (parseInt(next) > 180) return
-    setInput(next)
+    if (k === "DEL") { freshRef.current = false; setInput(p => p.slice(0, -1)); return }
+    if (k === "*") { freshRef.current = false; setInput(""); return }
+    // Засах горимд эхний цохилт хуучин утгыг орлоно
+    if (freshRef.current) { freshRef.current = false; setInput(String(k)); return }
+    setInput(p => { const next = p + k; return parseInt(next) > 180 ? p : next })
   }
 
   const kbInput = useCallback((dg: string) => {
+    if (freshRef.current) { freshRef.current = false; setInput(dg); return }
     setInput(p => { const next = p + dg; return parseInt(next) > 180 ? p : next })
   }, [])
-  const kbDelete = useCallback(() => setInput(p => p.slice(0, -1)), [])
-  const kbClear = useCallback(() => setInput(""), [])
+  const kbDelete = useCallback(() => { freshRef.current = false; setInput(p => p.slice(0, -1)) }, [])
+  const kbClear = useCallback(() => { freshRef.current = false; setInput("") }, [])
   useScoreboardKeyboard({
     onInput: kbInput,
     onDelete: kbDelete,
@@ -230,22 +234,28 @@ export function TogetherGame() {
     }
     setInput("")
     setDartsUsed(3)
+    freshRef.current = false
   }
 
   function startEdit(v: VisitView) {
     setEditingIndex(v.idx)
     setInput(String(v.points))
     setDartsUsed(visits[v.idx]?.darts ?? 3)
+    freshRef.current = true  // эхний цохилт хуучин оноог орлоно
+    // input-д focus + select → шинэ тоо бичихэд хуучин нь орлогдоно
+    setTimeout(() => { inputRef.current?.focus(); inputRef.current?.select() }, 0)
   }
   function cancelEdit() {
     setEditingIndex(null)
     setInput("")
     setDartsUsed(3)
+    freshRef.current = false
   }
   function undoLast() {
     setVisits(prev => prev.slice(0, -1))
     setEditingIndex(null)
     setInput("")
+    freshRef.current = false
   }
 
   function resetGame() {
@@ -602,8 +612,25 @@ export function TogetherGame() {
             {isBust && <Badge className="bg-destructive/15 text-destructive border-destructive/30">BUST</Badge>}
             {isCheckout && <Badge className="bg-green-500/15 text-green-400 border-green-500/30">CHECKOUT</Badge>}
             {!isBust && !isCheckout && hasInput && <span className="text-xs font-mono text-muted-foreground">→ {afterScore}</span>}
-            <span className={cn("text-3xl font-black score-display tabular-nums",
-              isBust ? "text-destructive" : isCheckout ? "text-green-400" : "")}>{input || "0"}</span>
+            <input
+              ref={inputRef}
+              value={input}
+              onChange={(e) => {
+                const v = e.target.value.replace(/[^0-9]/g, "")
+                freshRef.current = false
+                if (v === "") { setInput(""); return }
+                if (parseInt(v) > 180) return
+                setInput(v)
+              }}
+              onFocus={(e) => e.target.select()}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submit() } }}
+              inputMode="numeric"
+              pattern="[0-9]*"
+              placeholder="0"
+              aria-label="Оноо"
+              className={cn("w-20 bg-transparent text-right text-3xl font-black score-display tabular-nums outline-none placeholder:text-muted-foreground/40",
+                isBust ? "text-destructive" : isCheckout ? "text-green-400" : "")}
+            />
           </div>
         </div>
 
@@ -615,7 +642,7 @@ export function TogetherGame() {
         {/* Keypad */}
         <div className="grid grid-cols-3 gap-2">
           {KEYPAD.flat().map((k, i) => (
-            <button key={i} onClick={() => keypad(k)}
+            <button key={i} onClick={() => keypad(k)} onMouseDown={(e) => e.preventDefault()}
               className={cn("h-12 rounded-xl text-lg font-bold transition-all active:scale-95",
                 k === "DEL" ? "bg-secondary/80 text-destructive" :
                 k === "*" ? "bg-secondary/80 text-muted-foreground" :
