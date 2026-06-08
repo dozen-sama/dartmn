@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Club, Profile } from "@/types/database"
 import { mn } from "@/locales/mn"
 import { cn } from "@/lib/utils"
+import { ClubNamePlate } from "@/components/cosmetic/ClubNamePlate"
 
 type ClubWithOwner = Club & {
   profiles: Pick<Profile, "display_name" | "username" | "avatar_url"> | null
@@ -104,7 +105,7 @@ export function ClubsContent({ clubs }: Props) {
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0 mt-8">
-                      <h3 className="font-semibold truncate">{club.name}</h3>
+                      <h3 className="font-semibold truncate"><ClubNamePlate name={club.name} score={club.club_score} orbit={!!club.subscription_plan} /></h3>
                       {club.city && (
                         <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                           <MapPin className="h-3 w-3" />

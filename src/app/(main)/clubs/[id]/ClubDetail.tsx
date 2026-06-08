@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils"
 import { Club, Profile } from "@/types/database"
 import { formatNumber } from "@/lib/utils/format"
 import { PlayerName } from "@/components/cosmetic/PlayerName"
+import { ClubNamePlate } from "@/components/cosmetic/ClubNamePlate"
 
 type ClubWithExtra = Club & { features: string[] }
 type MemberRow = {
@@ -109,7 +110,9 @@ export function ClubDetail({ club, members, currentUserId, myRole }: Props) {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-xl font-bold truncate">{club.name}</h1>
+                <h1 className="text-xl font-bold truncate">
+                  <ClubNamePlate name={club.name} score={club.club_score} orbit={!!club.subscription_plan} />
+                </h1>
                 {club.tag && (
                   <Badge variant="outline" className="font-mono border-primary/30 text-primary bg-primary/5 shrink-0">
                     [{club.tag}]
