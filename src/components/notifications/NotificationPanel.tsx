@@ -95,6 +95,7 @@ export function NotificationPanel({ userId }: Props) {
     system: "text-muted-foreground bg-secondary",
     tournament_starting: "text-primary bg-primary/10",
     club_joined: "text-purple-400 bg-purple-400/10",
+    club_tier: "text-amber-400 bg-amber-400/10",
   }
 
   return (

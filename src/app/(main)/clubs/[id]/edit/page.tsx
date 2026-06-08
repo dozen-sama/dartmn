@@ -35,6 +35,7 @@ export default function ClubEditPage() {
   const [facebook, setFacebook] = useState("")
   const [instagram, setInstagram] = useState("")
   const [hasSub, setHasSub] = useState(false)
+  const [clubScore, setClubScore] = useState(0)
 
   useEffect(() => {
     async function load() {
@@ -62,6 +63,7 @@ export default function ClubEditPage() {
       setFacebook(data.social_facebook ?? "")
       setInstagram(data.social_instagram ?? "")
       setHasSub(!!data.subscription_plan)
+      setClubScore(data.club_score ?? 0)
       setFetching(false)
     }
     load()
@@ -203,7 +205,7 @@ export default function ClubEditPage() {
         </Card>
 
         {/* Клубын tag өнгө */}
-        <ClubTagPicker clubId={id} tag={tag} initialColor={tagColor} />
+        <ClubTagPicker clubId={id} tag={tag} initialColor={tagColor} clubScore={clubScore} />
 
         {/* Showcase — subscription only */}
         <Card className={cn("border-border/50 bg-card/80", !hasSub && "opacity-60")}>

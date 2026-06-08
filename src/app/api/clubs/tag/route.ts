@@ -1,4 +1,5 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server"
+import { isTagColorUnlocked } from "@/lib/club-tier"
 import { NextRequest, NextResponse } from "next/server"
 
 // Клубын tag өнгө сонгох (Удирдагч/Орлогч). Бүх гишүүний профайлд denormalize.
@@ -17,6 +18,12 @@ export async function POST(req: NextRequest) {
   }
 
   const color = typeof tag_color === "string" && tag_color ? tag_color : null
+
+  // Клубын цолоор нээгдсэн өнгө мөн эсэхийг шалгах
+  const { data: club } = await supabase.from("clubs").select("club_score").eq("id", club_id).single()
+  if (!isTagColorUnlocked(color, club?.club_score ?? 0)) {
+    return NextResponse.json({ error: "Энэ өнгө клубын цолоор хараахан нээгдээгүй байна" }, { status: 403 })
+  }
 
   const admin = await createAdminClient()
   const { error } = await admin.from("clubs").update({ tag_color: color }).eq("id", club_id)
