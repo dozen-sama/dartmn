@@ -40,7 +40,6 @@ export function PlayerCard({ profile: p, achievements, earnedKeys, clubName }: P
   const progress = getProgress(p.rating_points)
   const winRate = p.matches_played > 0 ? (p.matches_won / p.matches_played) * 100 : 0
   const earned = achievements.filter((a) => earnedKeys.includes(a.key))
-  const topAchievements = earned.slice(0, 8)
 
   const now = new Date()
   const dateStr = now.toLocaleDateString("mn-MN", { year: "numeric", month: "long", day: "numeric" })
@@ -177,27 +176,6 @@ export function PlayerCard({ profile: p, achievements, earnedKeys, clubName }: P
             <p className="text-[10px] text-white/40">Achievement</p>
           </div>
         </div>
-
-        {/* Achievements */}
-        {topAchievements.length > 0 && (
-          <div className="px-4 pb-4">
-            <p className="text-[10px] text-white/40 uppercase tracking-wider mb-2">Achievements</p>
-            <div className="flex gap-2 flex-wrap">
-              {topAchievements.map((a) => (
-                <div key={a.key}
-                  className="h-9 w-9 rounded-xl border-2 border-white/20 bg-white/10 flex items-center justify-center text-base"
-                  title={a.name}>
-                  {a.icon}
-                </div>
-              ))}
-              {earned.length > 8 && (
-                <div className="h-9 w-9 rounded-xl border-2 border-white/20 bg-white/10 flex items-center justify-center text-xs font-bold text-white/60">
-                  +{earned.length - 8}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* Footer: DartMN + date */}
         <div className="px-4 pb-3 flex items-center justify-between border-t border-white/10 pt-2.5">

@@ -1,9 +1,8 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import { useRouter } from "next/navigation"
 import {
-  ArrowLeft, Check, Delete, Minus, Plus, RotateCcw, Users, Zap,
+  ArrowLeft, Delete, Minus, Pencil, Plus, RotateCcw, Users, X, Zap,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -19,25 +18,31 @@ import { buttonVariants } from "@/components/ui/button"
 
 type GameMode = "1v1" | "2v2" | "3v3" | "free"
 type GameFormat = "501" | "301" | "170"
-type Phase = "setup" | "bulloff" | "game" | "finished"
+type Phase = "setup" | "bulloff" | "game"
 
-interface Team {
-  name: string
-  players: string[]
-  score: number        // remaining
-  legs: number
-  currentPlayer: number // index in players array
+// Нэг ээлж (visit) — зөвхөн оноо + дарт. Багийн ээлж, bust/checkout, leg-ийг replay-ээр тооцно.
+interface Visit {
+  points: number
+  darts: number
 }
 
-interface Leg {
-  winner: 0 | 1
+// Replay-ийн үр дүн — нэг ээлжийн харагдац (хүснэгтэд)
+interface VisitView {
+  team: number
+  player: number
+  points: number
+  remaining: number  // ээлжийн дараах үлдсэн оноо
+  bust: boolean
+  checkout: boolean
+  idx: number        // visits массив дахь индекс (засахад хэрэгтэй)
 }
+
+interface Roster { name: string; players: string[] }
 
 const QUICK_SCORES = [26, 41, 45, 60, 81, 85, 100, 121, 140, 180]
 const KEYPAD = [[7,8,9],[4,5,6],[1,2,3],["*",0,"DEL"]] as const
 
 export function TogetherGame() {
-  const router = useRouter()
   const [phase, setPhase] = useState<Phase>("setup")
 
   // Setup state
@@ -53,14 +58,13 @@ export function TogetherGame() {
     { name: "Баг 2", players: [""] },
   ])
 
-  // Game state
-  const [gameTeams, setGameTeams] = useState<Team[]>([])
-  const [activeTeam, setActiveTeam] = useState(0)
+  // Game state (event-sourced — visits-ээс бусдыг replay-ээр гаргана)
+  const [roster, setRoster] = useState<Roster[]>([])
+  const [starterTeam, setStarterTeam] = useState(0)
+  const [visits, setVisits] = useState<Visit[]>([])
   const [input, setInput] = useState("")
-  const [legs, setLegs] = useState<Leg[]>([])
   const [dartsUsed, setDartsUsed] = useState(3)
-  const [visitRound, setVisitRound] = useState(1)
-  const [winner, setWinner] = useState<number | null>(null)
+  const [editingIndex, setEditingIndex] = useState<number | null>(null)
 
   const legsToWin = Math.ceil(bestOf / 2)
   const startScore = parseInt(format) || 501
@@ -100,34 +104,90 @@ export function TogetherGame() {
 
   function onBullOffSelect(starterTeamId: string) {
     const starterIdx = teams.findIndex(t => t.name === starterTeamId)
-    const gt: Team[] = teams.map(t => ({
+    setRoster(teams.map(t => ({
       name: t.name,
       players: t.players.map((p, i) => p.trim() || `Тоглогч ${i + 1}`),
-      score: startScore,
-      legs: 0,
-      currentPlayer: 0,
-    }))
-    setGameTeams(gt)
-    setActiveTeam(starterIdx >= 0 ? starterIdx : 0)
+    })))
+    setStarterTeam(starterIdx >= 0 ? starterIdx : 0)
+    setVisits([])
     setInput("")
-    setLegs([])
-    setWinner(null)
+    setEditingIndex(null)
+    setDartsUsed(3)
     setPhase("game")
   }
 
-  // ── Scoreboard logic ───────────────────────────────────
-  const active = gameTeams[activeTeam]
-  const opponent = gameTeams[activeTeam === 0 ? 1 : 0]
+  // ── Replay: visits → бүх төлөв ──────────────────────────
+  function derive() {
+    const sc: [number, number] = [startScore, startScore]
+    const lg: [number, number] = [0, 0]
+    const cp: [number, number] = [0, 0]
+    let active = starterTeam
+    let legStarter = starterTeam
+    let winner: number | null = null
+    const legsView: VisitView[][] = []
+    let curLeg: VisitView[] = []
+    legsView.push(curLeg)
 
+    const pcount = (t: number) => Math.max(1, roster[t]?.players.length ?? 1)
+
+    for (let i = 0; i < visits.length; i++) {
+      if (winner !== null) break
+      const v = visits[i]
+      const before = sc[active]
+      const after = before - v.points
+      // 0 оноо ч bust (ээлж дамжина, оноо хэвээр). Bogey number дээр ҮЛДЭХ нь bust БИШ.
+      const bust = v.points === 0 || after < 0 || after === 1
+      const checkout = !bust && after === 0
+      const remaining = bust ? before : after
+      curLeg.push({ team: active, player: cp[active], points: v.points, remaining, bust, checkout, idx: i })
+
+      if (checkout) {
+        lg[active]++
+        if (lg[active] >= legsToWin) { winner = active; break }
+        // Шинэ leg — оноо reset, тоглогч эргэлдэнэ, эхлэгч солигдоно
+        sc[0] = startScore; sc[1] = startScore
+        cp[0] = (cp[0] + 1) % pcount(0)
+        cp[1] = (cp[1] + 1) % pcount(1)
+        legStarter = active === 0 ? 1 : 0
+        active = legStarter
+        curLeg = []
+        legsView.push(curLeg)
+      } else {
+        sc[active] = remaining
+        cp[active] = (cp[active] + 1) % pcount(active)
+        active = active === 0 ? 1 : 0
+      }
+    }
+
+    const currentRound = Math.floor(curLeg.length / 2) + 1
+    return { scores: sc, legs: lg, currentPlayer: cp, activeTeam: active, winner, legsView, currentRound }
+  }
+
+  const d = derive()
+
+  // Засаж буй ээлжийн контекст (өмнөх үлдсэн оноо)
+  const editingView = editingIndex !== null
+    ? d.legsView.flat().find(v => v.idx === editingIndex) ?? null
+    : null
+  const ctxTeam = editingView ? editingView.team : d.activeTeam
+  const ctxBefore = editingView
+    ? (editingView.bust ? editingView.remaining : editingView.remaining + editingView.points)
+    : d.scores[ctxTeam]
+
+  const hasInput = input !== ""
   const inputNum = parseInt(input) || 0
-  const afterScore = active ? active.score - inputNum : 0
-  const isImpossibleCheckout = afterScore > 1 && IMPOSSIBLE_CHECKOUTS.has(afterScore)
-  const isBust = afterScore < 0 || afterScore === 1 || isImpossibleCheckout
-  const isCheckout = afterScore === 0
-  const checkoutHint = active ? getCheckout(active.score) : null
-  const inputHint = input && !isBust && afterScore > 0 && !IMPOSSIBLE_CHECKOUTS.has(afterScore)
+  const afterScore = ctxBefore - inputNum
+  const isBust = hasInput && (inputNum === 0 || afterScore < 0 || afterScore === 1)
+  const isCheckout = hasInput && !isBust && afterScore === 0
+  const isImpossibleLeave = hasInput && afterScore > 1 && IMPOSSIBLE_CHECKOUTS.has(afterScore)
+  const checkoutHint = ctxBefore <= 170 ? getCheckout(ctxBefore) : null
+  const inputHint = hasInput && !isBust && afterScore > 0 && !IMPOSSIBLE_CHECKOUTS.has(afterScore)
     ? getCheckout(afterScore) : null
-  const isOnImpossiblePosition = active && active.score > 1 && IMPOSSIBLE_CHECKOUTS.has(active.score)
+
+  // Bull finish check (зөвхөн шинэ ээлж дээр)
+  const isAtLimit = limitRoundsEnabled && d.currentRound >= limitRounds && editingIndex === null
+  const bullRequired = isAtLimit && bullFinishAtLimit
+  const isBullInput = inputNum === 50 || inputNum === 25
 
   function keypad(k: number | string) {
     if (k === "DEL") { setInput(p => p.slice(0, -1)); return }
@@ -137,9 +197,8 @@ export function TogetherGame() {
     setInput(next)
   }
 
-  // Keyboard shortcuts — computer дээр оноо оруулах
-  const kbInput = useCallback((d: string) => {
-    setInput(p => { const next = p + d; return parseInt(next) > 180 ? p : next })
+  const kbInput = useCallback((dg: string) => {
+    setInput(p => { const next = p + dg; return parseInt(next) > 180 ? p : next })
   }, [])
   const kbDelete = useCallback(() => setInput(p => p.slice(0, -1)), [])
   const kbClear = useCallback(() => setInput(""), [])
@@ -148,80 +207,57 @@ export function TogetherGame() {
     onDelete: kbDelete,
     onClear: kbClear,
     onSubmit: submit,
-    enabled: phase === "game",
+    enabled: phase === "game" && d.winner === null,
   })
 
-  // Bull finish check
-  const isAtLimit = limitRoundsEnabled && visitRound >= limitRounds
-  const bullRequired = isAtLimit && bullFinishAtLimit
-  const isBullInput = parseInt(input) === 50 || parseInt(input) === 25
-
   function submit() {
-    if (!active) return
-    const score = parseInt(input) || 0
+    if (!hasInput || roster.length !== 2) return
+    const score = inputNum
 
-    if (afterScore < 0 || afterScore === 1) {
-      toast.error("Bust! Оноо хэтэрсэн — ээлж алдагдлаа")
-      setInput(""); return
-    }
-    if (isImpossibleCheckout) {
-      toast.error(`${afterScore} — checkout боломжгүй! (169,168,166,165,163,162,159)`)
-      setInput(""); return
-    }
-
-    // Double-out validation
-    if (isCheckout && doubleOut && !canDoubleOut(active.score)) {
-      toast.error(`${active.score} — double-out боломжгүй утга! Эхлээд доор утга руу ор.`)
-      setInput(""); return
-    }
-
-    // Bull-off at limit check
-    if (bullRequired && isCheckout && !isBullInput) {
-      toast.error("⚠️ Bull Finish шаарддаг! Зөвхөн Bull (50) эсвэл Half (25)")
-      setInput(""); return
-    }
-
-    const newScore = active.score - score
-
-    if (isCheckout) {
-      const newLegs = active.legs + 1
-      if (newLegs >= legsToWin) {
-        setGameTeams(prev => prev.map((t, i) => i === activeTeam ? { ...t, score: 0, legs: newLegs } : t))
-        setWinner(activeTeam)
-        setPhase("finished")
+    // Checkout-ийн хувьд double-out / bull finish шалгана (шинэ ээлж дээр)
+    if (!isBust && afterScore === 0) {
+      if (doubleOut && !canDoubleOut(ctxBefore)) {
+        toast.error(`${ctxBefore} — double-out боломжгүй! Эхлээд доош ор.`)
+        setInput(""); return
+      }
+      if (bullRequired && !isBullInput) {
+        toast.error("⚠️ Bull Finish — зөвхөн 50 эсвэл 25!")
         return
       }
-      toast.success(`${active.name} leg хожлоо!`)
-      setGameTeams(prev => prev.map(t => ({
-        ...t,
-        score: startScore,
-        legs: t === active ? newLegs : t.legs,
-        currentPlayer: (t.currentPlayer + 1) % t.players.length,
-      })))
-      setLegs(prev => [...prev, { winner: activeTeam as 0 | 1 }])
-      setActiveTeam(prev => prev === 0 ? 1 : 0)
-      setVisitRound(1)  // leg шинэ → round reset
+    }
+
+    if (editingIndex !== null) {
+      setVisits(prev => prev.map((v, i) => i === editingIndex ? { points: score, darts: dartsUsed } : v))
+      setEditingIndex(null)
     } else {
-      setGameTeams(prev => prev.map((t, i) => {
-        if (i !== activeTeam) return t
-        return {
-          ...t,
-          score: newScore,
-          currentPlayer: (t.currentPlayer + 1) % t.players.length,
-        }
-      }))
-      // Both teams visited → round++
-      if (activeTeam === 1) setVisitRound(r => r + 1)
-      setActiveTeam(prev => prev === 0 ? 1 : 0)
+      setVisits(prev => [...prev, { points: score, darts: dartsUsed }])
     }
     setInput("")
     setDartsUsed(3)
   }
 
+  function startEdit(v: VisitView) {
+    setEditingIndex(v.idx)
+    setInput(String(v.points))
+    setDartsUsed(visits[v.idx]?.darts ?? 3)
+  }
+  function cancelEdit() {
+    setEditingIndex(null)
+    setInput("")
+    setDartsUsed(3)
+  }
+  function undoLast() {
+    setVisits(prev => prev.slice(0, -1))
+    setEditingIndex(null)
+    setInput("")
+  }
+
   function resetGame() {
     setPhase("setup")
-    setGameTeams([])
-    setWinner(null)
+    setRoster([])
+    setVisits([])
+    setEditingIndex(null)
+    setInput("")
   }
 
   // ── BULL-OFF SCREEN ───────────────────────────────────
@@ -379,36 +415,29 @@ export function TogetherGame() {
   }
 
   // ── FINISHED ───────────────────────────────────────────
-  if (phase === "finished" && winner !== null) {
-    const w = gameTeams[winner]
+  if (phase === "game" && d.winner !== null && roster.length === 2) {
+    const w = roster[d.winner]
     return (
       <div className="max-w-sm mx-auto flex flex-col items-center justify-center min-h-[60vh] gap-6 text-center">
         <div className="text-6xl">🏆</div>
         <div>
           <p className="text-muted-foreground text-sm mb-1">Ялагч</p>
           <h1 className="text-3xl font-black text-[oklch(0.78_0.16_85)]">{w.name}</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            {w.players.join(", ")}
-          </p>
+          <p className="text-muted-foreground text-sm mt-1">{w.players.join(", ")}</p>
         </div>
         <div className="flex items-center gap-6 text-lg font-bold">
-          <span className={cn(winner === 0 ? "text-[oklch(0.78_0.16_85)]" : "text-muted-foreground/50")}>
-            {gameTeams[0]?.legs}
-          </span>
+          <span className={cn(d.winner === 0 ? "text-[oklch(0.78_0.16_85)]" : "text-muted-foreground/50")}>{d.legs[0]}</span>
           <span className="text-muted-foreground text-sm">—</span>
-          <span className={cn(winner === 1 ? "text-[oklch(0.78_0.16_85)]" : "text-muted-foreground/50")}>
-            {gameTeams[1]?.legs}
-          </span>
+          <span className={cn(d.winner === 1 ? "text-[oklch(0.78_0.16_85)]" : "text-muted-foreground/50")}>{d.legs[1]}</span>
         </div>
         <div className="flex gap-3">
-          <button onClick={startGame}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm glow-primary">
-            <RotateCcw className="h-4 w-4" />
-            Дахин тоглох
+          <button onClick={undoLast}
+            className="px-5 py-2.5 rounded-xl border border-border/60 text-sm font-medium hover:bg-secondary transition-colors flex items-center gap-2">
+            <RotateCcw className="h-4 w-4" /> Сүүлийнхийг буцаах
           </button>
           <button onClick={resetGame}
-            className="px-5 py-2.5 rounded-xl border border-border/60 text-sm font-medium hover:bg-secondary transition-colors">
-            Тохиргоо
+            className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm glow-primary">
+            Шинэ тоглолт
           </button>
         </div>
       </div>
@@ -416,40 +445,60 @@ export function TogetherGame() {
   }
 
   // ── SCOREBOARD ─────────────────────────────────────────
-  if (phase === "game" && gameTeams.length === 2) {
-    const t0 = gameTeams[0]
-    const t1 = gameTeams[1]
+  if (phase === "game" && roster.length === 2) {
+    const curLegView = d.legsView[d.legsView.length - 1] ?? []
+    const t0Visits = curLegView.filter(v => v.team === 0)
+    const t1Visits = curLegView.filter(v => v.team === 1)
+    const rounds = Math.max(t0Visits.length, t1Visits.length)
 
-    function TeamScore({ team, idx }: { team: Team; idx: number }) {
-      const isActive = idx === activeTeam
-      const currentPlayerName = team.players[team.currentPlayer]
+    const renderTeam = (idx: number) => {
+      const r = roster[idx]
+      const isActive = idx === d.activeTeam
+      const currentPlayerName = r.players[d.currentPlayer[idx]]
       const tier = isActive ? "border-primary shadow-lg shadow-primary/20" : "border-border/30 opacity-70"
-
       return (
         <div className={cn("flex flex-col rounded-xl border-2 p-3 transition-all", tier, isActive ? "bg-primary/5" : "bg-card/50")}>
-          {/* Team name + leg dots */}
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-semibold truncate">{team.name}</p>
+            <p className="text-xs font-semibold truncate">{r.name}</p>
             <div className="flex gap-1">
               {Array.from({ length: legsToWin }).map((_, i) => (
-                <div key={i} className={cn("h-2 w-2 rounded-full", i < team.legs ? "bg-primary" : "bg-border/50")} />
+                <div key={i} className={cn("h-2 w-2 rounded-full", i < d.legs[idx] ? "bg-primary" : "bg-border/50")} />
               ))}
             </div>
           </div>
-          {/* Remaining score */}
           <p className={cn("text-4xl font-black score-display text-center my-1",
-            isActive ? "text-primary" : "text-foreground/60")}>{team.score}</p>
-          {/* Current player */}
+            isActive ? "text-primary" : "text-foreground/60")}>{d.scores[idx]}</p>
           <p className="text-center text-[11px] text-muted-foreground truncate">
             {isActive ? <span className="text-primary font-semibold">▶ {currentPlayerName}</span> : currentPlayerName}
           </p>
-          {/* Checkout hint */}
-          {isActive && checkoutHint && (
+          {isActive && checkoutHint && editingIndex === null && (
             <div className="mt-1.5 bg-[oklch(0.78_0.16_85)]/15 rounded px-2 py-1 text-center">
               <p className="text-[10px] font-mono text-[oklch(0.78_0.16_85)] font-bold">{checkoutHint}</p>
             </div>
           )}
         </div>
+      )
+    }
+
+    // Хүснэгтийн нэг нүд (нэг ээлж) — дарж засна
+    const renderCell = (v: VisitView | undefined, side: number) => {
+      if (!v) return <div className="flex-1" />
+      const editing = editingIndex === v.idx
+      return (
+        <button onClick={() => startEdit(v)}
+          className={cn("flex-1 flex flex-col items-center py-1.5 rounded-lg transition-colors group",
+            editing ? "bg-primary/20 ring-1 ring-primary" : "hover:bg-secondary/60",
+            side === 0 ? "items-end pr-3" : "items-start pl-3")}>
+          <span className={cn("text-2xl font-black score-display leading-none flex items-center gap-1",
+            v.bust ? "text-destructive/70" : "text-foreground/85")}>
+            {v.checkout && <span className="text-green-400 text-xs">✓</span>}
+            {v.points}
+            <Pencil className="h-2.5 w-2.5 opacity-0 group-hover:opacity-40 transition-opacity" />
+          </span>
+          <span className={cn("text-[10px] font-mono", v.bust ? "text-destructive/60" : "text-muted-foreground/60")}>
+            {v.bust ? "BUST" : v.remaining}
+          </span>
+        </button>
       )
     }
 
@@ -461,37 +510,77 @@ export function TogetherGame() {
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="flex-1 text-center">
-            <p className="text-xs text-muted-foreground">{format} · BO{bestOf}</p>
+            <p className="text-xs text-muted-foreground">{format} · BO{bestOf} · Leg {d.legs[0] + d.legs[1] + 1}</p>
             {limitRoundsEnabled && (
               <p className={cn("text-[10px] font-semibold",
                 isAtLimit ? "text-destructive" : "text-muted-foreground/60")}>
-                Round {visitRound}/{limitRounds}{isAtLimit && bullFinishAtLimit ? " 🎯" : ""}
+                Round {d.currentRound}/{limitRounds}{isAtLimit && bullFinishAtLimit ? " 🎯" : ""}
               </p>
             )}
           </div>
           <div className="flex items-center gap-1.5">
-            <kbd className="hidden sm:inline text-[9px] border border-border/50 rounded px-1 py-0.5 bg-secondary/50 text-muted-foreground">0-9</kbd>
-            <kbd className="hidden sm:inline text-[9px] border border-border/50 rounded px-1 py-0.5 bg-secondary/50 text-muted-foreground">↵</kbd>
+            {visits.length > 0 && editingIndex === null && (
+              <button onClick={undoLast} title="Сүүлийнхийг буцаах"
+                className="text-muted-foreground hover:text-foreground">
+                <RotateCcw className="h-4 w-4" />
+              </button>
+            )}
             <Badge className="bg-primary/15 text-primary border-primary/30 pulse-live text-xs">LIVE</Badge>
           </div>
         </div>
 
         {/* Scores */}
         <div className="grid grid-cols-2 gap-2">
-          <TeamScore team={t0} idx={0} />
-          <TeamScore team={t1} idx={1} />
+          {renderTeam(0)}
+          {renderTeam(1)}
         </div>
+
+        {/* Turn history table */}
+        {rounds > 0 && (
+          <Card className="border-border/40 bg-card/60">
+            <CardContent className="p-2">
+              <div className="flex items-center text-[9px] uppercase tracking-wider text-muted-foreground/50 px-1 pb-1">
+                <span className="flex-1 text-right pr-3">{roster[0].name}</span>
+                <span className="w-7 text-center">#</span>
+                <span className="flex-1 text-left pl-3">{roster[1].name}</span>
+              </div>
+              <div className="max-h-44 overflow-y-auto space-y-0.5">
+                {Array.from({ length: rounds }).map((_, i) => (
+                  <div key={i} className="flex items-center border-t border-border/20 first:border-0">
+                    {renderCell(t0Visits[i], 0)}
+                    <span className="w-7 text-center text-xs font-bold text-muted-foreground/40">{i + 1}</span>
+                    {renderCell(t1Visits[i], 1)}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Editing banner */}
+        {editingIndex !== null && (
+          <div className="flex items-center justify-between bg-primary/10 border border-primary/30 rounded-lg px-3 py-2">
+            <p className="text-xs font-semibold text-primary flex items-center gap-1.5">
+              <Pencil className="h-3.5 w-3.5" /> Оноо засаж байна
+            </p>
+            <button onClick={cancelEdit} className="text-muted-foreground hover:text-foreground">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
 
         {/* Active player */}
-        <div className="flex items-center gap-2 px-1">
-          <span className="h-2 w-2 rounded-full bg-primary animate-pulse shrink-0" />
-          <p className="text-sm font-semibold text-primary">
-            {gameTeams[activeTeam]?.name} — {gameTeams[activeTeam]?.players[gameTeams[activeTeam]?.currentPlayer]}
-          </p>
-        </div>
+        {editingIndex === null && (
+          <div className="flex items-center gap-2 px-1">
+            <span className="h-2 w-2 rounded-full bg-primary animate-pulse shrink-0" />
+            <p className="text-sm font-semibold text-primary truncate">
+              {roster[d.activeTeam].name} — {roster[d.activeTeam].players[d.currentPlayer[d.activeTeam]]}
+            </p>
+          </div>
+        )}
 
         {/* Bull finish warning */}
-        {bullRequired && (
+        {bullRequired && editingIndex === null && (
           <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2">
             <span className="text-lg">🎯</span>
             <p className="text-xs font-bold text-destructive">Bull Finish — зөвхөн 50 эсвэл 25!</p>
@@ -512,10 +601,11 @@ export function TogetherGame() {
               <div className="text-right">
                 {isBust && <Badge className="bg-destructive/15 text-destructive border-destructive/30">BUST!</Badge>}
                 {isCheckout && <Badge className="bg-green-500/15 text-green-400 border-green-500/30">CHECKOUT!</Badge>}
-                {!isBust && !isCheckout && input && afterScore > 0 && (
+                {!isBust && !isCheckout && hasInput && afterScore > 0 && (
                   <div>
                     <p className="text-sm font-bold score-display">{afterScore}</p>
                     {inputHint && <p className="text-[10px] font-mono text-[oklch(0.78_0.16_85)]">{inputHint}</p>}
+                    {isImpossibleLeave && <p className="text-[10px] font-mono text-muted-foreground/60">энд checkout үгүй</p>}
                   </div>
                 )}
               </div>
@@ -526,10 +616,13 @@ export function TogetherGame() {
               label={isCheckout ? "Хэдэн дартаар checkout хийв?" : "Хэдэн дарт шидэв?"}
               className="mb-2"
             />
-            <button onClick={submit} disabled={!input || isBust}
+            <button onClick={submit} disabled={!hasInput}
               className={cn("w-full py-2.5 rounded-lg font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed",
-                isCheckout ? "bg-green-600 hover:bg-green-700 text-white" : "bg-primary text-primary-foreground glow-primary")}>
-              {isCheckout ? "✓ Checkout!" : "Оруулах"}
+                editingIndex !== null ? "bg-primary text-primary-foreground glow-primary" :
+                isCheckout ? "bg-green-600 hover:bg-green-700 text-white" :
+                isBust ? "bg-destructive text-white" :
+                "bg-primary text-primary-foreground glow-primary")}>
+              {editingIndex !== null ? "Засах ✓" : isCheckout ? "✓ Checkout!" : isBust ? "Bust — ээлж алдах" : "Оруулах"}
             </button>
           </CardContent>
         </Card>
