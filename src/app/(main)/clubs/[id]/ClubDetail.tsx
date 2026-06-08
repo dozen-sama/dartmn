@@ -35,7 +35,7 @@ interface Props {
   myRole: string | null
 }
 
-const roleLabel: Record<string, string> = { owner: "Эзэмшигч", admin: "Админ", member: "Гишүүн" }
+const roleLabel: Record<string, string> = { owner: "Удирдагч", admin: "Орлогч", member: "Гишүүн" }
 const roleColor: Record<string, string> = {
   owner: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
   admin: "bg-primary/15 text-primary border-primary/30",
@@ -74,6 +74,15 @@ export function ClubDetail({ club, members, currentUserId, myRole }: Props) {
     toast.success("Холбоос хуулагдлаа")
   }
 
+  async function changeMemberRole(playerId: string, role: "admin" | "member") {
+    const res = await fetch("/api/clubs/member-role", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ club_id: club.id, player_id: playerId, role }),
+    })
+    if (res.ok) { toast.success("Цол шинэчлэгдлээ"); router.refresh() }
+    else { const d = await res.json().catch(() => ({})); toast.error(d.error ?? "Алдаа гарлаа") }
+  }
+
   return (
     <div className="max-w-3xl mx-auto space-y-5">
       {/* Header */}
@@ -110,13 +119,9 @@ export function ClubDetail({ club, members, currentUserId, myRole }: Props) {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-xl font-bold truncate">
-                  <ClubNamePlate name={club.name} score={club.club_score} orbit={!!club.subscription_plan} />
-                </h1>
+                <h1 className="text-xl font-bold truncate">{club.name}</h1>
                 {club.tag && (
-                  <Badge variant="outline" className="font-mono border-primary/30 text-primary bg-primary/5 shrink-0">
-                    [{club.tag}]
-                  </Badge>
+                  <ClubNamePlate name={club.tag} score={club.club_score} orbit={!!club.subscription_plan} className="font-mono shrink-0" />
                 )}
                 {club.is_verified && (
                   <Badge className="bg-blue-500/15 text-blue-400 border-blue-500/30 shrink-0 text-xs">
@@ -217,16 +222,24 @@ export function ClubDetail({ club, members, currentUserId, myRole }: Props) {
                 const p = m.profiles
                 if (!p) return null
                 const tier = getTier(p.rating_points)
+                const canManage = myRole === "owner" && m.role !== "owner" && p.id !== currentUserId
                 return (
-                  <Link key={i} href={`/profile/${p.username}`}
+                  <div key={i}
                     className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/40 transition-colors border-b border-border/20 last:border-0">
-                    <div className="flex-1 min-w-0">
+                    <Link href={`/profile/${p.username}`} className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         {club.tag && <span className="text-[10px] font-mono text-primary/70">[{club.tag}]</span>}
                         <div className="text-sm font-medium truncate"><PlayerName p={p} /></div>
                       </div>
                       <p className="text-xs text-muted-foreground">@{p.username} · <span className={tier.color}>{tier.icon} {tier.tier}</span></p>
-                    </div>
+                    </Link>
+                    {canManage && (
+                      m.role === "admin"
+                        ? <button onClick={() => changeMemberRole(p.id, "member")}
+                            className="text-[10px] rounded border border-border/60 px-2 py-1 hover:bg-secondary transition-colors shrink-0">Цол хураах</button>
+                        : <button onClick={() => changeMemberRole(p.id, "admin")}
+                            className="text-[10px] rounded border border-primary/40 text-primary px-2 py-1 hover:bg-primary/10 transition-colors shrink-0">Орлогч болгох</button>
+                    )}
                     <div className="text-right shrink-0">
                       <Badge variant="outline" className={cn("text-[10px]", roleColor[m.role])}>
                         {m.role === "owner" && <Shield className="h-2.5 w-2.5 mr-1" />}
@@ -234,7 +247,7 @@ export function ClubDetail({ club, members, currentUserId, myRole }: Props) {
                       </Badge>
                       <p className="text-xs text-muted-foreground mt-0.5">{formatNumber(p.rating_points)} pts</p>
                     </div>
-                  </Link>
+                  </div>
                 )
               })}
             </CardContent>

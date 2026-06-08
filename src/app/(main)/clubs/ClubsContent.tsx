@@ -105,7 +105,10 @@ export function ClubsContent({ clubs }: Props) {
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0 mt-8">
-                      <h3 className="font-semibold truncate"><ClubNamePlate name={club.name} score={club.club_score} orbit={!!club.subscription_plan} /></h3>
+                      <h3 className="font-semibold truncate">{club.name}</h3>
+                      {club.tag && (
+                        <ClubNamePlate name={club.tag} score={club.club_score} orbit={!!club.subscription_plan} className="font-mono text-xs mt-1" />
+                      )}
                       {club.city && (
                         <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                           <MapPin className="h-3 w-3" />

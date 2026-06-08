@@ -42,7 +42,9 @@ export default function ClubEditPage() {
 
       const { data } = await supabase.from("clubs").select("*").eq("id", id).single()
       if (!data) { router.push("/clubs"); return }
-      if (data.owner_id !== user.id) { router.push(`/clubs/${id}`); return }
+      // Удирдагч (эзэн) эсвэл Орлогч (admin) засаж болно
+      const { data: mem } = await supabase.from("club_members").select("role").eq("club_id", id).eq("player_id", user.id).maybeSingle()
+      if (data.owner_id !== user.id && mem?.role !== "admin") { router.push(`/clubs/${id}`); return }
 
       setName(data.name)
       setTag(data.tag ?? "")
