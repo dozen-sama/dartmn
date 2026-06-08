@@ -76,7 +76,7 @@ interface LocalGameStore {
 
   // Match management
   startMatch: (sessionId: string, matchId: string) => void
-  recordThrow: (sessionId: string, matchId: string, legIndex: number, playerId: string, score: number, dartsUsed: number) => void
+  recordThrow: (sessionId: string, matchId: string, legIndex: number, playerId: string, score: number, dartsUsed: number, bust?: boolean) => void
   completeLeg: (sessionId: string, matchId: string, legIndex: number, winnerId: string) => void
   completeMatch: (sessionId: string, matchId: string, winnerId: string) => void
   addSwissRound: (sessionId: string) => void
@@ -363,7 +363,7 @@ export const useLocalGame = create<LocalGameStore>()(
         if (updated) broadcastSession(updated)
       },
 
-      recordThrow: (sessionId, matchId, legIndex, playerId, score, dartsUsed) => {
+      recordThrow: (sessionId, matchId, legIndex, playerId, score, dartsUsed, bust = false) => {
         set((s) => {
           const session = { ...s.sessions[sessionId] }
           if (!session) return s
@@ -380,10 +380,12 @@ export const useLocalGame = create<LocalGameStore>()(
             }
             const leg = { ...legs[legIndex] }
             const playerThrows = leg.throws[playerId] ?? []
+            // bust-ийн оноо тоологдохгүй — өмнөх bust бус онооноос л үлдэгдлийг бодно
+            const preTurn = session.startScore - playerThrows.reduce((a, t) => a + (t.bust ? 0 : t.score), 0)
             const remaining = (session.format === "cricket" || session.format === "cutthroat")
               ? 0
-              : session.startScore - playerThrows.reduce((a, t) => a + t.score, 0) - score
-            const newThrow = { score, remaining, darts: dartsUsed }
+              : bust ? preTurn : preTurn - score
+            const newThrow = { score, remaining, darts: dartsUsed, bust }
             leg.throws = { ...leg.throws, [playerId]: [...playerThrows, newThrow] }
             legs[legIndex] = leg
             return { ...m, legs }

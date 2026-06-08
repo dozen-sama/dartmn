@@ -84,13 +84,14 @@ export function LiveView() {
   const p2Throws: any[] = (currentLeg as any).throws?.[p2Id] ?? []
   const maxVisits = Math.max(p1Throws.length, p2Throws.length)
 
+  // bust онооны тоологдохгүй
   function getRemaining(throws: any[]): number {
-    return startScore - throws.reduce((a: number, t: any) => a + (t.score ?? 0), 0)
+    return startScore - throws.reduce((a: number, t: any) => a + (t.bust ? 0 : (t.score ?? 0)), 0)
   }
 
   function getAverage(playerId: string): string {
     const all: number[] = match!.legs.flatMap((leg) =>
-      ((leg as any)?.throws?.[playerId] ?? []).map((t: any) => t.score ?? 0)
+      ((leg as any)?.throws?.[playerId] ?? []).map((t: any) => t.bust ? 0 : (t.score ?? 0))
     )
     if (!all.length) return "—"
     return (all.reduce((a, s) => a + s, 0) / all.length * 3).toFixed(1)
@@ -98,7 +99,7 @@ export function LiveView() {
 
   function getCurrentAvg(throws: any[]): string {
     if (!throws.length) return "—"
-    const sum = throws.reduce((a: number, t: any) => a + (t.score ?? 0), 0)
+    const sum = throws.reduce((a: number, t: any) => a + (t.bust ? 0 : (t.score ?? 0)), 0)
     return (sum / throws.length * 3).toFixed(1)
   }
 
@@ -132,8 +133,8 @@ export function LiveView() {
   for (let i = 0; i < maxVisits; i++) {
     const t1 = p1Throws[i]
     const t2 = p2Throws[i]
-    const r1 = t1 ? startScore - p1Throws.slice(0, i + 1).reduce((a: number, t: any) => a + t.score, 0) : undefined
-    const r2 = t2 ? startScore - p2Throws.slice(0, i + 1).reduce((a: number, t: any) => a + t.score, 0) : undefined
+    const r1 = t1 ? startScore - p1Throws.slice(0, i + 1).reduce((a: number, t: any) => a + (t.bust ? 0 : t.score), 0) : undefined
+    const r2 = t2 ? startScore - p2Throws.slice(0, i + 1).reduce((a: number, t: any) => a + (t.bust ? 0 : t.score), 0) : undefined
     if (t1) visitRows.push({ dartNo: (i * 2 + 1) * 3, p1s: t1.score, p1r: r1 })
     if (t2) visitRows.push({ dartNo: (i + 1) * 6, p2s: t2.score, p2r: r2 })
   }

@@ -158,6 +158,14 @@ const CHECKOUTS: Record<number, string> = {
 // Impossible checkouts — these scores cannot be finished with any combination of 3 darts ending on a double
 export const IMPOSSIBLE_CHECKOUTS = new Set([169, 168, 166, 165, 163, 162, 159])
 
+// Totals that CANNOT be scored with 3 darts (each dart ≤ 60). Entering one is a mis-entry.
+export const IMPOSSIBLE_VISIT_SCORES = new Set([163, 166, 169, 172, 173, 175, 176, 178, 179])
+
+// A single 3-dart visit total must be 0..180 and not one of the impossible totals.
+export function isPossibleVisitScore(n: number): boolean {
+  return Number.isInteger(n) && n >= 0 && n <= 180 && !IMPOSSIBLE_VISIT_SCORES.has(n)
+}
+
 // Valid double scores: D1(2)..D20(40) + Bull(50)
 export const VALID_DOUBLES = new Set([
   2, 4, 6, 8, 10, 12, 14, 16, 18, 20,
@@ -177,15 +185,46 @@ export function getImpossibleCheckoutWarning(afterScore: number): string | null 
   return null
 }
 
-// Check if a score could be a valid double-out checkout
-// Since we enter total visit score (not per dart), we check:
-// remaining must be achievable as a double (or combination ending on double)
+// Whether `remaining` can be finished on a double in ≤3 darts.
+// Every number in [2,170] is a valid double-out finish EXCEPT the impossible set.
+// NOTE: do NOT derive this from the CHECKOUTS suggestion table above — that table
+// has gaps (e.g. odd numbers 3..19 such as 19 = S3 D8) and would wrongly reject them.
 export function canDoubleOut(remaining: number): boolean {
-  if (remaining === 0) return false
-  if (IMPOSSIBLE_CHECKOUTS.has(remaining)) return false
-  if (remaining === 1) return false
-  // Any checkout in the table is achievable with double-out
-  return CHECKOUTS[remaining] !== undefined
+  return remaining >= 2 && remaining <= 170 && !IMPOSSIBLE_CHECKOUTS.has(remaining)
+}
+
+export interface TurnRules {
+  doubleOut: boolean
+  // House rule: at the round limit the leg must be finished on the bull (25 or 50).
+  requireBullFinish?: boolean
+}
+
+export type TurnOutcome =
+  | { type: "score"; remaining: number }    // normal turn — score subtracted, play passes on
+  | { type: "bust"; remaining: number }      // foul — score reverts to start-of-turn value
+  | { type: "checkout"; remaining: 0 }       // leg won
+
+// Single source of truth for classifying an x01 turn from the total visit score.
+// Used by BOTH the live replay engine and the input preview so they can never disagree.
+// `before` is the remaining score at the start of the turn; `points` is the visit total.
+export function classifyTurn(before: number, points: number, rules: TurnRules): TurnOutcome {
+  const after = before - points
+  // Overthrow → bust (score reverts).
+  if (after < 0) return { type: "bust", remaining: before }
+  if (after === 0) {
+    // Bull-finish house rule overrides double-out: must land exactly on 25 or 50.
+    if (rules.requireBullFinish) {
+      return points === 25 || points === 50
+        ? { type: "checkout", remaining: 0 }
+        : { type: "bust", remaining: before }
+    }
+    // Reached 0 from a number you cannot finish on a double → bust.
+    if (rules.doubleOut && !canDoubleOut(before)) return { type: "bust", remaining: before }
+    return { type: "checkout", remaining: 0 }
+  }
+  // Left exactly 1 with double-out on → cannot finish (min double is D1 = 2) → bust.
+  if (rules.doubleOut && after === 1) return { type: "bust", remaining: before }
+  return { type: "score", remaining: after }
 }
 
 // Score segment parsing: "T20" → 60, "D16" → 32, "Bull" → 50, "S15" → 15

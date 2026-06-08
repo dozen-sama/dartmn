@@ -25,6 +25,7 @@ export interface LegThrow {
   score: number
   remaining: number
   darts: number
+  bust?: boolean   // bust бол оноо тоологдохгүй (remaining ээлжийн эхэнд буцна)
 }
 
 export interface LocalLeg {

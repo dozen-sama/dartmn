@@ -7,7 +7,7 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { useLocalGame } from "@/lib/local-game/store"
-import { getCheckout, IMPOSSIBLE_CHECKOUTS, VALID_DOUBLES, canDoubleOut } from "@/lib/local-game/checkouts"
+import { getCheckout, IMPOSSIBLE_CHECKOUTS, VALID_DOUBLES, classifyTurn, isPossibleVisitScore } from "@/lib/local-game/checkouts"
 import { useScoreboardKeyboard } from "@/hooks/useScoreboardKeyboard"
 import { BullOff } from "@/components/game/BullOff"
 import { toast } from "sonner"
@@ -54,7 +54,7 @@ export function Scoreboard() {
   function getRemaining(playerId: string): number {
     if (!session || session.format === "cricket") return 0
     const throws = (currentLeg as any).throws?.[playerId] ?? []
-    return session.startScore - throws.reduce((a: number, t: any) => a + t.score, 0)
+    return session.startScore - throws.reduce((a: number, t: any) => a + (t.bust ? 0 : t.score), 0)
   }
 
   const activePlayerId = activePlayer === 0 ? p1Id : p2Id
@@ -62,11 +62,14 @@ export function Scoreboard() {
   const inputNum   = parseInt(input) || 0
   const afterScore = remaining - inputNum
 
-  const isImpossibleCheckout = afterScore > 1 && IMPOSSIBLE_CHECKOUTS.has(afterScore)
-  const isBust               = afterScore < 0 || afterScore === 1 || isImpossibleCheckout
-  const isCheckoutScore      = afterScore === 0
   const doubleOutEnabled     = session?.doubleOut ?? true
   const doubleInEnabled      = session?.doubleIn ?? false
+  const atLimit              = limitRounds !== null && visitRound >= limitRounds
+  const requireBullFinish    = atLimit && (session?.bullFinishAtLimit ?? false)
+  // Engine-ийн нэг эх сурвалж — bust/checkout-ийг classifyTurn шийднэ
+  const outcome = input !== "" ? classifyTurn(remaining, inputNum, { doubleOut: doubleOutEnabled, requireBullFinish }) : null
+  const isBust               = outcome?.type === "bust"
+  const isCheckoutScore      = outcome?.type === "checkout"
   const isPlayerOpen = (id: string) => !doubleInEnabled || !!playerOpened[id]
 
   const checkoutHint = getCheckout(remaining)
@@ -75,17 +78,18 @@ export function Scoreboard() {
 
   // ── Visit history: alternating P1, P2 per row ──
   const maxVisits = Math.max(p1Throws.length, p2Throws.length)
-  type VisitRow = { dartNo: number; p1score?: number; p1rem?: number; p2score?: number; p2rem?: number }
+  type VisitRow = { dartNo: number; p1score?: number; p1rem?: number; p1bust?: boolean; p2score?: number; p2rem?: number; p2bust?: boolean }
   const visitRows: VisitRow[] = []
+  const sumNonBust = (arr: any[], end: number) => arr.slice(0, end).reduce((a: number, t: any) => a + (t.bust ? 0 : t.score), 0)
   for (let i = 0; i < maxVisits; i++) {
     const t1 = p1Throws[i]
     const t2 = p2Throws[i]
-    const p1rem = t1 ? startScore - p1Throws.slice(0, i + 1).reduce((a: number, t: any) => a + t.score, 0) : undefined
-    const p2rem = t2 ? startScore - p2Throws.slice(0, i + 1).reduce((a: number, t: any) => a + t.score, 0) : undefined
+    const p1rem = t1 ? startScore - sumNonBust(p1Throws, i + 1) : undefined
+    const p2rem = t2 ? startScore - sumNonBust(p2Throws, i + 1) : undefined
     // P1 visit row
-    if (t1) visitRows.push({ dartNo: (i * 2 + 1) * 3, p1score: t1.score, p1rem })
+    if (t1) visitRows.push({ dartNo: (i * 2 + 1) * 3, p1score: t1.score, p1rem, p1bust: !!t1.bust })
     // P2 visit row
-    if (t2) visitRows.push({ dartNo: (i + 1) * 6, p2score: t2.score, p2rem })
+    if (t2) visitRows.push({ dartNo: (i + 1) * 6, p2score: t2.score, p2rem, p2bust: !!t2.bust })
   }
   const totalDarts = (p1Throws.length + p2Throws.length) * 3
 
@@ -110,7 +114,9 @@ export function Scoreboard() {
   function submitScore() {
     if (!session || !match) return
     const score = parseInt(input)
-    if (isNaN(score) || score < 0 || score > 180) return
+    if (isNaN(score) || !isPossibleVisitScore(score)) {
+      toast.error("3 дартаар гаргах боломжгүй оноо"); setInput(""); return
+    }
 
     if (doubleInEnabled && !isPlayerOpen(activePlayerId)) {
       if (VALID_DOUBLES.has(score)) {
@@ -124,13 +130,10 @@ export function Scoreboard() {
         return
       }
     }
-    if (afterScore < 0 || afterScore === 1)   { toast.error("Bust!"); setInput(""); return }
-    if (isImpossibleCheckout)                  { toast.error(`${afterScore} — checkout боломжгүй`); setInput(""); return }
-    if (isCheckoutScore && doubleOutEnabled && !canDoubleOut(remaining)) {
-      toast.error(`${remaining} — double-out боломжгүй`); setInput(""); return
-    }
 
-    recordThrow(sessionId, matchId, currentLegIndex, activePlayerId, score, dartsUsed)
+    // bust/checkout/энгийн оноо — бүгдийг classifyTurn (isBust/isCheckoutScore) шийднэ.
+    // Bust ч бүртгэгдэж, ээлж дамжина (оноо нь revert).
+    recordThrow(sessionId, matchId, currentLegIndex, activePlayerId, score, dartsUsed, isBust)
 
     if (isCheckoutScore) {
       completeLeg(sessionId, matchId, currentLegIndex, activePlayerId)
@@ -146,6 +149,7 @@ export function Scoreboard() {
       setActivePlayer(p => p === 0 ? 1 : 0)
       setVisitRound(1)
     } else {
+      if (isBust) toast.error("Bust!")
       setActivePlayer(p => p === 0 ? 1 : 0)
       if (activePlayer === 1) {
         const nr = visitRound + 1
@@ -318,7 +322,7 @@ export function Scoreboard() {
                 {/* P1 side */}
                 <div className="grid grid-cols-2">
                   <div className={cn("px-2 py-1.5 text-center font-mono border-r border-border/10",
-                    isP1 ? row.p1score! >= 100 ? "text-primary font-bold" : "text-foreground" : "text-muted-foreground/20")}>
+                    isP1 ? row.p1bust ? "text-destructive/50 line-through" : row.p1score! >= 100 ? "text-primary font-bold" : "text-foreground" : "text-muted-foreground/20")}>
                     {isP1 ? row.p1score : "·"}
                   </div>
                   <div className="px-2 py-1.5 text-center font-mono text-muted-foreground/70">
@@ -335,7 +339,7 @@ export function Scoreboard() {
                     {!isP1 && row.p2rem !== undefined ? row.p2rem : ""}
                   </div>
                   <div className={cn("px-2 py-1.5 text-center font-mono",
-                    !isP1 ? row.p2score! >= 100 ? "text-primary font-bold" : "text-foreground" : "text-muted-foreground/20")}>
+                    !isP1 ? row.p2bust ? "text-destructive/50 line-through" : row.p2score! >= 100 ? "text-primary font-bold" : "text-foreground" : "text-muted-foreground/20")}>
                     {!isP1 ? row.p2score : "·"}
                   </div>
                 </div>

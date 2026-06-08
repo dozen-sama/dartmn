@@ -36,7 +36,7 @@ function MatchPreview({ match, session }: { match: LocalMatch; session: LocalSes
 
   function rem(pid: string) {
     const throws = (leg as any).throws?.[pid] ?? []
-    return startScore - throws.reduce((a: number, t: any) => a + (t.score ?? 0), 0)
+    return startScore - throws.reduce((a: number, t: any) => a + (t.bust ? 0 : (t.score ?? 0)), 0)
   }
 
   return (

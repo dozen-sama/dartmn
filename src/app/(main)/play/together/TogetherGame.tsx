@@ -7,7 +7,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { getCheckout, canDoubleOut } from "@/lib/local-game/checkouts"
+import { getCheckout, classifyTurn, isPossibleVisitScore } from "@/lib/local-game/checkouts"
 import { useScoreboardKeyboard } from "@/hooks/useScoreboardKeyboard"
 import { BullOff } from "@/components/game/BullOff"
 import { VisitLimitPicker } from "@/components/game/VisitLimitPicker"
@@ -136,11 +136,16 @@ export function TogetherGame() {
       if (winner !== null) break
       const v = visits[i]
       const before = sc[active]
-      const after = before - v.points
-      // 0 оноо ч bust (ээлж дамжина, оноо хэвээр). Bogey number дээр ҮЛДЭХ нь bust БИШ.
-      const bust = v.points === 0 || after < 0 || after === 1
-      const checkout = !bust && after === 0
-      const remaining = bust ? before : after
+      // Энэ ээлжийн round (bull-finish house rule-д). curLeg-д хоёр баг ээлжлэн ордог.
+      const roundForThis = Math.floor(curLeg.length / 2) + 1
+      const atLimit = limitRoundsEnabled && roundForThis >= limitRounds
+      const outcome = classifyTurn(before, v.points, {
+        doubleOut,
+        requireBullFinish: atLimit && bullFinishAtLimit,
+      })
+      const bust = outcome.type === "bust"
+      const checkout = outcome.type === "checkout"
+      const remaining = outcome.remaining  // score→after, bust→before, checkout→0
       curLeg.push({ team: active, player: cp[active], points: v.points, remaining, bust, checkout, idx: i })
 
       if (checkout) {
@@ -176,17 +181,32 @@ export function TogetherGame() {
     ? (editingView.bust ? editingView.remaining : editingView.remaining + editingView.points)
     : d.scores[ctxTeam]
 
+  // Засаж буй ээлжийн round (bull-finish дүрэм энэ ээлжид мөрдөгдөх эсэхэд)
+  let editRound: number | null = null
+  if (editingIndex !== null) {
+    for (const leg of d.legsView) {
+      const pos = leg.findIndex(v => v.idx === editingIndex)
+      if (pos >= 0) { editRound = Math.floor(pos / 2) + 1; break }
+    }
+  }
+  const ctxAtLimit = limitRoundsEnabled && (editingView
+    ? editRound !== null && editRound >= limitRounds
+    : d.currentRound >= limitRounds)
+
   const hasInput = input !== ""
   const inputNum = parseInt(input) || 0
   const afterScore = ctxBefore - inputNum
-  const isBust = hasInput && (inputNum === 0 || afterScore < 0 || afterScore === 1)
-  const isCheckout = hasInput && !isBust && afterScore === 0
+  // Engine-тэй ижил логик — preview ба replay хэзээ ч зөрөхгүй
+  const preview = hasInput
+    ? classifyTurn(ctxBefore, inputNum, { doubleOut, requireBullFinish: ctxAtLimit && bullFinishAtLimit })
+    : null
+  const isBust = preview?.type === "bust"
+  const isCheckout = preview?.type === "checkout"
   const checkoutHint = ctxBefore <= 170 ? getCheckout(ctxBefore) : null
 
-  // Bull finish check (зөвхөн шинэ ээлж дээр)
+  // Bull finish сануулга (зөвхөн шинэ ээлж дээр харуулна)
   const isAtLimit = limitRoundsEnabled && d.currentRound >= limitRounds && editingIndex === null
   const bullRequired = isAtLimit && bullFinishAtLimit
-  const isBullInput = inputNum === 50 || inputNum === 25
 
   function keypad(k: number | string) {
     if (k === "DEL") { freshRef.current = false; setInput(p => p.slice(0, -1)); return }
@@ -214,16 +234,11 @@ export function TogetherGame() {
     if (!hasInput || roster.length !== 2) return
     const score = inputNum
 
-    // Checkout-ийн хувьд double-out / bull finish шалгана (шинэ ээлж дээр)
-    if (!isBust && afterScore === 0) {
-      if (doubleOut && !canDoubleOut(ctxBefore)) {
-        toast.error(`${ctxBefore} — double-out боломжгүй! Эхлээд доош ор.`)
-        setInput(""); return
-      }
-      if (bullRequired && !isBullInput) {
-        toast.error("⚠️ Bull Finish — зөвхөн 50 эсвэл 25!")
-        return
-      }
+    // 3 дартаар гаргах боломжгүй оноо бол хорино (mis-entry). Bust/checkout-ийг
+    // classifyTurn (derive + preview) шийднэ — энд давхар шалгахгүй.
+    if (!isPossibleVisitScore(score)) {
+      toast.error(`${score} — 3 дартаар гаргах боломжгүй оноо. Дахин шалгана уу.`)
+      return
     }
 
     if (editingIndex !== null) {
@@ -459,9 +474,13 @@ export function TogetherGame() {
     const activeRound = (d.activeTeam === 0 ? t0Visits.length : t1Visits.length) + 1
     const rowCount = Math.max(t0Visits.length, t1Visits.length, activeRound)
 
-    // Багийн leg-ийн дундаж (3 дартын)
-    const statAvg = (vs: VisitView[]) =>
-      vs.length ? Math.round(vs.reduce((a, v) => a + (v.bust ? 0 : v.points), 0) / vs.length) : 0
+    // Багийн leg-ийн жинхэнэ 3 дартын дундаж (= нийт оноо / шидсэн дарт × 3).
+    // Bust → 0 оноо, гэхдээ шидсэн дарт тоологдоно. Checkout → бодит дарт (1–3).
+    const statAvg = (vs: VisitView[]) => {
+      const darts = vs.reduce((a, v) => a + (visits[v.idx]?.darts ?? 3), 0)
+      const pts = vs.reduce((a, v) => a + (v.bust ? 0 : v.points), 0)
+      return darts ? Math.round((pts / darts) * 3) : 0
+    }
     const avg0 = statAvg(t0Visits)
     const avg1 = statAvg(t1Visits)
 
