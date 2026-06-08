@@ -13,6 +13,7 @@ import { ImageUpload } from "@/components/ui/image-upload"
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
+import { ClubTagPicker } from "./ClubTagPicker"
 
 export default function ClubEditPage() {
   const { id } = useParams<{ id: string }>()
@@ -22,6 +23,7 @@ export default function ClubEditPage() {
 
   const [name, setName] = useState("")
   const [tag, setTag] = useState("")
+  const [tagColor, setTagColor] = useState<string | null>(null)
   const [tagline, setTagline] = useState("")
   const [description, setDescription] = useState("")
   const [city, setCity] = useState("")
@@ -48,6 +50,7 @@ export default function ClubEditPage() {
 
       setName(data.name)
       setTag(data.tag ?? "")
+      setTagColor(data.tag_color ?? null)
       setTagline(data.tagline ?? "")
       setDescription(data.description ?? "")
       setCity(data.city ?? "")
@@ -198,6 +201,9 @@ export default function ClubEditPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Клубын tag өнгө */}
+        <ClubTagPicker clubId={id} tag={tag} initialColor={tagColor} />
 
         {/* Showcase — subscription only */}
         <Card className={cn("border-border/50 bg-card/80", !hasSub && "opacity-60")}>

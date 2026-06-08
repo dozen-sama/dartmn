@@ -121,7 +121,7 @@ export function ClubDetail({ club, members, currentUserId, myRole }: Props) {
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl font-bold truncate">{club.name}</h1>
                 {club.tag && (
-                  <ClubNamePlate name={club.tag} score={club.club_score} orbit={!!club.subscription_plan} className="font-mono shrink-0" />
+                  <ClubNamePlate name={club.tag} color={club.tag_color} score={club.club_score} orbit={!!club.subscription_plan} className="font-mono shrink-0" />
                 )}
                 {club.is_verified && (
                   <Badge className="bg-blue-500/15 text-blue-400 border-blue-500/30 shrink-0 text-xs">
@@ -228,7 +228,7 @@ export function ClubDetail({ club, members, currentUserId, myRole }: Props) {
                     className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/40 transition-colors border-b border-border/20 last:border-0">
                     <Link href={`/profile/${p.username}`} className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        {club.tag && <ClubNamePlate name={club.tag} score={club.club_score} compact className="font-mono shrink-0" />}
+                        {club.tag && <ClubNamePlate name={club.tag} color={club.tag_color} score={club.club_score} compact className="font-mono shrink-0" />}
                         <div className="text-sm font-medium truncate"><PlayerName p={p} /></div>
                       </div>
                       <p className="text-xs text-muted-foreground">@{p.username} · <span className={tier.color}>{tier.icon} {tier.tier}</span></p>

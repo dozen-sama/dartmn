@@ -1,28 +1,26 @@
-import { getClubTier } from "@/lib/club-tier"
 import { cn } from "@/lib/utils"
 import type { CSSProperties } from "react"
 
 interface Props {
   name: string
-  score?: number // club_score → зэрэглэлийн өнгө. Байхгүй бол default неон
+  color?: string | null // клубын сонгосон неон өнгө
+  score?: number // (хуучин — ашиглахгүй, дуудлагын нийцэлд үлдээв)
   orbit?: boolean // premium (subscription) → dart orbit
   compact?: boolean // жижиг (нэрний урд tag)
   className?: string
 }
 
 /**
- * Клубын tag-ийг неон хүрээтэй харуулна. score өгвөл зэрэглэлийн өнгө, эс бол default цэнхэр неон.
- * Цэвэр CSS, хөнгөн. Тоглогчийн нэрний урд (compact) болон клубын хуудсанд хэрэглэнэ.
+ * Клубын tag-ийг неон хүрээтэй харуулна. Өнгө = сонгосон color эсвэл default цэнхэр.
+ * Хаа сайгүй ижил (Удирдагч/Орлогч сонгож, гишүүдэд автоматаар тарна). Цэвэр CSS, хөнгөн.
  */
-export function ClubNamePlate({ name, score, orbit, compact, className }: Props) {
-  const tier = typeof score === "number" ? getClubTier(score) : null
-  const color = tier?.color ?? "#34d3ee"
-  const style = { "--neon": color } as CSSProperties
+export function ClubNamePlate({ name, color, orbit, compact, className }: Props) {
+  const neon = color || "#34d3ee"
+  const style = { "--neon": neon } as CSSProperties
   return (
     <span
       className={cn("club-np", compact && "club-np-sm", orbit && "club-np-orbit", className)}
       style={style}
-      title={tier ? `Зэрэглэл: ${tier.name}` : undefined}
     >
       {orbit && (
         <>

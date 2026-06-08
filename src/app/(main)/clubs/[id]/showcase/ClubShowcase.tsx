@@ -19,7 +19,7 @@ import { toast } from "sonner"
 
 interface Props {
   club: {
-    id: string; name: string; tag: string | null; tagline: string | null
+    id: string; name: string; tag: string | null; tag_color: string | null; tagline: string | null
     description: string | null; logo_url: string | null; cover_url: string | null
     city: string | null; member_count: number; club_score: number
     features: string[]; website: string | null
@@ -95,7 +95,7 @@ export function ClubShowcase({ club, members, tournaments }: Props) {
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl font-black truncate">{club.name}</h1>
                 {club.tag && (
-                  <ClubNamePlate name={club.tag} score={club.club_score} orbit={!!club.subscription_plan} className="font-mono shrink-0" />
+                  <ClubNamePlate name={club.tag} color={club.tag_color} score={club.club_score} orbit={!!club.subscription_plan} className="font-mono shrink-0" />
                 )}
                 {club.is_verified && (
                   <Badge className="bg-blue-500/15 text-blue-400 border-blue-500/30 shrink-0 text-[10px]">

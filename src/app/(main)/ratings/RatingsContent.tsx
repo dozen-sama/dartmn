@@ -18,11 +18,13 @@ import { PlayerName } from "@/components/cosmetic/PlayerName"
 import { ClubNamePlate } from "@/components/cosmetic/ClubNamePlate"
 import { cn } from "@/lib/utils"
 
-type PlayerRow = Pick<Profile, "id" | "username" | "display_name" | "avatar_url" | "rating_points" | "matches_played" | "matches_won" | "average_score" | "count_180" | "highest_checkout" | "city" | "province" | "primary_club_logo" | "primary_club_tag" | "equipped_frame" | "name_effect" | "name_color" | "name_font" | "name_animated">
+type PlayerRow = Pick<Profile, "id" | "username" | "display_name" | "avatar_url" | "rating_points" | "matches_played" | "matches_won" | "average_score" | "count_180" | "highest_checkout" | "city" | "province" | "primary_club_logo" | "primary_club_tag" | "primary_club_tag_color" | "equipped_frame" | "name_effect" | "name_color" | "name_font" | "name_animated">
 
 type ClubRow = {
   id: string
   name: string
+  tag: string | null
+  tag_color: string | null
   logo_url: string | null
   club_score: number
   member_count: number
@@ -91,7 +93,7 @@ function PlayerRow({ player, rank, showProvince = false }: { player: PlayerRow; 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           {player.primary_club_tag && (
-            <ClubNamePlate name={player.primary_club_tag} compact className="font-mono shrink-0" />
+            <ClubNamePlate name={player.primary_club_tag} color={player.primary_club_tag_color} compact className="font-mono shrink-0" />
           )}
           <span className="text-base font-medium"><PlayerName p={player} variant="full" /></span>
           <TierBadge rating={player.rating_points} size="sm" />
@@ -314,7 +316,10 @@ export function RatingsContent({ players, clubs }: Props) {
                           : <Building2 className="h-4 w-4 text-muted-foreground" />}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{club.name}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium truncate">{club.name}</p>
+                          {club.tag && <ClubNamePlate name={club.tag} color={club.tag_color} score={club.club_score} compact className="font-mono shrink-0" />}
+                        </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           {club.city && <span>{club.city}</span>}
                           <span>·</span>

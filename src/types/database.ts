@@ -32,6 +32,7 @@ export interface Database {
           primary_club_id: string | null
           primary_club_logo: string | null
           primary_club_tag: string | null
+          primary_club_tag_color: string | null
           equipped_frame: string | null
           name_color: string | null
           name_font: string | null
@@ -81,6 +82,7 @@ export interface Database {
           primary_club_id?: string | null
           primary_club_logo?: string | null
           primary_club_tag?: string | null
+          primary_club_tag_color?: string | null
           equipped_frame?: string | null
           name_color?: string | null
           name_font?: string | null
@@ -115,6 +117,7 @@ export interface Database {
           social_instagram: string | null
           subscription_plan: "basic" | "pro" | "enterprise" | null
           subscription_expires_at: string | null
+          tag_color: string | null
           equipped_frame: string | null
           name_color: string | null
           name_font: string | null
@@ -162,6 +165,7 @@ export interface Database {
           social_instagram?: string | null
           subscription_plan?: "basic" | "pro" | "enterprise" | null
           subscription_expires_at?: string | null
+          tag_color?: string | null
           equipped_frame?: string | null
           name_color?: string | null
           name_font?: string | null
