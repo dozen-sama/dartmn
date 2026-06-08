@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { getTier } from "@/lib/rating"
+import { ClubNamePlate } from "@/components/cosmetic/ClubNamePlate"
 import { formatDate, formatNumber } from "@/lib/utils/format"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
@@ -94,9 +95,7 @@ export function ClubShowcase({ club, members, tournaments }: Props) {
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl font-black truncate">{club.name}</h1>
                 {club.tag && (
-                  <Badge variant="outline" className="font-mono text-primary border-primary/30 bg-primary/5 shrink-0">
-                    [{club.tag}]
-                  </Badge>
+                  <ClubNamePlate name={club.tag} score={club.club_score} orbit={!!club.subscription_plan} className="font-mono shrink-0" />
                 )}
                 {club.is_verified && (
                   <Badge className="bg-blue-500/15 text-blue-400 border-blue-500/30 shrink-0 text-[10px]">

@@ -351,6 +351,11 @@
 @keyframes club-neon-spin {
   to { --club-a: 360deg; }
 }
+.club-np-sm {
+  padding: 0.04em 0.4em;
+  font-size: 0.78em;
+  border-width: 1.2px;
+}
 .club-np-label {
   position: relative;
   z-index: 2;

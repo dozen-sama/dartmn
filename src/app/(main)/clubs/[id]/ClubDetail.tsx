@@ -228,7 +228,7 @@ export function ClubDetail({ club, members, currentUserId, myRole }: Props) {
                     className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/40 transition-colors border-b border-border/20 last:border-0">
                     <Link href={`/profile/${p.username}`} className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        {club.tag && <span className="text-[10px] font-mono text-primary/70">[{club.tag}]</span>}
+                        {club.tag && <ClubNamePlate name={club.tag} score={club.club_score} compact className="font-mono shrink-0" />}
                         <div className="text-sm font-medium truncate"><PlayerName p={p} /></div>
                       </div>
                       <p className="text-xs text-muted-foreground">@{p.username} · <span className={tier.color}>{tier.icon} {tier.tier}</span></p>

@@ -15,6 +15,7 @@ import { PROVINCE_NAMES as MONGOLIAN_PROVINCES } from "@/lib/provinces"
 import { PlayerAvatar } from "@/components/player/PlayerAvatar"
 import { TierBadge } from "@/components/rating/TierBadge"
 import { PlayerName } from "@/components/cosmetic/PlayerName"
+import { ClubNamePlate } from "@/components/cosmetic/ClubNamePlate"
 import { cn } from "@/lib/utils"
 
 type PlayerRow = Pick<Profile, "id" | "username" | "display_name" | "avatar_url" | "rating_points" | "matches_played" | "matches_won" | "average_score" | "count_180" | "highest_checkout" | "city" | "province" | "primary_club_logo" | "primary_club_tag" | "equipped_frame" | "name_effect" | "name_color" | "name_font" | "name_animated">
@@ -90,7 +91,7 @@ function PlayerRow({ player, rank, showProvince = false }: { player: PlayerRow; 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           {player.primary_club_tag && (
-            <span className="text-[10px] font-mono text-primary/70 shrink-0">[{player.primary_club_tag}]</span>
+            <ClubNamePlate name={player.primary_club_tag} compact className="font-mono shrink-0" />
           )}
           <span className="text-base font-medium"><PlayerName p={player} variant="full" /></span>
           <TierBadge rating={player.rating_points} size="sm" />
