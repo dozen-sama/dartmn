@@ -144,14 +144,23 @@ const CHECKOUTS: Record<number, string> = {
   22: "D11",
   21: "S5 D8",
   20: "D10",
+  19: "S3 D8",
   18: "D9",
+  17: "S1 D8",
   16: "D8",
+  15: "S7 D4",
   14: "D7",
+  13: "S5 D4",
   12: "D6",
+  11: "S3 D4",
   10: "D5",
+  9: "S1 D4",
   8: "D4",
+  7: "S3 D2",
   6: "D3",
+  5: "S1 D2",
   4: "D2",
+  3: "S1 D1",
   2: "D1",
 }
 
@@ -191,6 +200,17 @@ export function getImpossibleCheckoutWarning(afterScore: number): string | null 
 // has gaps (e.g. odd numbers 3..19 such as 19 = S3 D8) and would wrongly reject them.
 export function canDoubleOut(remaining: number): boolean {
   return remaining >= 2 && remaining <= 170 && !IMPOSSIBLE_CHECKOUTS.has(remaining)
+}
+
+// Бүх хүчинтэй double-out checkout (2..170 \ боломжгүй). Дадлагын drill-д.
+export const VALID_CHECKOUTS: number[] = (() => {
+  const out: number[] = []
+  for (let r = 170; r >= 2; r--) if (canDoubleOut(r)) out.push(r)
+  return out
+})()
+
+export function randomCheckout(): number {
+  return VALID_CHECKOUTS[Math.floor(Math.random() * VALID_CHECKOUTS.length)]
 }
 
 export interface TurnRules {

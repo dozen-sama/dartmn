@@ -4,7 +4,7 @@ import { useCallback, useState } from "react"
 import { ArrowLeft, BarChart3, Check, Delete, RefreshCw, Target, Trophy, Zap } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { getCheckout, IMPOSSIBLE_CHECKOUTS } from "@/lib/local-game/checkouts"
+import { getCheckout, classifyTurn, isPossibleVisitScore, randomCheckout } from "@/lib/local-game/checkouts"
 import { useScoreboardKeyboard } from "@/hooks/useScoreboardKeyboard"
 import { DartSelector } from "@/components/game/DartSelector"
 import { cn } from "@/lib/utils"
@@ -19,19 +19,6 @@ const QUICK_SCORES = [26, 41, 45, 60, 81, 85, 100, 121, 140, 180]
 
 // Around the board targets (1-20 then bull)
 const AROUND_TARGETS = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,"bull"]
-
-function generateCheckoutTarget(): number {
-  // Random checkout between 2-170 that's in the checkout table
-  const valid = [170,167,164,161,160,158,157,156,155,154,153,152,151,150,
-    149,148,147,146,145,144,143,142,141,140,139,138,137,136,135,134,133,
-    132,131,130,129,128,127,126,125,124,123,122,121,120,119,118,117,116,
-    115,114,113,112,111,110,109,108,107,106,105,104,103,102,101,100,99,
-    98,97,96,95,94,93,92,91,90,89,88,87,86,85,84,83,82,81,80,79,78,77,
-    76,75,74,73,72,71,70,69,68,67,66,65,64,63,62,61,60,59,58,57,56,55,
-    54,53,52,51,50,49,48,47,46,45,44,43,42,41,40,39,38,37,36,35,34,33,
-    32,31,30,29,28,27,26,25,24,23,22,21,20,18,16,14,12,10,8,6,4,2]
-  return valid[Math.floor(Math.random() * valid.length)]
-}
 
 export function PracticeHub() {
   const [mode, setMode] = useState<Mode>("menu")
@@ -96,7 +83,8 @@ function ScoreInput({ onSubmit, onBack, title, subtitle }: {
 
   function handleSubmit() {
     const score = parseInt(input)
-    if (isNaN(score) || score < 0 || score > 180) return
+    if (isNaN(score)) return
+    if (!isPossibleVisitScore(score)) { toast.error("3 дартаар гаргах боломжгүй оноо"); return }
     onSubmit(score, dartsUsed)
     setInput("")
     setDartsUsed(3)
@@ -173,24 +161,24 @@ function Solo501({ onBack }: { onBack: () => void }) {
   const [remaining, setRemaining] = useState(501)
   const [visits, setVisits] = useState(0)
   const [totalDarts, setTotalDarts] = useState(0)
-  const [throws, setThrows] = useState<number[]>([])
+  const [throws, setThrows] = useState<number[]>([])  // bust бус онооны нийлбэр (дундажид)
   const [finished, setFinished] = useState(false)
+  const [doubleOut, setDoubleOut] = useState(true)
 
   function handleScore(score: number, darts: number) {
-    const after = remaining - score
-    if (after < 0 || after === 1) { toast.error("Bust!"); return }
-    if (IMPOSSIBLE_CHECKOUTS.has(after)) { toast.error(`${after} — Impossible checkout!`); return }
-
-    setRemaining(after)
+    const outcome = classifyTurn(remaining, score, { doubleOut })
+    // Bust ч гэсэн шидсэн дарт/visit тоологдоно (бодит дадлага) — зөвхөн оноо revert
     setVisits(v => v + 1)
     setTotalDarts(d => d + darts)
+    if (outcome.type === "bust") { toast.error("Bust! — оноо хэвээр"); return }
     setThrows(prev => [...prev, score])
-
-    if (after === 0) setFinished(true)
+    setRemaining(outcome.remaining)
+    if (outcome.type === "checkout") setFinished(true)
   }
 
-  const avg = visits > 0 ? (throws.reduce((a, s) => a + s, 0) / totalDarts * 3).toFixed(1) : "—"
+  const avg = totalDarts > 0 ? (throws.reduce((a, s) => a + s, 0) / totalDarts * 3).toFixed(1) : "—"
   const dartsUsed = totalDarts
+  const checkoutHint = remaining <= 170 ? getCheckout(remaining) : null
 
   if (finished) return (
     <div className="max-w-sm mx-auto space-y-5 py-10 text-center">
@@ -230,8 +218,13 @@ function Solo501({ onBack }: { onBack: () => void }) {
           <span className="text-3xl font-black text-primary score-display">{remaining}</span>
           <div className="text-xs text-muted-foreground">
             <p>Visit: {visits} · Дундаж: {avg}</p>
-            <p>Дарт: {dartsUsed}</p>
+            <p>Дарт: {dartsUsed}{checkoutHint ? ` · 🎯 ${checkoutHint}` : ""}</p>
           </div>
+          <button onClick={() => setDoubleOut(v => !v)}
+            className={cn("ml-auto shrink-0 text-[10px] font-bold px-2 py-1 rounded border transition-colors",
+              doubleOut ? "border-primary text-primary bg-primary/10" : "border-border/50 text-muted-foreground")}>
+            DO {doubleOut ? "ON" : "OFF"}
+          </button>
         </div>
       }
       subtitle="501 Solo бэлтгэл"
@@ -241,7 +234,7 @@ function Solo501({ onBack }: { onBack: () => void }) {
 
 // ── Checkout Drill ────────────────────────────────────────────────
 function CheckoutDrill({ onBack }: { onBack: () => void }) {
-  const [target, setTarget] = useState(generateCheckoutTarget)
+  const [target, setTarget] = useState(randomCheckout)
   const [attempts, setAttempts] = useState(0)
   const [successes, setSuccesses] = useState(0)
   const [history, setHistory] = useState<{ target: number; success: boolean }[]>([])
@@ -257,7 +250,7 @@ function CheckoutDrill({ onBack }: { onBack: () => void }) {
       toast.error(`❌ Болсонгүй (${score})`)
       setHistory(h => [...h, { target, success: false }])
     }
-    setTarget(generateCheckoutTarget())
+    setTarget(randomCheckout())
   }
 
   const pct = attempts > 0 ? Math.round((successes / attempts) * 100) : 0
@@ -276,7 +269,7 @@ function CheckoutDrill({ onBack }: { onBack: () => void }) {
             <p>Checkout hint: <span className="text-foreground font-mono">{getCheckout(target) ?? "—"}</span></p>
             <p>Амжилт: {successes}/{attempts} ({pct}%)</p>
           </div>
-          <button onClick={() => setTarget(generateCheckoutTarget())}
+          <button onClick={() => setTarget(randomCheckout())}
             className="ml-auto text-muted-foreground hover:text-foreground p-1">
             <RefreshCw className="h-4 w-4" />
           </button>
