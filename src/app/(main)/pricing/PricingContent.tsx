@@ -2,16 +2,13 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import {
-  BarChart3, Building2, Check, Crown, CreditCard, Star, Trophy, Zap,
-} from "lucide-react"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { Building2, Check, Crown, CreditCard, Star } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { formatCurrency } from "@/lib/utils/format"
-import Link from "next/link"
 
 interface Props {
   userId: string | null
@@ -19,6 +16,8 @@ interface Props {
   premiumExpires: string | null
   clubPlan: string | null
 }
+
+type PlanFeature = { text: string; soon?: boolean; hint?: string }
 
 const CLUB_PLANS = [
   {
@@ -28,14 +27,19 @@ const CLUB_PLANS = [
     icon: Building2,
     color: "border-slate-400/40 bg-slate-400/5",
     badgeColor: "bg-slate-400/15 text-slate-400 border-slate-400/30",
+    blurb: "Жижиг клуб, паб эхлэхэд",
     features: [
-      "Клубын лого оруулах",
-      "Клубын хуудас",
-      "Сард 5 хүртэл тэмцээн",
-      "Үндсэн статистик",
-      "Гишүүдийн удирдлага",
-    ],
-    missing: ["Advanced статистик", "Хязгааргүй тэмцээн", "Priority дэмжлэг"],
+      { text: "Клубын хуудас ба лого" },
+      { text: "Гишүүдийн удирдлага" },
+      { text: "Клубын тэмцээн зохион байгуулах" },
+      { text: "Клубын неон tag", hint: "Клубын цол ахих тусам шинэ өнгө нээгдэнэ" },
+      { text: "Үндсэн статистик" },
+    ] as PlanFeature[],
+    missing: [
+      { text: "Клубын анимэйшн nameplate хүрээ" },
+      { text: "Showcase хуудас" },
+      { text: "Priority дэмжлэг" },
+    ] as PlanFeature[],
   },
   {
     key: "pro",
@@ -45,15 +49,18 @@ const CLUB_PLANS = [
     color: "border-primary/40 bg-primary/5",
     badgeColor: "bg-primary/15 text-primary border-primary/30",
     popular: true,
+    blurb: "Идэвхтэй, тогтмол тэмцээнтэй клуб",
     features: [
-      "Basic-ийн бүх боломж",
-      "Хязгааргүй тэмцээн",
-      "Advanced статистик",
-      "Клубын рейтинг boost",
-      "Онцлох тэмцээн",
-      "Клубын мэдэгдэл",
-    ],
-    missing: ["Priority дэмжлэг", "Custom функц"],
+      { text: "Basic-ийн бүх боломж" },
+      { text: "Клубын nameplate хүрээ", hint: "⚡ Аянга, 🔥 Гал — анимэйшнтэй клубын хүрээ" },
+      { text: "Бүх неон tag өнгө нээлттэй" },
+      { text: "Клубын showcase хуудас", hint: "Клубын онцлох мэдээлэл, баг тамирчдын хуудас" },
+      { text: "Онцлох тэмцээн", hint: "Тэмцээнг платформын нүүр/жагсаалтад онцолно" },
+    ] as PlanFeature[],
+    missing: [
+      { text: "Priority дэмжлэг" },
+      { text: "Дедикейтед менежер" },
+    ] as PlanFeature[],
   },
   {
     key: "enterprise",
@@ -62,26 +69,33 @@ const CLUB_PLANS = [
     icon: Crown,
     color: "border-yellow-500/40 bg-yellow-500/5",
     badgeColor: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
+    blurb: "Том холбоо, лиг, байгууллага",
     features: [
-      "Pro-ийн бүх боломж",
-      "Priority дэмжлэг",
-      "Custom тэмцээний формат",
-      "API холболт",
-      "Дедикейтед менежер",
-      "Custom брэнд",
-    ],
-    missing: [],
+      { text: "Pro-ийн бүх боломж" },
+      { text: "Priority дэмжлэг", hint: "Хүсэлт, асуудлыг нэн тэргүүнд шийдвэрлэнэ" },
+      { text: "Дедикейтед менежер", hint: "Танай клубыг хариуцсан тусгай ажилтан холбогдоно" },
+      { text: "Custom тэмцээний формат", soon: true, hint: "Тусгай дүрэм, бүтэцтэй тэмцээн зохиох" },
+      { text: "API холболт", soon: true, hint: "Гадны систем/дэлгэцтэй холбох програмчлалын интерфейс" },
+      { text: "Custom брэнд (white-label)", soon: true, hint: "Клубын лого, өнгөөр тохируулсан тусгай харагдац" },
+    ] as PlanFeature[],
+    missing: [] as PlanFeature[],
   },
 ]
 
-function FeatureRow({ text, included }: { text: string; included: boolean }) {
+function FeatureRow({ text, included, soon, hint }: { text: string; included: boolean; soon?: boolean; hint?: string }) {
   return (
     <div className={cn("flex items-start gap-2.5 text-sm", included ? "" : "opacity-40")}>
       <div className={cn("mt-0.5 h-4 w-4 rounded-full flex items-center justify-center shrink-0",
-        included ? "bg-primary/20 text-primary" : "bg-secondary text-muted-foreground")}>
-        {included ? <Check className="h-2.5 w-2.5" /> : <span className="text-[10px]">—</span>}
+        included ? (soon ? "bg-amber-500/20 text-amber-400" : "bg-primary/20 text-primary") : "bg-secondary text-muted-foreground")}>
+        {included ? (soon ? <span className="text-[9px] leading-none">⏳</span> : <Check className="h-2.5 w-2.5" />) : <span className="text-[10px]">—</span>}
       </div>
-      <span className={included ? "" : "line-through text-muted-foreground"}>{text}</span>
+      <div className="min-w-0">
+        <span className={cn("flex items-center gap-1.5 flex-wrap", included ? "" : "line-through text-muted-foreground")}>
+          {text}
+          {soon && <Badge variant="outline" className="text-[9px] px-1 py-0 leading-tight border-amber-500/40 text-amber-400">Удахгүй</Badge>}
+        </span>
+        {hint && <span className="block text-[11px] text-muted-foreground/70 leading-snug mt-0.5">{hint}</span>}
+      </div>
     </div>
   )
 }
@@ -116,6 +130,22 @@ export function PricingContent({ userId, isPremium, premiumExpires, clubPlan }: 
         </p>
       </div>
 
+      {/* Active plan banner */}
+      {(isPremium || clubPlan) && (
+        <div className="flex flex-wrap items-center justify-center gap-2 -mt-6">
+          {isPremium && (
+            <Badge className="bg-purple-600 text-white border-0 px-3 py-1 text-sm">
+              <Crown className="h-3.5 w-3.5 mr-1.5" /> Premium идэвхтэй
+            </Badge>
+          )}
+          {clubPlan && (
+            <Badge className="bg-green-500 text-white border-0 px-3 py-1 text-sm">
+              <Building2 className="h-3.5 w-3.5 mr-1.5" /> Клуб: {CLUB_PLANS.find(p => p.key === clubPlan)?.name ?? clubPlan} идэвхтэй
+            </Badge>
+          )}
+        </div>
+      )}
+
       {/* Platform fee notice */}
       <div className="flex items-start gap-4 bg-secondary/30 border border-border/50 rounded-xl p-4 max-w-2xl mx-auto">
         <div className="h-10 w-10 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
@@ -147,16 +177,22 @@ export function PricingContent({ userId, isPremium, premiumExpires, clubPlan }: 
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Premium card */}
-          <Card className="border-purple-500/40 bg-purple-500/5 relative overflow-hidden">
+          <Card className={cn("border-purple-500/40 bg-purple-500/5 relative overflow-hidden transition-all",
+            isPremium && "ring-2 ring-purple-400/70 shadow-lg shadow-purple-500/10")}>
             <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl pointer-events-none" />
-            <CardContent className="p-6 space-y-5">
+            {isPremium && (
+              <div className="absolute top-0 inset-x-0 bg-purple-600 text-white text-[10px] font-bold text-center py-0.5 tracking-wide">
+                ТАНЫ ИДЭВХТЭЙ БАГЦ
+              </div>
+            )}
+            <CardContent className={cn("p-6 space-y-5", isPremium && "pt-8")}>
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <Crown className="h-5 w-5 text-purple-400" />
                   <span className="font-bold text-purple-400">Premium</span>
                   {isPremium && (
-                    <Badge className="bg-purple-500/15 text-purple-400 border-purple-500/30 text-xs">
-                      Идэвхтэй
+                    <Badge className="bg-purple-600 text-white border-0 text-xs">
+                      ✓ Идэвхтэй
                     </Badge>
                   )}
                 </div>
@@ -168,13 +204,11 @@ export function PricingContent({ userId, isPremium, premiumExpires, clubPlan }: 
 
               <div className="space-y-2.5">
                 {[
-                  "Advanced Statistics — нарийн статистик",
-                  "Match History — бүрэн тоглолтын түүх",
-                  "Rating Graph — рейтингийн хөдөлгөөн",
-                  "Achievement unlock — онцгой achievement",
-                  "Premium badge профайл дээр",
-                  "Тэмцээны эрт бүртгэл",
-                ].map((f) => <FeatureRow key={f} text={f} included={true} />)}
+                  { text: "Анимэйшн nameplate хүрээ", hint: "⚡ Аянга · 🔥 Инферно · 👑 Аварга · ✨ Premium · 🏅 Домог" },
+                  { text: "Хөдөлгөөнт нэрний эффект (Lottie)", hint: "XP цуглуулж онцгой эффект нээж эдэлнэ" },
+                  { text: "Premium ✨ хүрээ ба badge", hint: "Профайл, leaderboard, тоглолт дээр онцолно" },
+                  { text: "Платформыг дэмжсэн ивээн тэтгэгч статус" },
+                ].map((f) => <FeatureRow key={f.text} text={f.text} included={true} hint={f.hint} />)}
               </div>
 
               {isPremium ? (
@@ -199,13 +233,12 @@ export function PricingContent({ userId, isPremium, premiumExpires, clubPlan }: 
           <div className="space-y-3">
             <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Үнэгүй vs Premium</p>
             {[
-              { label: "Үндсэн статистик", free: true, premium: true },
-              { label: "Match History (сүүлийн 10)", free: true, premium: true },
-              { label: "Бүрэн Match History", free: false, premium: true },
-              { label: "Rating Graph", free: false, premium: true },
-              { label: "Advanced Stats", free: false, premium: true },
-              { label: "Онцгой achievement", free: false, premium: true },
-              { label: "Premium badge", free: false, premium: true },
+              { label: "Статистик, тоглолтын түүх", free: true, premium: true },
+              { label: "Achievement, рейтингийн түүх", free: true, premium: true },
+              { label: "Рейтингээр нээгдэх хүрээ (Хүрэл/Мөнгө/Алт)", free: true, premium: true },
+              { label: "Анимэйшн хүрээ (⚡🔥👑✨🏅)", free: false, premium: true },
+              { label: "Хөдөлгөөнт нэрний эффект", free: false, premium: true },
+              { label: "Premium ✨ badge", free: false, premium: true },
             ].map(({ label, free, premium }) => (
               <div key={label} className="flex items-center justify-between py-1.5 border-b border-border/20 last:border-0">
                 <span className="text-sm">{label}</span>
@@ -242,41 +275,48 @@ export function PricingContent({ userId, isPremium, premiumExpires, clubPlan }: 
             const Icon = plan.icon
             const isCurrentPlan = clubPlan === plan.key
             return (
-              <Card key={plan.key} className={cn("relative overflow-hidden border-2", plan.color)}>
-                {plan.popular && (
+              <Card key={plan.key} className={cn("relative overflow-hidden border-2 transition-all", plan.color,
+                isCurrentPlan && "ring-2 ring-green-400/70 shadow-lg shadow-green-500/10")}>
+                {isCurrentPlan && (
+                  <div className="absolute top-0 inset-x-0 bg-green-500 text-white text-[10px] font-bold text-center py-0.5 tracking-wide">
+                    ТАНЫ ИДЭВХТЭЙ БАГЦ
+                  </div>
+                )}
+                {plan.popular && !isCurrentPlan && (
                   <div className="absolute top-3 right-3">
                     <Badge className="bg-primary text-primary-foreground text-[10px] border-0">
                       🔥 Түгээмэл
                     </Badge>
                   </div>
                 )}
-                <CardContent className="p-5 space-y-5">
+                <CardContent className={cn("p-5 space-y-5", isCurrentPlan && "pt-7")}>
                   <div>
-                    <div className="flex items-center gap-2 mb-3">
+                    <div className="flex items-center gap-2 mb-1.5">
                       <Badge variant="outline" className={cn("text-xs", plan.badgeColor)}>
                         <Icon className="h-3 w-3 mr-1" />
                         {plan.name}
                       </Badge>
                       {isCurrentPlan && (
-                        <Badge variant="outline" className="text-xs border-green-500/30 text-green-400 bg-green-500/10">
-                          Идэвхтэй
+                        <Badge className="text-xs border-0 bg-green-500 text-white">
+                          ✓ Идэвхтэй
                         </Badge>
                       )}
                     </div>
+                    <p className="text-xs text-muted-foreground mb-3">{plan.blurb}</p>
                     <div className="flex items-end gap-1">
                       <span className="text-3xl font-black">{formatCurrency(plan.price)}</span>
                       <span className="text-muted-foreground mb-0.5 text-sm">/ сар</span>
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    {plan.features.map((f) => <FeatureRow key={f} text={f} included={true} />)}
-                    {plan.missing.map((f) => <FeatureRow key={f} text={f} included={false} />)}
+                  <div className="space-y-2.5">
+                    {plan.features.map((f) => <FeatureRow key={f.text} text={f.text} included={true} soon={f.soon} hint={f.hint} />)}
+                    {plan.missing.map((f) => <FeatureRow key={f.text} text={f.text} included={false} />)}
                   </div>
 
                   {isCurrentPlan ? (
-                    <Button variant="outline" className="w-full border-border/60" disabled>
-                      Одоогийн план
+                    <Button variant="outline" className="w-full border-green-500/40 text-green-400 bg-green-500/5" disabled>
+                      ✓ Одоогийн багц
                     </Button>
                   ) : (
                     <Button
@@ -307,20 +347,23 @@ export function PricingContent({ userId, isPremium, premiumExpires, clubPlan }: 
             </thead>
             <tbody>
               {[
-                { label: "Клубын лого", basic: true, pro: true, ent: true },
-                { label: "Клубын хуудас", basic: true, pro: true, ent: true },
+                { label: "Клубын хуудас ба лого", basic: true, pro: true, ent: true },
                 { label: "Гишүүдийн удирдлага", basic: true, pro: true, ent: true },
-                { label: "Сард тэмцээн", basic: "5", pro: "Хязгааргүй", ent: "Хязгааргүй" },
-                { label: "Advanced статистик", basic: false, pro: true, ent: true },
-                { label: "Клубын рейтинг boost", basic: false, pro: true, ent: true },
+                { label: "Тэмцээн зохион байгуулах", basic: true, pro: true, ent: true },
+                { label: "Неон tag өнгө", basic: "Үндсэн", pro: "Бүгд", ent: "Бүгд" },
+                { label: "Клубын nameplate хүрээ", basic: false, pro: true, ent: true },
+                { label: "Showcase хуудас", basic: false, pro: true, ent: true },
                 { label: "Priority дэмжлэг", basic: false, pro: false, ent: true },
-                { label: "API холболт", basic: false, pro: false, ent: true },
+                { label: "API холболт", basic: false, pro: false, ent: "soon" },
+                { label: "Custom брэнд (white-label)", basic: false, pro: false, ent: "soon" },
               ].map(({ label, basic, pro, ent }) => (
                 <tr key={label} className="border-b border-border/20 last:border-0">
                   <td className="py-2.5 pr-4 text-muted-foreground">{label}</td>
                   {[basic, pro, ent].map((val, i) => (
                     <td key={i} className="py-2.5 px-3 text-center">
-                      {typeof val === "string" ? (
+                      {val === "soon" ? (
+                        <span className="text-[10px] font-medium text-amber-400">Удахгүй</span>
+                      ) : typeof val === "string" ? (
                         <span className="text-xs font-medium">{val}</span>
                       ) : val ? (
                         <Check className="h-4 w-4 text-green-400 mx-auto" />
