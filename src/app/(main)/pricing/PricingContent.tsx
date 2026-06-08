@@ -76,7 +76,7 @@ const CLUB_PLANS = [
       { text: "Дедикейтед менежер", hint: "Танай клубыг хариуцсан тусгай ажилтан холбогдоно" },
       { text: "Custom тэмцээний формат", soon: true, hint: "Тусгай дүрэм, бүтэцтэй тэмцээн зохиох" },
       { text: "API холболт", soon: true, hint: "Гадны систем/дэлгэцтэй холбох програмчлалын интерфейс" },
-      { text: "Custom брэнд (white-label)", soon: true, hint: "Клубын лого, өнгөөр тохируулсан тусгай харагдац" },
+      { text: "Custom брэнд", soon: true, hint: "Клубын лого, өнгөөр тохируулсан тусгай харагдац" },
     ] as PlanFeature[],
     missing: [] as PlanFeature[],
   },
@@ -205,7 +205,7 @@ export function PricingContent({ userId, isPremium, premiumExpires, clubPlan }: 
               <div className="space-y-2.5">
                 {[
                   { text: "Анимэйшн nameplate хүрээ", hint: "⚡ Аянга · 🔥 Инферно · 👑 Аварга · ✨ Premium · 🏅 Домог" },
-                  { text: "Хөдөлгөөнт нэрний эффект (Lottie)", hint: "XP цуглуулж онцгой эффект нээж эдэлнэ" },
+                  { text: "Хөдөлгөөнт нэрний эффект", hint: "Нэр дээр тусгай хөдөлгөөнт эффект нэмнэ" },
                   { text: "Premium ✨ хүрээ ба badge", hint: "Профайл, leaderboard, тоглолт дээр онцолно" },
                   { text: "Платформыг дэмжсэн ивээн тэтгэгч статус" },
                 ].map((f) => <FeatureRow key={f.text} text={f.text} included={true} hint={f.hint} />)}
@@ -355,7 +355,7 @@ export function PricingContent({ userId, isPremium, premiumExpires, clubPlan }: 
                 { label: "Showcase хуудас", basic: false, pro: true, ent: true },
                 { label: "Priority дэмжлэг", basic: false, pro: false, ent: true },
                 { label: "API холболт", basic: false, pro: false, ent: "soon" },
-                { label: "Custom брэнд (white-label)", basic: false, pro: false, ent: "soon" },
+                { label: "Custom брэнд", basic: false, pro: false, ent: "soon" },
               ].map(({ label, basic, pro, ent }) => (
                 <tr key={label} className="border-b border-border/20 last:border-0">
                   <td className="py-2.5 pr-4 text-muted-foreground">{label}</td>
