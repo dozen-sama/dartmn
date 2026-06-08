@@ -205,7 +205,7 @@ export function NameplateCustomizer({ displayName, initial, unlock, xp, ownedEff
             <Sparkles className="h-4 w-4 text-primary" />
             <div>
               <p className="text-sm font-medium">Анивчих хөдөлгөөн</p>
-              <p className="text-xs text-muted-foreground">Хүрээ/effect-ийн animation асаах/унтраах</p>
+              <p className="text-xs text-muted-foreground">Унтраавал effect хөдөлгөөнгүй (static) харагдана</p>
             </div>
           </div>
           <button type="button" onClick={() => setAnimated(!animated)}

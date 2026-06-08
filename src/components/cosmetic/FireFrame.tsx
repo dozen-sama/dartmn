@@ -13,7 +13,7 @@ type Fit = "cover" | "contain" | "stretch"
  * `file` нь /public доторх Lottie зам. fit/scale-аар хэмжээг тааруулна.
  * Файл байхгүй бол юу ч харуулахгүй.
  */
-export function EffectLayer({ file, fit = "cover", scale = 1, scaleY, offsetX = 0, offsetY = 0, single = false }: { file: string; fit?: Fit; scale?: number; scaleY?: number; offsetX?: number; offsetY?: number; single?: boolean }) {
+export function EffectLayer({ file, fit = "cover", scale = 1, scaleY, offsetX = 0, offsetY = 0, single = false, animated = true }: { file: string; fit?: Fit; scale?: number; scaleY?: number; offsetX?: number; offsetY?: number; single?: boolean; animated?: boolean }) {
   const [data, setData] = useState<object | null>(null)
 
   useEffect(() => {
@@ -34,14 +34,15 @@ export function EffectLayer({ file, fit = "cover", scale = 1, scaleY, offsetX = 
   const sy = scaleY ?? scale
   const style = { transform: `translate(${offsetX}%, ${offsetY}%) scale(${scale}, ${sy})`, transformOrigin: "center" }
 
+  // animated=false → эхний кадр дээр зогсоож (static) харуулна
   return (
     <>
       <span className="np-fire-lottie np-fire-back" style={style} aria-hidden="true">
-        <Lottie animationData={data} loop autoplay rendererSettings={renderer} />
+        <Lottie animationData={data} loop={animated} autoplay={animated} rendererSettings={renderer} />
       </span>
       {!single && (
         <span className="np-fire-lottie np-fire-front" style={style} aria-hidden="true">
-          <Lottie animationData={data} loop autoplay rendererSettings={renderer} />
+          <Lottie animationData={data} loop={animated} autoplay={animated} rendererSettings={renderer} />
         </span>
       )}
     </>

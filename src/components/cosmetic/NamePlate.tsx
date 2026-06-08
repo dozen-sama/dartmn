@@ -54,7 +54,8 @@ export function NamePlate({ name, frame, effect, color, font, animated = true, v
   const noFrame = !def || def.theme === "none"
 
   const eff = useCosmeticEffect(effect)
-  const hasEffect = !!eff?.lottie_url && animated
+  // Effect нь toggle-аас үл хамааран харагдана; animated=false бол static (эхний кадр)
+  const hasEffect = !!eff?.lottie_url
   const ref = useRef<HTMLSpanElement>(null)
   const inView = useInView(ref, hasEffect)
   const showEffect = hasEffect && inView
@@ -70,7 +71,7 @@ export function NamePlate({ name, frame, effect, color, font, animated = true, v
 
   return (
     <span ref={ref} className={cn("np", noFrame ? "np-bare" : `np-${def!.theme}`, `np-${variant}`, hasEffect && variant === "full" && "np-fixed", !animated && "np-static", className)}>
-      {showEffect && <EffectLayer file={eff!.lottie_url} fit={eff!.fit} scale={eff!.scale} scaleY={eff!.scale_y} offsetX={eff!.offset_x} offsetY={eff!.offset_y} single={variant !== "full"} />}
+      {showEffect && <EffectLayer file={eff!.lottie_url} fit={eff!.fit} scale={eff!.scale} scaleY={eff!.scale_y} offsetX={eff!.offset_x} offsetY={eff!.offset_y} single={variant !== "full"} animated={animated} />}
       <span className="np-label" style={labelStyle}>{name}</span>
     </span>
   )
