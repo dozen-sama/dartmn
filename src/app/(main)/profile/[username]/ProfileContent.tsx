@@ -101,9 +101,9 @@ export function ProfileContent({ profile: p, isOwner, clubName, recentMatches, t
           {/* Name & info */}
           <div className="space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl font-bold">
+              <div className="text-xl font-bold">
                 <NamePlate name={p.display_name} frame={p.equipped_frame} effect={p.name_effect} color={p.name_color} font={p.name_font} animated={p.name_animated} variant="full" />
-              </h1>
+              </div>
               <TierBadge rating={p.rating_points} avragaWins={p.avraga_wins ?? 0} size="md" />
             </div>
             <p className="text-muted-foreground text-sm">@{p.username}</p>

@@ -3,7 +3,7 @@ import { Navbar } from "@/components/layout/Navbar"
 import { Sidebar } from "@/components/layout/Sidebar"
 import { BottomNav } from "@/components/layout/BottomNav"
 import { EffectsProvider } from "@/components/cosmetic/EffectsProvider"
-import type { EffectRow } from "@/lib/cosmetics"
+import { getActiveEffects } from "@/lib/cosmetics-server"
 
 export default async function MainLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -12,22 +12,17 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   // Security-sensitive pages (settings, admin) call getUser() themselves
   const { data: { session } } = await supabase.auth.getSession()
 
-  // Профайл + cosmetic effect-үүдийг зэрэг татах (нэг round-trip-ээр хурдан)
-  const [profileRes, effectsRes] = await Promise.all([
+  // Профайл (cookie) + cosmetic effects (cache, 5 мин) зэрэг
+  const [profileRes, effects] = await Promise.all([
     session?.user
       ? supabase.from("profiles").select("*").eq("id", session.user.id).single()
       : Promise.resolve({ data: null }),
-    supabase
-      .from("cosmetic_effects")
-      .select("key, name, lottie_url, xp, fit, scale, scale_y, offset_x, offset_y, scope, pass_id, is_active, sort_order")
-      .eq("is_active", true)
-      .order("sort_order"),
+    getActiveEffects(),
   ])
   const profile = profileRes.data
-  const effects = effectsRes.data
 
   return (
-    <EffectsProvider effects={(effects ?? []) as EffectRow[]}>
+    <EffectsProvider effects={effects}>
       <div className="flex min-h-screen flex-col">
         <Navbar profile={profile} />
         <div className="flex flex-1">

@@ -220,7 +220,7 @@ export function ClubDetail({ club, members, currentUserId, myRole }: Props) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         {club.tag && <span className="text-[10px] font-mono text-primary/70">[{club.tag}]</span>}
-                        <p className="text-sm font-medium truncate"><PlayerName p={p} /></p>
+                        <div className="text-sm font-medium truncate"><PlayerName p={p} /></div>
                       </div>
                       <p className="text-xs text-muted-foreground">@{p.username} · <span className={tier.color}>{tier.icon} {tier.tier}</span></p>
                     </div>

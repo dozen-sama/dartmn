@@ -60,7 +60,7 @@ function Podium({ players }: { players: PlayerRow[] }) {
             </Avatar>
             <div className="text-center">
               <p className="text-2xl">{icons[idx]}</p>
-              <p className={cn("font-bold", rank === 1 ? "text-base" : "text-sm")}><PlayerName p={p} /></p>
+              <div className={cn("font-bold", rank === 1 ? "text-base" : "text-sm")}><PlayerName p={p} /></div>
               <p className="text-xs text-muted-foreground">@{p.username}</p>
               <TierBadge rating={p.rating_points} size="sm" />
               <p className="text-sm font-bold text-[oklch(0.78_0.16_85)] mt-1 score-display">{formatNumber(p.rating_points)}</p>

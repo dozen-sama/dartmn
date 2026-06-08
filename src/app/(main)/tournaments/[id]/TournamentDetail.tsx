@@ -327,7 +327,7 @@ export function TournamentDetail({ tournament: t, registrations, currentUserId, 
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{reg.profiles ? <PlayerName p={reg.profiles} /> : "?"}</p>
+                      <div className="text-sm font-medium truncate">{reg.profiles ? <PlayerName p={reg.profiles} /> : "?"}</div>
                       <p className="text-xs text-muted-foreground">@{reg.profiles?.username}</p>
                     </div>
                     <div className="flex items-center gap-2">

@@ -110,7 +110,7 @@ export function DashboardContent({ profile, todayTournaments, activeTournaments,
               </Avatar>
               <div>
                 <p className="text-muted-foreground text-sm">Сайн байна уу,</p>
-                <h1 className="text-xl font-bold"><PlayerName p={profile} variant="full" /></h1>
+                <div className="text-xl font-bold"><PlayerName p={profile} variant="full" /></div>
                 <div className="flex items-center gap-3 mt-1 flex-wrap">
                   <span className="flex items-center gap-1 text-sm font-semibold text-[oklch(0.78_0.16_85)]">
                     <Trophy className="h-3.5 w-3.5" />
@@ -221,7 +221,7 @@ export function DashboardContent({ profile, todayTournaments, activeTournaments,
                       i === 0 ? "text-[oklch(0.78_0.16_85)]" : i === 1 ? "text-slate-400" : i === 2 ? "text-amber-700" : "text-muted-foreground"
                     }`}>{i + 1}</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate"><PlayerName p={player} /></p>
+                      <div className="text-sm font-medium truncate"><PlayerName p={player} /></div>
                       <p className="text-[11px] text-muted-foreground">Avg {formatAverage(player.average_score)} · {wr}% WR</p>
                     </div>
                     <span className="text-sm font-bold score-display text-[oklch(0.78_0.16_85)]">{formatNumber(player.rating_points)}</span>
