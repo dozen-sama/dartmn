@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import {
   ArrowLeft, Building2, Check, Edit, Globe, LogIn, LogOut,
-  MapPin, MessageCircle, QrCode, Settings, Share2, Shield, Users,
+  MapPin, MessageCircle, QrCode, Settings, Share2, Shield, Swords, Users,
 } from "lucide-react"
 import { ClubChat } from "./ClubChat"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -189,7 +189,41 @@ export function ClubDetail({ club, members, currentUserId, myRole }: Props) {
         <TabsList className="bg-secondary/50">
           <TabsTrigger value="members"><Users className="h-4 w-4 mr-1.5" />Гишүүд ({members.length})</TabsTrigger>
           <TabsTrigger value="chat"><MessageCircle className="h-4 w-4 mr-1.5" />Чат</TabsTrigger>
+          <TabsTrigger value="war"><Swords className="h-4 w-4 mr-1.5" />Дайн</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="war" className="mt-4">
+          <Card className="border-2 border-dashed border-primary/30 bg-gradient-to-b from-primary/5 to-transparent overflow-hidden">
+            <CardContent className="flex flex-col items-center justify-center py-12 text-center px-5">
+              <div className="relative mb-4">
+                <Swords className="h-14 w-14 text-primary" />
+                <span className="absolute -top-1 -right-2 text-xl animate-pulse">⚔️</span>
+              </div>
+              <Badge className="bg-primary/15 text-primary border-primary/30 mb-3">Тун удахгүй</Badge>
+              <h3 className="text-lg font-bold mb-2">Клубын Дайн (Club War)</h3>
+              <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
+                Клубууд хоорондоо ELO-оор тааруулсан тоглогчдоор <span className="text-foreground font-medium">BO3</span> тулаан хийж,
+                ялагч нь <span className="text-foreground font-medium">клубын оноо, цом, зэрэглэл</span> цуглуулна.
+              </p>
+              <div className="grid grid-cols-1 gap-2 mt-5 w-full max-w-xs text-left">
+                {[
+                  ["👥", "10+ гишүүнтэй клуб дайн зарлана"],
+                  ["🎖", "Удирдагч, Орлогч нар удирдана"],
+                  ["⚡", "ELO-оор хослуулсан 1v1 тулаанууд"],
+                  ["🕐", "24ц бэлтгэл — тоглогчид цагаа тохирно"],
+                ].map(([icon, txt]) => (
+                  <div key={txt} className="flex items-center gap-2.5 bg-secondary/40 rounded-lg px-3 py-2">
+                    <span className="text-base shrink-0">{icon}</span>
+                    <span className="text-xs text-muted-foreground">{txt}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground/60 mt-5">
+                🚧 Онлайн тоглолт нэвтэрсний дараа идэвхжинэ. Бэлэн байгаарай!
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="chat" className="mt-4">
           {!hasSub ? (
