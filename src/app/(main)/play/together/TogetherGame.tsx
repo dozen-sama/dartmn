@@ -7,7 +7,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { getCheckout, IMPOSSIBLE_CHECKOUTS, canDoubleOut } from "@/lib/local-game/checkouts"
+import { getCheckout, canDoubleOut } from "@/lib/local-game/checkouts"
 import { useScoreboardKeyboard } from "@/hooks/useScoreboardKeyboard"
 import { BullOff } from "@/components/game/BullOff"
 import { VisitLimitPicker } from "@/components/game/VisitLimitPicker"
@@ -39,7 +39,6 @@ interface VisitView {
 
 interface Roster { name: string; players: string[] }
 
-const QUICK_SCORES = [26, 41, 45, 60, 81, 85, 100, 121, 140, 180]
 const KEYPAD = [[7,8,9],[4,5,6],[1,2,3],["*",0,"DEL"]] as const
 
 export function TogetherGame() {
@@ -179,10 +178,7 @@ export function TogetherGame() {
   const afterScore = ctxBefore - inputNum
   const isBust = hasInput && (inputNum === 0 || afterScore < 0 || afterScore === 1)
   const isCheckout = hasInput && !isBust && afterScore === 0
-  const isImpossibleLeave = hasInput && afterScore > 1 && IMPOSSIBLE_CHECKOUTS.has(afterScore)
   const checkoutHint = ctxBefore <= 170 ? getCheckout(ctxBefore) : null
-  const inputHint = hasInput && !isBust && afterScore > 0 && !IMPOSSIBLE_CHECKOUTS.has(afterScore)
-    ? getCheckout(afterScore) : null
 
   // Bull finish check (зөвхөн шинэ ээлж дээр)
   const isAtLimit = limitRoundsEnabled && d.currentRound >= limitRounds && editingIndex === null
@@ -449,54 +445,32 @@ export function TogetherGame() {
     const curLegView = d.legsView[d.legsView.length - 1] ?? []
     const t0Visits = curLegView.filter(v => v.team === 0)
     const t1Visits = curLegView.filter(v => v.team === 1)
-    const rounds = Math.max(t0Visits.length, t1Visits.length)
+    // Идэвхтэй багийн дараагийн round (сум энд зааж байна)
+    const activeRound = (d.activeTeam === 0 ? t0Visits.length : t1Visits.length) + 1
+    const rowCount = Math.max(t0Visits.length, t1Visits.length, activeRound)
 
-    const renderTeam = (idx: number) => {
-      const r = roster[idx]
-      const isActive = idx === d.activeTeam
-      const currentPlayerName = r.players[d.currentPlayer[idx]]
-      const tier = isActive ? "border-primary shadow-lg shadow-primary/20" : "border-border/30 opacity-70"
-      return (
-        <div className={cn("flex flex-col rounded-xl border-2 p-3 transition-all", tier, isActive ? "bg-primary/5" : "bg-card/50")}>
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-semibold truncate">{r.name}</p>
-            <div className="flex gap-1">
-              {Array.from({ length: legsToWin }).map((_, i) => (
-                <div key={i} className={cn("h-2 w-2 rounded-full", i < d.legs[idx] ? "bg-primary" : "bg-border/50")} />
-              ))}
-            </div>
-          </div>
-          <p className={cn("text-4xl font-black score-display text-center my-1",
-            isActive ? "text-primary" : "text-foreground/60")}>{d.scores[idx]}</p>
-          <p className="text-center text-[11px] text-muted-foreground truncate">
-            {isActive ? <span className="text-primary font-semibold">▶ {currentPlayerName}</span> : currentPlayerName}
-          </p>
-          {isActive && checkoutHint && editingIndex === null && (
-            <div className="mt-1.5 bg-[oklch(0.78_0.16_85)]/15 rounded px-2 py-1 text-center">
-              <p className="text-[10px] font-mono text-[oklch(0.78_0.16_85)] font-bold">{checkoutHint}</p>
-            </div>
-          )}
-        </div>
-      )
-    }
+    // Багийн leg-ийн дундаж (3 дартын)
+    const statAvg = (vs: VisitView[]) =>
+      vs.length ? Math.round(vs.reduce((a, v) => a + (v.bust ? 0 : v.points), 0) / vs.length) : 0
+    const avg0 = statAvg(t0Visits)
+    const avg1 = statAvg(t1Visits)
 
-    // Хүснэгтийн нэг нүд (нэг ээлж) — дарж засна
-    const renderCell = (v: VisitView | undefined, side: number) => {
-      if (!v) return <div className="flex-1" />
+    // Тоглогчийн нэр (1 хүнтэй бол хүний нэр том, олонтой бол багийн нэр)
+    const bigName = (i: number) => roster[i].players.length === 1 ? roster[i].players[0] : roster[i].name
+    const subName = (i: number) => roster[i].players.length === 1 ? null : roster[i].players[d.currentPlayer[i]]
+
+    // Нэг талын оноо нүд (дарж засна)
+    const scoreCell = (v: VisitView | undefined, side: 0 | 1) => {
+      if (!v) return <div className="h-9" />
       const editing = editingIndex === v.idx
       return (
         <button onClick={() => startEdit(v)}
-          className={cn("flex-1 flex flex-col items-center py-1.5 rounded-lg transition-colors group",
-            editing ? "bg-primary/20 ring-1 ring-primary" : "hover:bg-secondary/60",
-            side === 0 ? "items-end pr-3" : "items-start pl-3")}>
-          <span className={cn("text-2xl font-black score-display leading-none flex items-center gap-1",
-            v.bust ? "text-destructive/70" : "text-foreground/85")}>
-            {v.checkout && <span className="text-green-400 text-xs">✓</span>}
+          className={cn("h-9 w-full flex items-center transition-colors rounded-md",
+            side === 0 ? "justify-end pr-3" : "justify-start pl-3",
+            editing ? "bg-primary/20 ring-1 ring-primary" : "active:bg-secondary/60")}>
+          <span className={cn("text-3xl font-bold score-display leading-none",
+            v.bust ? "text-destructive/50 line-through" : v.checkout ? "text-green-400" : "text-foreground/85")}>
             {v.points}
-            <Pencil className="h-2.5 w-2.5 opacity-0 group-hover:opacity-40 transition-opacity" />
-          </span>
-          <span className={cn("text-[10px] font-mono", v.bust ? "text-destructive/60" : "text-muted-foreground/60")}>
-            {v.bust ? "BUST" : v.remaining}
           </span>
         </button>
       )
@@ -504,24 +478,18 @@ export function TogetherGame() {
 
     return (
       <div className="max-w-sm mx-auto space-y-3">
-        {/* Header */}
+        {/* Top bar */}
         <div className="flex items-center gap-2">
           <button onClick={resetGame} className="text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <div className="flex-1 text-center">
-            <p className="text-xs text-muted-foreground">{format} · BO{bestOf} · Leg {d.legs[0] + d.legs[1] + 1}</p>
-            {limitRoundsEnabled && (
-              <p className={cn("text-[10px] font-semibold",
-                isAtLimit ? "text-destructive" : "text-muted-foreground/60")}>
-                Round {d.currentRound}/{limitRounds}{isAtLimit && bullFinishAtLimit ? " 🎯" : ""}
-              </p>
-            )}
-          </div>
+          <p className="flex-1 text-center text-xs text-muted-foreground">
+            {format} · BO{bestOf} · {legsToWin} leg хожно
+            {limitRoundsEnabled && <span className={cn("ml-1", isAtLimit ? "text-destructive" : "")}>· R{d.currentRound}/{limitRounds}</span>}
+          </p>
           <div className="flex items-center gap-1.5">
             {visits.length > 0 && editingIndex === null && (
-              <button onClick={undoLast} title="Сүүлийнхийг буцаах"
-                className="text-muted-foreground hover:text-foreground">
+              <button onClick={undoLast} title="Сүүлийнхийг буцаах" className="text-muted-foreground hover:text-foreground">
                 <RotateCcw className="h-4 w-4" />
               </button>
             )}
@@ -529,119 +497,126 @@ export function TogetherGame() {
           </div>
         </div>
 
-        {/* Scores */}
-        <div className="grid grid-cols-2 gap-2">
-          {renderTeam(0)}
-          {renderTeam(1)}
+        {/* ── TV scoreboard ── */}
+        <div className="rounded-xl overflow-hidden border border-border/40">
+          {/* Name panels */}
+          <div className="grid grid-cols-2">
+            {[0, 1].map((i) => (
+              <div key={i} className={cn("py-2.5 px-3 text-center min-w-0 transition-colors",
+                d.activeTeam === i
+                  ? (i === 0 ? "bg-primary text-primary-foreground" : "bg-blue-600 text-white")
+                  : "bg-secondary/60 text-muted-foreground")}>
+                <p className="text-base font-extrabold truncate leading-tight">{bigName(i)}</p>
+                {subName(i) && <p className="text-[11px] opacity-80 truncate">{subName(i)}</p>}
+              </div>
+            ))}
+          </div>
+
+          {/* Remaining score row */}
+          <div className="grid grid-cols-2 bg-card">
+            {[0, 1].map((i) => {
+              const active = d.activeTeam === i
+              const avg = i === 0 ? avg0 : avg1
+              return (
+                <div key={i} className={cn("flex items-center gap-2 px-3 py-2 border-border/40",
+                  i === 0 ? "border-r" : "",
+                  active ? "bg-foreground" : "")}>
+                  {i === 1 && (
+                    <span className={cn("text-[11px] font-mono shrink-0", active ? "text-background/50" : "text-muted-foreground/50")}>{avg}</span>
+                  )}
+                  <div className="flex-1 flex items-center justify-center gap-1.5 min-w-0">
+                    {active && <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", active ? "bg-background" : "bg-primary")} />}
+                    <span className={cn("text-5xl font-black score-display leading-none",
+                      active ? "text-background" : "text-foreground/55")}>{d.scores[i]}</span>
+                  </div>
+                  {i === 0 && (
+                    <span className={cn("text-[11px] font-mono shrink-0", active ? "text-background/50" : "text-muted-foreground/50")}>{avg}</span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Legs + checkout hint */}
+          <div className="flex items-center justify-center gap-3 bg-secondary/40 py-1 text-xs">
+            <span className={cn("font-black tabular-nums", d.activeTeam === 0 ? "text-primary" : "text-muted-foreground")}>{d.legs[0]}</span>
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60">Legs</span>
+            <span className={cn("font-black tabular-nums", d.activeTeam === 1 ? "text-blue-400" : "text-muted-foreground")}>{d.legs[1]}</span>
+          </div>
+
+          {/* History rows: left score | round# | right score */}
+          <div className="py-2">
+            {Array.from({ length: rowCount }).map((_, i) => {
+              const isActiveRow = i === activeRound - 1
+              const first = i === 0
+              const last = i === rowCount - 1
+              return (
+                <div key={i} className="grid grid-cols-[1fr_auto_1fr] items-center">
+                  {scoreCell(t0Visits[i], 0)}
+                  {/* center round column */}
+                  <div className="relative flex items-center justify-center w-12">
+                    {isActiveRow && (
+                      <span className={cn("absolute text-yellow-400 text-xs",
+                        d.activeTeam === 0 ? "-left-0.5" : "-right-0.5")}>
+                        {d.activeTeam === 0 ? "◀" : "▶"}
+                      </span>
+                    )}
+                    <span className={cn("h-9 w-7 flex items-center justify-center text-sm font-bold bg-zinc-800 text-zinc-300",
+                      first && "rounded-t-md", last && "rounded-b-md",
+                      isActiveRow && "text-white")}>
+                      {i + 1}
+                    </span>
+                  </div>
+                  {scoreCell(t1Visits[i], 1)}
+                </div>
+              )
+            })}
+          </div>
         </div>
 
-        {/* Turn history table */}
-        {rounds > 0 && (
-          <Card className="border-border/40 bg-card/60">
-            <CardContent className="p-2">
-              <div className="flex items-center text-[9px] uppercase tracking-wider text-muted-foreground/50 px-1 pb-1">
-                <span className="flex-1 text-right pr-3">{roster[0].name}</span>
-                <span className="w-7 text-center">#</span>
-                <span className="flex-1 text-left pl-3">{roster[1].name}</span>
-              </div>
-              <div className="max-h-44 overflow-y-auto space-y-0.5">
-                {Array.from({ length: rounds }).map((_, i) => (
-                  <div key={i} className="flex items-center border-t border-border/20 first:border-0">
-                    {renderCell(t0Visits[i], 0)}
-                    <span className="w-7 text-center text-xs font-bold text-muted-foreground/40">{i + 1}</span>
-                    {renderCell(t1Visits[i], 1)}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Editing banner */}
-        {editingIndex !== null && (
-          <div className="flex items-center justify-between bg-primary/10 border border-primary/30 rounded-lg px-3 py-2">
-            <p className="text-xs font-semibold text-primary flex items-center gap-1.5">
-              <Pencil className="h-3.5 w-3.5" /> Оноо засаж байна
-            </p>
-            <button onClick={cancelEdit} className="text-muted-foreground hover:text-foreground">
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        )}
-
-        {/* Active player */}
-        {editingIndex === null && (
-          <div className="flex items-center gap-2 px-1">
-            <span className="h-2 w-2 rounded-full bg-primary animate-pulse shrink-0" />
-            <p className="text-sm font-semibold text-primary truncate">
-              {roster[d.activeTeam].name} — {roster[d.activeTeam].players[d.currentPlayer[d.activeTeam]]}
-            </p>
-          </div>
+        {/* Checkout hint */}
+        {checkoutHint && editingIndex === null && !isBust && (
+          <p className="text-center text-[11px] font-mono text-[oklch(0.78_0.16_85)] font-bold">🎯 {checkoutHint}</p>
         )}
 
         {/* Bull finish warning */}
         {bullRequired && editingIndex === null && (
-          <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2">
-            <span className="text-lg">🎯</span>
-            <p className="text-xs font-bold text-destructive">Bull Finish — зөвхөн 50 эсвэл 25!</p>
+          <div className="flex items-center justify-center gap-2 bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-1.5">
+            <span>🎯</span>
+            <p className="text-xs font-bold text-destructive">Bull Finish — зөвхөн 50/25!</p>
           </div>
         )}
 
-        {/* Input display */}
-        <Card className={cn("border-2",
-          isBust ? "border-destructive bg-destructive/5" :
-          isCheckout ? "border-green-500 bg-green-500/5" :
-          "border-border/50")}>
-          <CardContent className="p-3">
-            <div className="flex items-center justify-between mb-2">
-              <p className={cn("text-4xl font-black score-display",
-                isBust ? "text-destructive" : isCheckout ? "text-green-400" : "")}>
-                {input || "0"}
-              </p>
-              <div className="text-right">
-                {isBust && <Badge className="bg-destructive/15 text-destructive border-destructive/30">BUST!</Badge>}
-                {isCheckout && <Badge className="bg-green-500/15 text-green-400 border-green-500/30">CHECKOUT!</Badge>}
-                {!isBust && !isCheckout && hasInput && afterScore > 0 && (
-                  <div>
-                    <p className="text-sm font-bold score-display">{afterScore}</p>
-                    {inputHint && <p className="text-[10px] font-mono text-[oklch(0.78_0.16_85)]">{inputHint}</p>}
-                    {isImpossibleLeave && <p className="text-[10px] font-mono text-muted-foreground/60">энд checkout үгүй</p>}
-                  </div>
-                )}
-              </div>
-            </div>
-            <DartSelector
-              value={dartsUsed}
-              onChange={setDartsUsed}
-              label={isCheckout ? "Хэдэн дартаар checkout хийв?" : "Хэдэн дарт шидэв?"}
-              className="mb-2"
-            />
-            <button onClick={submit} disabled={!hasInput}
-              className={cn("w-full py-2.5 rounded-lg font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed",
-                editingIndex !== null ? "bg-primary text-primary-foreground glow-primary" :
-                isCheckout ? "bg-green-600 hover:bg-green-700 text-white" :
-                isBust ? "bg-destructive text-white" :
-                "bg-primary text-primary-foreground glow-primary")}>
-              {editingIndex !== null ? "Засах ✓" : isCheckout ? "✓ Checkout!" : isBust ? "Bust — ээлж алдах" : "Оруулах"}
+        {/* Input row */}
+        <div className="flex items-center justify-between px-1">
+          {editingIndex !== null ? (
+            <button onClick={cancelEdit} className="flex items-center gap-1 text-xs font-semibold text-primary">
+              <Pencil className="h-3.5 w-3.5" /> Засаж байна <X className="h-3.5 w-3.5" />
             </button>
-          </CardContent>
-        </Card>
-
-        {/* Quick scores */}
-        <div className="flex gap-1.5 flex-wrap">
-          {QUICK_SCORES.map(s => (
-            <button key={s} onClick={() => setInput(String(s))}
-              className="px-2 py-1 text-xs font-mono font-semibold rounded bg-secondary/70 hover:bg-secondary border border-border/40 transition-colors">
-              {s}
-            </button>
-          ))}
+          ) : (
+            <span className="text-xs text-muted-foreground truncate">
+              ▶ {roster[d.activeTeam].players[d.currentPlayer[d.activeTeam]]}
+            </span>
+          )}
+          <div className="flex items-center gap-2">
+            {isBust && <Badge className="bg-destructive/15 text-destructive border-destructive/30">BUST</Badge>}
+            {isCheckout && <Badge className="bg-green-500/15 text-green-400 border-green-500/30">CHECKOUT</Badge>}
+            {!isBust && !isCheckout && hasInput && <span className="text-xs font-mono text-muted-foreground">→ {afterScore}</span>}
+            <span className={cn("text-3xl font-black score-display tabular-nums",
+              isBust ? "text-destructive" : isCheckout ? "text-green-400" : "")}>{input || "0"}</span>
+          </div>
         </div>
+
+        {/* Dart selector — зөвхөн checkout үед */}
+        {isCheckout && (
+          <DartSelector value={dartsUsed} onChange={setDartsUsed} label="Хэдэн дартаар checkout хийв?" />
+        )}
 
         {/* Keypad */}
         <div className="grid grid-cols-3 gap-2">
           {KEYPAD.flat().map((k, i) => (
             <button key={i} onClick={() => keypad(k)}
-              className={cn("h-14 rounded-xl text-lg font-bold transition-all active:scale-95",
+              className={cn("h-12 rounded-xl text-lg font-bold transition-all active:scale-95",
                 k === "DEL" ? "bg-secondary/80 text-destructive" :
                 k === "*" ? "bg-secondary/80 text-muted-foreground" :
                 "bg-secondary/50 hover:bg-secondary border border-border/30")}>
@@ -649,6 +624,15 @@ export function TogetherGame() {
             </button>
           ))}
         </div>
+
+        {/* Submit */}
+        <button onClick={submit} disabled={!hasInput}
+          className={cn("w-full py-3 rounded-xl font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed",
+            isCheckout ? "bg-green-600 hover:bg-green-700 text-white" :
+            isBust ? "bg-destructive text-white" :
+            "bg-primary text-primary-foreground glow-primary")}>
+          {editingIndex !== null ? "Засах ✓" : isCheckout ? "✓ Checkout!" : isBust ? "Bust — ээлж алдах" : "Оруулах"}
+        </button>
       </div>
     )
   }
