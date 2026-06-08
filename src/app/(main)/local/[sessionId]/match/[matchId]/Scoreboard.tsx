@@ -2,14 +2,17 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Check, Delete, Trophy, Zap } from "lucide-react"
+import { ArrowLeft, Check, Delete, Trophy } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { useLocalGame } from "@/lib/local-game/store"
+import type { LegThrow } from "@/lib/local-game/types"
 import { getCheckout, IMPOSSIBLE_CHECKOUTS, VALID_DOUBLES, classifyTurn, isPossibleVisitScore } from "@/lib/local-game/checkouts"
 import { useScoreboardKeyboard } from "@/hooks/useScoreboardKeyboard"
 import { BullOff } from "@/components/game/BullOff"
+import { DartSelector } from "@/components/game/DartSelector"
 import { toast } from "sonner"
 
 const KEYPAD = [[7,8,9],[4,5,6],[1,2,3],["*",0,"DEL"]] as const
@@ -91,7 +94,6 @@ export function Scoreboard() {
     // P2 visit row
     if (t2) visitRows.push({ dartNo: (i + 1) * 6, p2score: t2.score, p2rem, p2bust: !!t2.bust })
   }
-  const totalDarts = (p1Throws.length + p2Throws.length) * 3
 
   // ── Safety: show winner select if limit exceeded ──
   useEffect(() => {
@@ -247,190 +249,149 @@ export function Scoreboard() {
     const next = input + key; if (parseInt(next) > 180) return; setInput(next)
   }
 
+  // ── TV-style history / average helpers ──
+  const activeRound = (activePlayer === 0 ? p1Throws.length : p2Throws.length) + 1
+  const rowCount = Math.max(p1Throws.length, p2Throws.length, activeRound)
+  const avgOf = (throws: LegThrow[]) => {
+    const darts = throws.reduce((a, t) => a + (t.darts ?? 3), 0)
+    const pts = throws.reduce((a, t) => a + (t.bust ? 0 : t.score), 0)
+    return darts ? Math.round((pts / darts) * 3) : 0
+  }
+  const avg1 = avgOf(p1Throws)
+  const avg2 = avgOf(p2Throws)
+  const activeName = activePlayer === 0 ? p1?.name : p2?.name
+
+  const histCell = (t: LegThrow | undefined, side: 0 | 1) => {
+    if (!t) return <div className="h-9" />
+    const checkout = !t.bust && t.remaining === 0
+    return (
+      <div className={cn("h-9 flex items-center", side === 0 ? "justify-end pr-3" : "justify-start pl-3")}>
+        <span className={cn("text-3xl font-bold score-display leading-none",
+          t.bust ? "text-destructive/50 line-through" : checkout ? "text-green-400" : "text-foreground/85")}>
+          {t.score}
+        </span>
+      </div>
+    )
+  }
+
   return (
-    <div className="max-w-lg mx-auto flex flex-col gap-2 pb-4">
-
-      {/* ── Header ── */}
-      <div className="flex items-center gap-2 pt-2 pb-1">
-        <button onClick={() => router.push(`/local/${sessionId}`)} className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-8 w-8 shrink-0")}><ArrowLeft className="h-4 w-4" /></button>
-        <div className="flex-1 text-center min-w-0">
-          <p className="text-sm font-bold truncate">{session.name}</p>
-          <div className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground">
-            <span>{session.format.toUpperCase()} · {legsToWin} Leg авна</span>
-            <span>·</span>
-            <span>Leg {currentLegIndex + 1}</span>
-            {limitRounds && (
-              <span className={cn("font-bold", visitRound >= limitRounds ? "text-yellow-400" : "")}>
-                Round {visitRound}/{limitRounds}
-              </span>
-            )}
-          </div>
-        </div>
-        <span className="text-[10px] font-bold border border-primary/40 text-primary rounded px-1.5 py-0.5 shrink-0 pulse-live">LIVE</span>
+    <div className="max-w-sm mx-auto space-y-3 pb-4">
+      {/* ── Top bar ── */}
+      <div className="flex items-center gap-2 pt-2">
+        <button onClick={() => router.push(`/local/${sessionId}`)} className="text-muted-foreground hover:text-foreground shrink-0"><ArrowLeft className="h-5 w-5" /></button>
+        <p className="flex-1 text-center text-xs text-muted-foreground truncate">
+          {session.format.toUpperCase()} · {legsToWin} leg хожно · Leg {currentLegIndex + 1}
+          {limitRounds && <span className={cn("ml-1", visitRound >= limitRounds ? "text-destructive" : "")}>· R{visitRound}/{limitRounds}</span>}
+        </p>
+        <Badge className="bg-primary/15 text-primary border-primary/30 pulse-live text-xs shrink-0">LIVE</Badge>
       </div>
 
-      {/* ── Leg progress ── */}
-      <div className="grid grid-cols-2 gap-2 text-center">
-        {[{ name: p1?.name, legs: match.player1Legs, side: 0 }, { name: p2?.name, legs: match.player2Legs, side: 1 }].map(({ name, legs, side }) => (
-          <div key={side} className={cn("rounded-lg py-1.5 px-2 border", activePlayer === side ? "border-primary/40 bg-primary/5" : "border-border/30")}>
-            <p className="text-xs font-semibold truncate">{name}</p>
-            <div className="flex gap-1 justify-center mt-1">
-              {Array.from({ length: legsToWin }).map((_, i) => (
-                <div key={i} className={cn("h-1.5 rounded-full transition-all", i < legs ? "bg-primary w-4" : "bg-border/40 w-3")} />
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Throw table — image style ── */}
-      <div className="border border-border/40 rounded-lg overflow-hidden text-sm">
-        {/* Column headers */}
-        <div className="grid grid-cols-[1fr_44px_1fr] bg-secondary/50 text-[11px] text-muted-foreground font-semibold border-b border-border/30">
-          <div className="grid grid-cols-2">
-            <div className="px-2 py-1.5 text-center border-r border-border/20">Оноо</div>
-            <div className="px-2 py-1.5 text-center">Үлдсэн</div>
-          </div>
-          <div className="px-1 py-1.5 text-center border-x border-border/30 text-[10px]">🎯</div>
-          <div className="grid grid-cols-2">
-            <div className="px-2 py-1.5 text-center border-l border-border/20">Үлдсэн</div>
-            <div className="px-2 py-1.5 text-center">Оноо</div>
-          </div>
-        </div>
-
-        {/* Starting row */}
-        <div className="grid grid-cols-[1fr_44px_1fr] border-b border-border/20 bg-secondary/20">
-          <div className="grid grid-cols-2">
-            <div className="px-2 py-1.5 text-center text-muted-foreground/30 border-r border-border/10">—</div>
-            <div className="px-2 py-1.5 text-center font-bold">{startScore}</div>
-          </div>
-          <div className="px-1 py-1.5 text-center text-[10px] text-muted-foreground/30 border-x border-border/20">0</div>
-          <div className="grid grid-cols-2">
-            <div className="px-2 py-1.5 text-center font-bold border-l border-border/10">{startScore}</div>
-            <div className="px-2 py-1.5 text-center text-muted-foreground/30">—</div>
-          </div>
-        </div>
-
-        {/* Visit rows (per-visit, alternating P1/P2) */}
-        <div ref={tableRef} className="max-h-32 sm:max-h-52 overflow-y-auto overscroll-contain">
-          {visitRows.map((row, i) => {
-            const isP1 = row.p1score !== undefined
-            const isLast = i === visitRows.length - 1
+      {/* ── TV scoreboard ── */}
+      <div className="rounded-xl overflow-hidden border border-border/40">
+        {/* Name panels */}
+        <div className="grid grid-cols-2">
+          {[0, 1].map((side) => {
+            const name = side === 0 ? p1?.name : p2?.name
+            const active = activePlayer === side
+            const legs = side === 0 ? match.player1Legs : match.player2Legs
             return (
-              <div key={i} className={cn("grid grid-cols-[1fr_44px_1fr] border-b border-border/10 transition-colors",
-                isLast ? "bg-primary/5" : "")}>
-                {/* P1 side */}
-                <div className="grid grid-cols-2">
-                  <div className={cn("px-2 py-1.5 text-center font-mono border-r border-border/10",
-                    isP1 ? row.p1bust ? "text-destructive/50 line-through" : row.p1score! >= 100 ? "text-primary font-bold" : "text-foreground" : "text-muted-foreground/20")}>
-                    {isP1 ? row.p1score : "·"}
-                  </div>
-                  <div className="px-2 py-1.5 text-center font-mono text-muted-foreground/70">
-                    {isP1 && row.p1rem !== undefined ? row.p1rem : ""}
-                  </div>
-                </div>
-                {/* Dart count */}
-                <div className="px-1 py-1.5 text-center text-[11px] font-mono text-muted-foreground/60 border-x border-border/20">
-                  {row.dartNo}
-                </div>
-                {/* P2 side */}
-                <div className="grid grid-cols-2">
-                  <div className="px-2 py-1.5 text-center font-mono text-muted-foreground/70 border-l border-border/10">
-                    {!isP1 && row.p2rem !== undefined ? row.p2rem : ""}
-                  </div>
-                  <div className={cn("px-2 py-1.5 text-center font-mono",
-                    !isP1 ? row.p2bust ? "text-destructive/50 line-through" : row.p2score! >= 100 ? "text-primary font-bold" : "text-foreground" : "text-muted-foreground/20")}>
-                    {!isP1 ? row.p2score : "·"}
-                  </div>
+              <div key={side} className={cn("py-2.5 px-3 text-center min-w-0 transition-colors",
+                active ? (side === 0 ? "bg-primary text-primary-foreground" : "bg-blue-600 text-white") : "bg-secondary/60 text-muted-foreground")}>
+                <p className="text-base font-extrabold truncate leading-tight">{name}</p>
+                <div className="flex gap-1 justify-center mt-1">
+                  {Array.from({ length: legsToWin }).map((_, i) => (
+                    <div key={i} className={cn("h-1.5 rounded-full transition-all", i < legs ? "bg-current w-3.5" : "bg-current/30 w-2.5")} />
+                  ))}
                 </div>
               </div>
             )
           })}
+        </div>
 
-          {/* Active player indicator row */}
-          {match.status === "ongoing" && (
-            <div className="grid grid-cols-[1fr_44px_1fr] bg-primary/3">
-              <div className="grid grid-cols-2">
-                <div className="px-2 py-2 text-center border-r border-border/10">
-                  {activePlayer === 0 && <span className="inline-block h-2 w-2 rounded-full bg-primary animate-pulse" />}
+        {/* Remaining score row */}
+        <div className="grid grid-cols-2 bg-card">
+          {[0, 1].map((side) => {
+            const active = activePlayer === side
+            const rem = side === 0 ? rem1 : rem2
+            const avg = side === 0 ? avg1 : avg2
+            return (
+              <div key={side} className={cn("flex items-center gap-2 px-3 py-2 border-border/40", side === 0 ? "border-r" : "", active ? "bg-foreground" : "")}>
+                {side === 1 && <span className={cn("text-[11px] font-mono shrink-0", active ? "text-background/50" : "text-muted-foreground/50")}>{avg}</span>}
+                <div className="flex-1 flex items-center justify-center gap-1.5 min-w-0">
+                  {active && <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-background" />}
+                  <span className={cn("text-5xl font-black score-display leading-none", active ? "text-background" : "text-foreground/55")}>{rem}</span>
                 </div>
-                <div className="px-2 py-2" />
+                {side === 0 && <span className={cn("text-[11px] font-mono shrink-0", active ? "text-background/50" : "text-muted-foreground/50")}>{avg}</span>}
               </div>
-              <div className="px-1 py-2 text-center text-[10px] text-primary/50 font-mono border-x border-border/20">
-                {totalDarts + 3}
-              </div>
-              <div className="grid grid-cols-2">
-                <div className="px-2 py-2 border-l border-border/10" />
-                <div className="px-2 py-2 text-center">
-                  {activePlayer === 1 && <span className="inline-block h-2 w-2 rounded-full bg-primary animate-pulse" />}
+            )
+          })}
+        </div>
+
+        {/* Legs row */}
+        <div className="flex items-center justify-center gap-3 bg-secondary/40 py-1 text-xs">
+          <span className={cn("font-black tabular-nums", activePlayer === 0 ? "text-primary" : "text-muted-foreground")}>{match.player1Legs}</span>
+          <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60">Legs</span>
+          <span className={cn("font-black tabular-nums", activePlayer === 1 ? "text-blue-400" : "text-muted-foreground")}>{match.player2Legs}</span>
+        </div>
+
+        {/* History rows: left score | round# | right score */}
+        <div ref={tableRef} className="py-2 max-h-40 overflow-y-auto overscroll-contain">
+          {Array.from({ length: rowCount }).map((_, i) => {
+            const isActiveRow = i === activeRound - 1 && match.status === "ongoing"
+            const first = i === 0
+            const last = i === rowCount - 1
+            return (
+              <div key={i} className="grid grid-cols-[1fr_auto_1fr] items-center">
+                {histCell(p1Throws[i], 0)}
+                <div className="relative flex items-center justify-center w-12">
+                  {isActiveRow && (
+                    <span className={cn("absolute text-yellow-400 text-xs", activePlayer === 0 ? "-left-0.5" : "-right-0.5")}>
+                      {activePlayer === 0 ? "◀" : "▶"}
+                    </span>
+                  )}
+                  <span className={cn("h-9 w-7 flex items-center justify-center text-sm font-bold bg-zinc-800 text-zinc-300",
+                    first && "rounded-t-md", last && "rounded-b-md", isActiveRow && "text-white")}>
+                    {i + 1}
+                  </span>
                 </div>
+                {histCell(p2Throws[i], 1)}
               </div>
-            </div>
-          )}
+            )
+          })}
         </div>
       </div>
 
-      {/* ── Remaining scores ── */}
-      <div className="grid grid-cols-2 gap-2">
-        {[{ id: p1Id, rem: rem1, side: 0 }, { id: p2Id, rem: rem2, side: 1 }].map(({ id, rem, side }) => {
-          const isActive = activePlayer === side
-          const co = isActive ? checkoutHint : null
-          return (
-            <div key={id} className={cn("text-center py-2 rounded-xl border-2 transition-all",
-              isActive ? "border-primary bg-primary/5" : "border-border/30 bg-secondary/20")}>
-              <p className={cn("text-[52px] font-black score-display leading-none",
-                isActive ? "text-primary" : "text-foreground/50")}>{rem}</p>
-              {co && <p className="text-xs font-mono text-[oklch(0.78_0.16_85)] mt-0.5 font-bold">{co}</p>}
-              {isOnImpossiblePosition && isActive && <p className="text-[10px] text-orange-400 mt-0.5">Checkout боломжгүй</p>}
-            </div>
-          )
-        })}
+      {/* ── Checkout hint / impossible warning ── */}
+      {checkoutHint && !isBust && !input && (
+        <p className="text-center text-[11px] font-mono text-[oklch(0.78_0.16_85)] font-bold">🎯 {checkoutHint}</p>
+      )}
+      {isOnImpossiblePosition && !input && (
+        <p className="text-center text-[11px] text-orange-400">Энэ оноо checkout боломжгүй</p>
+      )}
+
+      {/* ── Input row ── */}
+      <div className="flex items-center justify-between px-1">
+        <span className="text-xs text-muted-foreground truncate">▶ {activeName}</span>
+        <div className="flex items-center gap-2">
+          {isBust && <Badge className="bg-destructive/15 text-destructive border-destructive/30">BUST</Badge>}
+          {isCheckoutScore && <Badge className="bg-green-500/15 text-green-400 border-green-500/30">CHECKOUT</Badge>}
+          {!isBust && !isCheckoutScore && input && (
+            <span className="text-xs font-mono text-muted-foreground">→ {afterScore}{inputHint ? ` · ${inputHint}` : ""}</span>
+          )}
+          <span className={cn("w-20 text-right text-3xl font-black score-display tabular-nums leading-none",
+            isBust ? "text-destructive" : isCheckoutScore ? "text-green-400" : "")}>
+            {input || "0"}
+          </span>
+        </div>
       </div>
 
-      {/* ── Input + dart selector ── */}
-      <Card className={cn("border-2 transition-colors",
-        isBust ? "border-destructive bg-destructive/5" : isCheckoutScore ? "border-green-500 bg-green-500/5" : "border-border/50")}>
-        <CardContent className="p-3 space-y-3">
-          <div className="flex items-center justify-between">
-            <p className={cn("text-5xl font-black score-display", isBust ? "text-destructive" : isCheckoutScore ? "text-green-400" : "")}>
-              {input || "0"}
-            </p>
-            <div className="text-right space-y-1">
-              {isBust && <p className="text-xs font-bold text-destructive">BUST!</p>}
-              {isCheckoutScore && <p className="text-xs font-bold text-green-400">CHECKOUT!</p>}
-              {!isBust && !isCheckoutScore && input && afterScore > 0 && (
-                <><p className="text-sm font-bold score-display">{afterScore}</p>
-                {inputHint && <p className="text-[10px] font-mono text-[oklch(0.78_0.16_85)]">{inputHint}</p>}</>
-              )}
-            </div>
-          </div>
-
-          {/* Dart count */}
-          <div>
-            <p className="text-[11px] text-muted-foreground mb-1.5">
-              {isCheckoutScore ? "Хэдэн дартаар checkout хийв?" : "Хэдэн дарт шидэв?"}
-            </p>
-            <div className="flex gap-2">
-              {[1, 2, 3].map(n => (
-                <button key={n} onClick={() => setDartsUsed(n)}
-                  className={cn("flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border-2 text-sm font-bold transition-all",
-                    dartsUsed === n ? "border-primary bg-primary/10 text-primary" : "border-border/40 text-muted-foreground hover:border-border")}>
-                  {Array.from({ length: n }).map((_, i) => <span key={i} className="text-base">🎯</span>)}
-                  <span>{n}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <Button className={cn("w-full", isCheckoutScore ? "bg-green-600 hover:bg-green-700 text-white" : "glow-primary")}
-            disabled={!input || isBust} onClick={submitScore} size="lg">
-            {isCheckoutScore ? <><Check className="h-4 w-4 mr-1.5" />Checkout!</> : "Оруулах"}
-          </Button>
-        </CardContent>
-      </Card>
+      {/* ── Dart selector — only on checkout ── */}
+      {isCheckoutScore && (
+        <DartSelector value={dartsUsed} onChange={setDartsUsed} label="Хэдэн дартаар checkout хийв?" />
+      )}
 
       {/* ── Quick scores ── */}
-      <div className="flex gap-1.5 flex-wrap">
+      <div className="flex gap-1.5 flex-wrap justify-center">
         {QUICK_SCORES.map(s => (
           <button key={s} onClick={() => setInput(String(s))}
             className="px-2.5 py-1 text-xs font-mono font-semibold rounded bg-secondary/70 hover:bg-secondary border border-border/40 transition-colors">{s}</button>
@@ -440,15 +401,21 @@ export function Scoreboard() {
       {/* ── Keypad ── */}
       <div className="grid grid-cols-3 gap-2">
         {KEYPAD.flat().map((k, i) => (
-          <button key={i} onClick={() => handleKeypad(k)}
-            className={cn("h-14 rounded-xl text-xl font-bold transition-all active:scale-95",
-              k === "DEL" ? "bg-secondary/80 text-destructive hover:bg-secondary" :
-              k === "*" ? "bg-secondary/80 text-muted-foreground hover:bg-secondary" :
+          <button key={i} onClick={() => handleKeypad(k)} onMouseDown={(e) => e.preventDefault()}
+            className={cn("h-12 rounded-xl text-lg font-bold transition-all active:scale-95",
+              k === "DEL" ? "bg-secondary/80 text-destructive" :
+              k === "*" ? "bg-secondary/80 text-muted-foreground" :
               "bg-secondary/50 hover:bg-secondary border border-border/30")}>
             {k === "DEL" ? <Delete className="h-5 w-5 mx-auto" /> : k === "*" ? "C" : k}
           </button>
         ))}
       </div>
+
+      {/* ── Submit ── */}
+      <Button className={cn("w-full", isCheckoutScore ? "bg-green-600 hover:bg-green-700 text-white" : isBust ? "bg-destructive text-white hover:bg-destructive/90" : "glow-primary")}
+        disabled={!input} onClick={submitScore} size="lg">
+        {isCheckoutScore ? <><Check className="h-4 w-4 mr-1.5" />Checkout!</> : isBust ? "Bust — ээлж алдах" : "Оруулах"}
+      </Button>
 
       {/* ── Manual win ── */}
       <div className="pt-1 border-t border-border/40">
