@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useRef } from "react"
+import { useState, useCallback, useRef, useEffect } from "react"
 import {
   ArrowLeft, Delete, Minus, Pencil, Plus, RotateCcw, Users, X, Zap,
 } from "lucide-react"
@@ -12,6 +12,7 @@ import { useScoreboardKeyboard } from "@/hooks/useScoreboardKeyboard"
 import { BullOff } from "@/components/game/BullOff"
 import { VisitLimitPicker } from "@/components/game/VisitLimitPicker"
 import { DartSelector } from "@/components/game/DartSelector"
+import { AccountLinkPicker, type LinkedAccount } from "@/components/game/AccountLinkPicker"
 import { toast } from "sonner"
 import Link from "next/link"
 import { buttonVariants } from "@/components/ui/button"
@@ -67,6 +68,10 @@ export function TogetherGame() {
   // Засах горимд эхний цохилт хуучин утгыг орлох эсэх
   const freshRef = useRef(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  // 1v1 DartMN бүртгэл холболт (ELO/статистикт бүртгэх)
+  const [link0, setLink0] = useState<LinkedAccount | null>(null)
+  const [link1, setLink1] = useState<LinkedAccount | null>(null)
+  const recordedRef = useRef(false)
 
   const legsToWin = Math.ceil(bestOf / 2)
   const startScore = parseInt(format) || 501
@@ -115,6 +120,7 @@ export function TogetherGame() {
     setInput("")
     setEditingIndex(null)
     setDartsUsed(3)
+    recordedRef.current = false
     setPhase("game")
   }
 
@@ -171,6 +177,28 @@ export function TogetherGame() {
   }
 
   const d = derive()
+
+  // 1v1 + хоёулаа бүртгэлтэй бол тоглолт дуусахад ELO/статистик нэг удаа илгээх
+  useEffect(() => {
+    if (d.winner === null || recordedRef.current) return
+    if (mode !== "1v1" || !link0 || !link1) return
+    recordedRef.current = true
+    const flat = d.legsView.flat()
+    const teamThrows = (team: number) => flat.filter(v => v.team === team).map(v => ({
+      score: v.points,
+      darts: visits[v.idx]?.darts ?? 3,
+      bust: v.bust,
+      before: v.bust ? v.remaining : v.remaining + v.points,
+    }))
+    fetch("/api/play/together-record", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ players: [
+        { profileId: link0.id, throws: teamThrows(0), isWinner: d.winner === 0 },
+        { profileId: link1.id, throws: teamThrows(1), isWinner: d.winner === 1 },
+      ] }),
+    }).then(r => r.ok && toast.success("ELO ба статистик бүртгэгдлээ")).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [d.winner])
 
   // Засаж буй ээлжийн контекст (өмнөх үлдсэн оноо)
   const editingView = editingIndex !== null
@@ -279,6 +307,9 @@ export function TogetherGame() {
     setVisits([])
     setEditingIndex(null)
     setInput("")
+    setLink0(null)
+    setLink1(null)
+    recordedRef.current = false
   }
 
   // ── BULL-OFF SCREEN ───────────────────────────────────
@@ -421,10 +452,24 @@ export function TogetherGame() {
                     </button>
                   )}
                 </div>
+                {mode === "1v1" && (
+                  <AccountLinkPicker
+                    value={ti === 0 ? link0 : link1}
+                    onChange={(a) => {
+                      if (ti === 0) setLink0(a); else setLink1(a)
+                      if (a) setPlayer(ti, 0, a.name)
+                    }}
+                  />
+                )}
               </CardContent>
             </Card>
           ))}
         </div>
+        {mode === "1v1" && (
+          <p className="text-[11px] text-center text-muted-foreground">
+            Хоёр тоглогчийг DartMN бүртгэлд холбовол ELO ба статистик автоматаар бүртгэгдэнэ.
+          </p>
+        )}
 
         <button onClick={startGame}
           className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-bold text-base glow-primary transition-all hover:bg-primary/90 flex items-center justify-center gap-2">
