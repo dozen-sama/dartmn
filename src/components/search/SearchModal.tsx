@@ -6,6 +6,7 @@ import { BarChart3, Building2, Loader2, Search, Trophy, Users, X } from "lucide-
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 import { getTier } from "@/lib/rating"
+import { PlayerName, COSMETIC_FIELDS } from "@/components/cosmetic/PlayerName"
 
 interface SearchResult {
   type: "player" | "tournament" | "club"
@@ -15,6 +16,14 @@ interface SearchResult {
   href: string
   avatar?: string | null
   badge?: string
+  cosmetic?: {
+    display_name: string
+    equipped_frame?: string | null
+    name_effect?: string | null
+    name_color?: string | null
+    name_font?: string | null
+    name_animated?: boolean | null
+  }
 }
 
 interface SearchModalProps {
@@ -34,11 +43,12 @@ export function SearchModal({ open, onClose }: SearchModalProps) {
     if (!q.trim() || q.length < 2) { setResults([]); return }
     setLoading(true)
     const supabase = createClient()
-    const term = `%${q}%`
+    // PostgREST .or()-д тусгай тэмдэгт (, ( ) * % \ :) орохоос сэргийлж цэвэрлэнэ
+    const term = `%${q.replace(/[%,()*\\:]/g, " ").trim()}%`
 
     const [players, tournaments, clubs] = await Promise.all([
       supabase.from("profiles")
-        .select("id, username, display_name, avatar_url, rating_points")
+        .select(`id, username, display_name, avatar_url, rating_points, ${COSMETIC_FIELDS}`)
         .or(`username.ilike.${term},display_name.ilike.${term}`)
         .limit(4),
       supabase.from("tournaments")
@@ -61,6 +71,7 @@ export function SearchModal({ open, onClose }: SearchModalProps) {
         href: `/profile/${p.username}`,
         avatar: p.avatar_url,
         badge: getTier(p.rating_points).icon,
+        cosmetic: p,
       })),
       ...(tournaments.data ?? []).map((t) => ({
         type: "tournament" as const,
@@ -186,7 +197,9 @@ export function SearchModal({ open, onClose }: SearchModalProps) {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
                             {r.badge && <span className="text-sm">{r.badge}</span>}
-                            <p className="text-sm font-medium truncate">{r.title}</p>
+                            <p className="text-sm font-medium truncate">
+                              {r.cosmetic ? <PlayerName p={r.cosmetic} /> : r.title}
+                            </p>
                           </div>
                           <p className="text-xs text-muted-foreground truncate">{r.subtitle}</p>
                         </div>

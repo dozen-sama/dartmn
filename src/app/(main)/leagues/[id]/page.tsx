@@ -8,6 +8,7 @@ import { buttonVariants } from "@/components/ui/button"
 import Link from "next/link"
 import { formatDate } from "@/lib/utils/format"
 import { cn } from "@/lib/utils"
+import { PlayerName, COSMETIC_FIELDS } from "@/components/cosmetic/PlayerName"
 
 export const dynamic = "force-dynamic"
 
@@ -32,7 +33,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
 
   const { data: standings } = await supabase
     .from("league_standings")
-    .select("*, profiles(id, display_name, username, avatar_url, rating_points)")
+    .select(`*, profiles(id, display_name, username, avatar_url, rating_points, ${COSMETIC_FIELDS})`)
     .eq("league_id", id)
     .order("points", { ascending: false })
     .limit(50)
@@ -119,7 +120,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
                         <td className="px-3 py-2.5 text-muted-foreground text-xs">{i + 1}</td>
                         <td className="px-3 py-2.5">
                           <Link href={`/profile/${p?.username}`} className="font-medium hover:text-primary transition-colors">
-                            {p?.display_name ?? "?"}
+                            {p ? <PlayerName p={p} /> : "?"}
                           </Link>
                         </td>
                         <td className="px-3 py-2.5 text-xs score-display">{row.played}</td>
