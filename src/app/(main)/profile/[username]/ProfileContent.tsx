@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { BarChart3, Building2, Edit, MapPin, Pin, Sparkles, Target, Trophy, Zap } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -72,7 +73,7 @@ export function ProfileContent({ profile: p, isOwner, clubName, recentMatches, t
       {/* Profile Hero */}
       <Card className="border-border/50 bg-card/80 overflow-hidden">
         <div className="h-28 bg-gradient-to-r from-primary/30 via-primary/10 to-card relative">
-          {p.cover_url && <img src={p.cover_url} alt="" className="w-full h-full object-cover opacity-50" />}
+          {p.cover_url && <Image src={p.cover_url} alt="" fill sizes="(max-width: 768px) 100vw, 768px" className="object-cover opacity-50" />}
         </div>
 
         <CardContent className="px-5 pb-5">

@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { Building2, MapPin, Plus, Search, Shield, Users } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -86,7 +87,7 @@ export function ClubsContent({ clubs }: Props) {
                 {/* Cover */}
                 <div className="h-24 bg-gradient-to-r from-primary/20 to-secondary overflow-hidden relative">
                   {club.cover_url && (
-                    <img src={club.cover_url} alt={club.name} className="w-full h-full object-cover opacity-60" />
+                    <Image src={club.cover_url} alt={club.name} fill sizes="(max-width: 768px) 100vw, 400px" className="object-cover opacity-60" />
                   )}
                   {club.is_verified && (
                     <Badge className="absolute top-2 right-2 bg-primary/80 text-xs border-0">

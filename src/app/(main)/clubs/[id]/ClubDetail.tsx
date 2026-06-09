@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import {
@@ -149,8 +150,8 @@ export function ClubDetail({ club, members, requests, currentUserId, myRole }: P
       {/* Club hero */}
       <Card className="border-border/50 bg-card/80 overflow-hidden">
         {club.cover_url && (
-          <div className="h-36 overflow-hidden">
-            <img src={club.cover_url} alt={club.name} className="w-full h-full object-cover opacity-70" />
+          <div className="h-36 overflow-hidden relative">
+            <Image src={club.cover_url} alt={club.name} fill sizes="(max-width: 768px) 100vw, 768px" className="object-cover opacity-70" />
           </div>
         )}
         <CardContent className="p-5">

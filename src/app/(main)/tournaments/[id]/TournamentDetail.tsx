@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { toast } from "sonner"
 import {
   ArrowLeft, Calendar, CheckCircle2, Copy, Eye, EyeOff,
@@ -118,8 +119,8 @@ export function TournamentDetail({ tournament: t, registrations, currentUserId, 
       {/* Header */}
       <Card className="border-border/50 bg-card/80 overflow-hidden">
         {t.banner_url && (
-          <div className="h-40 overflow-hidden">
-            <img src={t.banner_url} alt={t.name} className="w-full h-full object-cover opacity-70" />
+          <div className="h-40 overflow-hidden relative">
+            <Image src={t.banner_url} alt={t.name} fill sizes="(max-width: 768px) 100vw, 768px" className="object-cover opacity-70" />
           </div>
         )}
         <CardContent className="p-5">

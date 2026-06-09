@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { CalendarDays, MapPin, Plus, Search, Trophy, Users, WifiOff } from "lucide-react"
 import { buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -241,8 +242,8 @@ function TournamentCard({ tournament: t }: { tournament: TournamentWithRelations
     <Link href={`/tournaments/${t.id}`}>
       <Card className="card-hover border-border/50 bg-card/80 h-full overflow-hidden">
         {t.banner_url && (
-          <div className="h-24 bg-gradient-to-r from-primary/20 to-card overflow-hidden">
-            <img src={t.banner_url} alt={t.name} className="w-full h-full object-cover opacity-60" />
+          <div className="h-24 bg-gradient-to-r from-primary/20 to-card overflow-hidden relative">
+            <Image src={t.banner_url} alt={t.name} fill sizes="(max-width: 768px) 100vw, 400px" className="object-cover opacity-60" />
           </div>
         )}
         <CardContent className="p-4 space-y-3">
