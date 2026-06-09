@@ -107,7 +107,7 @@ export function ClubsContent({ clubs }: Props) {
                     <div className="min-w-0 mt-8">
                       <h3 className="font-semibold truncate">{club.name}</h3>
                       {club.tag && (
-                        <ClubNamePlate name={club.tag} color={club.tag_color} score={club.club_score} orbit={!!club.subscription_plan} className="font-mono text-xs mt-1" />
+                        <ClubNamePlate name={club.tag} color={club.tag_color} score={club.club_score} className="font-mono text-xs mt-1" />
                       )}
                       {club.city && (
                         <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">

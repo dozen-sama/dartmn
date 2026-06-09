@@ -23,23 +23,28 @@ export default async function ClubPage({ params }: { params: Promise<{ id: strin
 
   if (!club) notFound()
 
-  const [membersResult, myMemberResult] = await Promise.all([
+  const [membersResult, myMemberResult, requestsResult] = await Promise.all([
     supabase.from("club_members")
-      .select("*, profiles(id, display_name, username, avatar_url, rating_points, equipped_frame, name_effect, name_color, name_font, name_animated)")
+      .select("*, profiles(id, display_name, username, avatar_url, rating_points, matches_played, matches_won, count_180, highest_checkout, average_score, equipped_frame, name_effect, name_color, name_font, name_animated)")
       .eq("club_id", id)
       .order("role")
-      .limit(20),
+      .limit(50),
     user ? supabase.from("club_members")
       .select("role")
       .eq("club_id", id)
       .eq("player_id", user.id)
-      .single() : Promise.resolve({ data: null }),
+      .maybeSingle() : Promise.resolve({ data: null }),
+    supabase.from("club_join_requests")
+      .select("player_id, created_at, profiles(id, display_name, username, avatar_url, rating_points)")
+      .eq("club_id", id)
+      .order("created_at", { ascending: true }),
   ])
 
   return (
     <ClubDetail
       club={club as any}
       members={(membersResult.data ?? []) as any[]}
+      requests={(requestsResult.data ?? []) as any[]}
       currentUserId={user?.id ?? null}
       myRole={myMemberResult.data?.role ?? null}
     />

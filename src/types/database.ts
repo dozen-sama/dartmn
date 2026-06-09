@@ -193,6 +193,21 @@ export interface Database {
         }
         Relationships: []
       }
+      club_join_requests: {
+        Row: {
+          id: string
+          club_id: string
+          player_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          club_id: string
+          player_id: string
+        }
+        Update: Record<string, never>
+        Relationships: []
+      }
       club_messages: {
         Row: {
           id: string

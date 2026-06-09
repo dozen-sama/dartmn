@@ -362,27 +362,6 @@
   text-shadow: 0 0 6px color-mix(in srgb, var(--neon, #34d3ee) 45%, transparent);
 }
 
-/* Dart orbit (premium) — тойрон эргэх 3 цэг */
-.club-np-orbit .club-dart {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 4px;
-  height: 4px;
-  margin: -2px;
-  border-radius: 9999px;
-  background: var(--neon, #34d3ee);
-  box-shadow: 0 0 6px var(--neon, #34d3ee);
-  z-index: 0;
-  animation: club-orbit 4s linear infinite;
-}
-.club-np-orbit .club-dart:nth-child(2) { animation-delay: -1.33s; }
-.club-np-orbit .club-dart:nth-child(3) { animation-delay: -2.66s; }
-@keyframes club-orbit {
-  from { transform: rotate(0deg) translateX(2.4em); }
-  to { transform: rotate(360deg) translateX(2.4em); }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .club-np::before, .club-np-orbit .club-dart { animation: none; }
+  .club-np::before { animation: none; }
 }

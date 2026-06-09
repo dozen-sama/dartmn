@@ -2,11 +2,11 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import {
-  ArrowLeft, Building2, Check, Edit, Globe, LogIn, LogOut,
-  MapPin, MessageCircle, QrCode, Settings, Share2, Shield, Swords, Users,
+  ArrowLeft, BarChart3, Building2, Check, Clock, Globe, LogIn, LogOut,
+  MapPin, MessageCircle, QrCode, Settings, Share2, Shield, Swords, Target, Trophy, UserCheck, Users, X,
 } from "lucide-react"
 import { ClubChat } from "./ClubChat"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -23,14 +23,24 @@ import { PlayerName } from "@/components/cosmetic/PlayerName"
 import { ClubNamePlate } from "@/components/cosmetic/ClubNamePlate"
 
 type ClubWithExtra = Club & { features: string[] }
+type MemberProfile = Pick<Profile,
+  "id" | "display_name" | "username" | "avatar_url" | "rating_points" |
+  "matches_played" | "matches_won" | "count_180" | "highest_checkout" | "average_score" |
+  "equipped_frame" | "name_effect" | "name_color" | "name_font" | "name_animated">
 type MemberRow = {
   role: string
-  profiles: Pick<Profile, "id" | "display_name" | "username" | "avatar_url" | "rating_points" | "equipped_frame" | "name_effect" | "name_color" | "name_font" | "name_animated"> | null
+  profiles: MemberProfile | null
+}
+type RequestRow = {
+  player_id: string
+  created_at: string
+  profiles: Pick<Profile, "id" | "display_name" | "username" | "avatar_url" | "rating_points"> | null
 }
 
 interface Props {
   club: ClubWithExtra
   members: MemberRow[]
+  requests: RequestRow[]
   currentUserId: string | null
   myRole: string | null
 }
@@ -42,24 +52,38 @@ const roleColor: Record<string, string> = {
   member: "bg-secondary text-muted-foreground",
 }
 
-export function ClubDetail({ club, members, currentUserId, myRole }: Props) {
+export function ClubDetail({ club, members, requests, currentUserId, myRole }: Props) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [joining, setJoining] = useState(false)
+  const [busyId, setBusyId] = useState<string | null>(null)
   const isOwnerOrAdmin = myRole === "owner" || myRole === "admin"
   const isMember = !!myRole
+  const myPending = !!currentUserId && requests.some((r) => r.player_id === currentUserId)
   const hasSub = !!club.subscription_plan
   const features = Array.isArray(club.features) ? club.features as string[] : []
 
-  async function handleJoin() {
+  async function handleRequestJoin() {
     if (!currentUserId) { router.push("/login"); return }
     setJoining(true)
-    const supabase = createClient()
-    const { error } = await supabase.from("club_members").insert({
-      club_id: club.id, player_id: currentUserId, role: "member",
+    const res = await fetch("/api/clubs/join", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ club_id: club.id }),
     })
-    if (error) toast.error("Нэгдэхэд алдаа гарлаа")
-    else { toast.success(`${club.name}-д нэгдлээ!`); router.refresh() }
+    if (res.ok) { toast.success("Элсэх хүсэлт илгээгдлээ — Удирдагч/Орлогч хянана"); router.refresh() }
+    else { const d = await res.json().catch(() => ({})); toast.error(d.error ?? "Алдаа гарлаа") }
     setJoining(false)
+  }
+
+  async function handleRequest(playerId: string, action: "approve" | "reject") {
+    setBusyId(playerId)
+    const res = await fetch("/api/clubs/membership", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ club_id: club.id, player_id: playerId, action }),
+    })
+    if (res.ok) { toast.success(action === "approve" ? "Зөвшөөрлөө" : "Татгалзлаа"); router.refresh() }
+    else { const d = await res.json().catch(() => ({})); toast.error(d.error ?? "Алдаа гарлаа") }
+    setBusyId(null)
   }
 
   async function handleLeave() {
@@ -82,6 +106,25 @@ export function ClubDetail({ club, members, currentUserId, myRole }: Props) {
     if (res.ok) { toast.success("Цол шинэчлэгдлээ"); router.refresh() }
     else { const d = await res.json().catch(() => ({})); toast.error(d.error ?? "Алдаа гарлаа") }
   }
+
+  // ── Клубын нэгдсэн статистик (гишүүдийн профайлаас) — бүх хүнд ил тод ──
+  const profs = members.map((m) => m.profiles).filter(Boolean) as MemberProfile[]
+  const sum = (f: (p: MemberProfile) => number) => profs.reduce((a, p) => a + (f(p) || 0), 0)
+  const totalMatches = sum((p) => p.matches_played)
+  const totalWins = sum((p) => p.matches_won)
+  const total180 = sum((p) => p.count_180)
+  const winRate = totalMatches > 0 ? Math.round((totalWins / totalMatches) * 100) : 0
+  const avgRating = profs.length ? Math.round(sum((p) => p.rating_points) / profs.length) : 0
+  const bestCheckout = profs.reduce((m, p) => Math.max(m, p.highest_checkout || 0), 0)
+  const topPlayer = [...profs].sort((a, b) => b.rating_points - a.rating_points)[0] ?? null
+  const statRows = [...profs].sort((a, b) => b.rating_points - a.rating_points)
+
+  // Мэдэгдлээс ?tab=requests гэх мэтээр зөв таб нээх
+  const tabParam = searchParams.get("tab")
+  const initialTab = tabParam === "requests" && isOwnerOrAdmin ? "requests"
+    : tabParam === "stats" ? "stats"
+    : tabParam === "chat" ? "chat"
+    : "members"
 
   return (
     <div className="max-w-3xl mx-auto space-y-5">
@@ -121,7 +164,7 @@ export function ClubDetail({ club, members, currentUserId, myRole }: Props) {
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl font-bold truncate">{club.name}</h1>
                 {club.tag && (
-                  <ClubNamePlate name={club.tag} color={club.tag_color} score={club.club_score} orbit={!!club.subscription_plan} className="font-mono shrink-0" />
+                  <ClubNamePlate name={club.tag} color={club.tag_color} score={club.club_score} className="font-mono shrink-0" />
                 )}
                 {club.is_verified && (
                   <Badge className="bg-blue-500/15 text-blue-400 border-blue-500/30 shrink-0 text-xs">
@@ -161,10 +204,17 @@ export function ClubDetail({ club, members, currentUserId, myRole }: Props) {
           {/* Join/Leave */}
           <div className="mt-4 flex gap-2">
             {!isMember && currentUserId && (
-              <Button onClick={handleJoin} disabled={joining} className="glow-primary">
-                <LogIn className="h-4 w-4 mr-1.5" />
-                Клубт нэгдэх
-              </Button>
+              myPending ? (
+                <Button variant="outline" disabled className="border-amber-500/40 text-amber-400">
+                  <Clock className="h-4 w-4 mr-1.5" />
+                  Хүсэлт хүлээгдэж байна
+                </Button>
+              ) : (
+                <Button onClick={handleRequestJoin} disabled={joining} className="glow-primary">
+                  <LogIn className="h-4 w-4 mr-1.5" />
+                  Элсэх хүсэлт илгээх
+                </Button>
+              )
             )}
             {isMember && myRole !== "owner" && (
               <Button variant="outline" onClick={handleLeave} className="border-destructive/30 text-destructive hover:bg-destructive/10">
@@ -184,13 +234,133 @@ export function ClubDetail({ club, members, currentUserId, myRole }: Props) {
         </CardContent>
       </Card>
 
-      {/* Members + Chat */}
-      <Tabs defaultValue="members">
-        <TabsList className="bg-secondary/50">
+      {/* Members + Stats + Requests + Chat */}
+      <Tabs defaultValue={initialTab}>
+        <TabsList className="bg-secondary/50 h-auto flex-wrap justify-start">
           <TabsTrigger value="members"><Users className="h-4 w-4 mr-1.5" />Гишүүд ({members.length})</TabsTrigger>
+          <TabsTrigger value="stats"><BarChart3 className="h-4 w-4 mr-1.5" />Статистик</TabsTrigger>
+          {isOwnerOrAdmin && (
+            <TabsTrigger value="requests">
+              <UserCheck className="h-4 w-4 mr-1.5" />Хүсэлт
+              {requests.length > 0 && (
+                <span className="ml-1.5 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
+                  {requests.length}
+                </span>
+              )}
+            </TabsTrigger>
+          )}
           <TabsTrigger value="chat"><MessageCircle className="h-4 w-4 mr-1.5" />Чат</TabsTrigger>
           <TabsTrigger value="war"><Swords className="h-4 w-4 mr-1.5" />Дайн</TabsTrigger>
         </TabsList>
+
+        {/* ── Статистик (бүх хүнд ил тод) ── */}
+        <TabsContent value="stats" className="mt-4 space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            {[
+              { icon: Users, label: "Гишүүд", value: formatNumber(members.length) },
+              { icon: Trophy, label: "Нийт хожил", value: formatNumber(totalWins) },
+              { icon: Target, label: "Хожлын хувь", value: `${winRate}%` },
+              { icon: BarChart3, label: "Дундаж рейтинг", value: formatNumber(avgRating) },
+              { icon: Swords, label: "Нийт тоглолт", value: formatNumber(totalMatches) },
+              { icon: Target, label: "Нийт 180", value: formatNumber(total180) },
+              { icon: Trophy, label: "Дээд checkout", value: bestCheckout || "—" },
+              { icon: Shield, label: "Клубын оноо", value: formatNumber(club.club_score) },
+            ].map((s, i) => (
+              <Card key={i} className="border-border/50 bg-card/80">
+                <CardContent className="p-3 text-center">
+                  <s.icon className="h-4 w-4 mx-auto text-primary/70 mb-1" />
+                  <p className="text-lg font-black score-display leading-none">{s.value}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">{s.label}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {topPlayer && (
+            <Card className="border-yellow-500/30 bg-yellow-500/5">
+              <CardContent className="p-3 flex items-center gap-3">
+                <Trophy className="h-5 w-5 text-yellow-400 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] text-muted-foreground">Клубын тэргүүн тоглогч</p>
+                  <p className="text-sm font-bold truncate">{topPlayer.display_name || topPlayer.username}</p>
+                </div>
+                <p className="text-sm font-black score-display text-yellow-400 shrink-0">{formatNumber(topPlayer.rating_points)}</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Гишүүн бүрийн дэлгэрэнгүй */}
+          <Card className="border-border/50 bg-card/80 overflow-hidden">
+            <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 px-3 py-2 text-[10px] uppercase tracking-wider text-muted-foreground border-b border-border/30">
+              <span>Тоглогч</span>
+              <span className="w-12 text-right">Рейтинг</span>
+              <span className="w-14 text-right">Тоглолт</span>
+              <span className="w-10 text-right">180</span>
+            </div>
+            {statRows.map((p) => {
+              const wr = p.matches_played > 0 ? Math.round((p.matches_won / p.matches_played) * 100) : 0
+              return (
+                <Link key={p.id} href={`/profile/${p.username}`}
+                  className="grid grid-cols-[1fr_auto_auto_auto] gap-2 px-3 py-2 items-center text-sm hover:bg-secondary/40 transition-colors border-b border-border/15 last:border-0">
+                  <span className="truncate min-w-0">{p.display_name || p.username}</span>
+                  <span className="w-12 text-right font-bold score-display text-primary">{formatNumber(p.rating_points)}</span>
+                  <span className="w-14 text-right text-muted-foreground text-xs">{p.matches_played} · {wr}%</span>
+                  <span className="w-10 text-right text-xs">{p.count_180}</span>
+                </Link>
+              )
+            })}
+          </Card>
+        </TabsContent>
+
+        {/* ── Элсэх хүсэлтүүд (Удирдагч, Орлогч) ── */}
+        {isOwnerOrAdmin && (
+          <TabsContent value="requests" className="mt-4">
+            <Card className="border-border/50 bg-card/80">
+              <CardContent className="p-0">
+                {requests.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <UserCheck className="h-10 w-10 text-muted-foreground/20 mb-3" />
+                    <p className="text-sm text-muted-foreground">Шинэ элсэх хүсэлт алга</p>
+                  </div>
+                ) : (
+                  requests.map((r) => {
+                    const p = r.profiles
+                    if (!p) return null
+                    const tier = getTier(p.rating_points)
+                    return (
+                      <div key={r.player_id} className="flex items-center gap-3 px-4 py-3 border-b border-border/20 last:border-0">
+                        <Link href={`/profile/${p.username}`} className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity">
+                          <Avatar className="h-9 w-9 shrink-0">
+                            <AvatarImage src={p.avatar_url ?? undefined} />
+                            <AvatarFallback>{(p.display_name || p.username || "?").charAt(0).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">{p.display_name || p.username}</p>
+                            <p className="text-xs text-muted-foreground">@{p.username} · <span className={tier.color}>{tier.icon} {formatNumber(p.rating_points)}</span></p>
+                          </div>
+                        </Link>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <Link href={`/profile/${p.username}`}
+                            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-8 border-border/60 text-xs")}>
+                            Профайл
+                          </Link>
+                          <button onClick={() => handleRequest(r.player_id, "reject")} disabled={busyId === r.player_id}
+                            className="h-8 w-8 flex items-center justify-center rounded-md border border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-40" title="Татгалзах">
+                            <X className="h-4 w-4" />
+                          </button>
+                          <button onClick={() => handleRequest(r.player_id, "approve")} disabled={busyId === r.player_id}
+                            className="h-8 w-8 flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40" title="Зөвшөөрөх">
+                            <Check className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
 
         <TabsContent value="war" className="mt-4">
           <Card className="border-2 border-dashed border-primary/30 bg-gradient-to-b from-primary/5 to-transparent overflow-hidden">
