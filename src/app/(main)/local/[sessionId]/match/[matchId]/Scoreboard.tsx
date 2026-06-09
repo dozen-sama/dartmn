@@ -79,22 +79,6 @@ export function Scoreboard() {
   const inputHint    = input && !isBust && afterScore > 0 ? getCheckout(afterScore) : null
   const isOnImpossiblePosition = remaining > 1 && IMPOSSIBLE_CHECKOUTS.has(remaining)
 
-  // ── Visit history: alternating P1, P2 per row ──
-  const maxVisits = Math.max(p1Throws.length, p2Throws.length)
-  type VisitRow = { dartNo: number; p1score?: number; p1rem?: number; p1bust?: boolean; p2score?: number; p2rem?: number; p2bust?: boolean }
-  const visitRows: VisitRow[] = []
-  const sumNonBust = (arr: any[], end: number) => arr.slice(0, end).reduce((a: number, t: any) => a + (t.bust ? 0 : t.score), 0)
-  for (let i = 0; i < maxVisits; i++) {
-    const t1 = p1Throws[i]
-    const t2 = p2Throws[i]
-    const p1rem = t1 ? startScore - sumNonBust(p1Throws, i + 1) : undefined
-    const p2rem = t2 ? startScore - sumNonBust(p2Throws, i + 1) : undefined
-    // P1 visit row
-    if (t1) visitRows.push({ dartNo: (i * 2 + 1) * 3, p1score: t1.score, p1rem, p1bust: !!t1.bust })
-    // P2 visit row
-    if (t2) visitRows.push({ dartNo: (i + 1) * 6, p2score: t2.score, p2rem, p2bust: !!t2.bust })
-  }
-
   // ── Safety: show winner select if limit exceeded ──
   useEffect(() => {
     if (limitRounds !== null && visitRound > limitRounds && !showWinnerSelect && !showBullOff && mounted) {
@@ -107,7 +91,7 @@ export function Scoreboard() {
     if (tableRef.current) {
       tableRef.current.scrollTop = tableRef.current.scrollHeight
     }
-  }, [visitRows.length])
+  }, [p1Throws.length, p2Throws.length])
 
   const kbInput  = useCallback((d: string) => setInput(p => { const n = p + d; return parseInt(n) > 180 ? p : n }), [])
   const kbDelete = useCallback(() => setInput(p => p.slice(0, -1)), [])

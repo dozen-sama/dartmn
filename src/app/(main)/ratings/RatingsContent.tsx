@@ -318,7 +318,7 @@ export function RatingsContent({ players, clubs }: Props) {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-medium truncate">{club.name}</p>
-                          {club.tag && <ClubNamePlate name={club.tag} color={club.tag_color} score={club.club_score} compact className="font-mono shrink-0" />}
+                          {club.tag && <ClubNamePlate name={club.tag} color={club.tag_color} compact className="font-mono shrink-0" />}
                         </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           {club.city && <span>{club.city}</span>}

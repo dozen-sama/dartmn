@@ -4,8 +4,6 @@ import type { CSSProperties } from "react"
 interface Props {
   name: string
   color?: string | null // клубын сонгосон неон өнгө
-  score?: number // (хуучин — ашиглахгүй, дуудлагын нийцэлд үлдээв)
-  orbit?: boolean // (хуучин — ашиглахгүй, дуудлагын нийцэлд үлдээв)
   compact?: boolean // жижиг (нэрний урд tag)
   className?: string
 }
