@@ -613,9 +613,13 @@ function SyncStatsButton({ session }: { session: import("@/lib/local-game/types"
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session }),
       })
-      const { synced: n } = await res.json()
+      const data = await res.json()
       setSynced(true)
-      import("sonner").then(({ toast }) => toast.success(`${n} тоглогчийн stats шинэчлэгдлээ!`))
+      import("sonner").then(({ toast }) =>
+        data.alreadySynced
+          ? toast.info("Энэ тоглолт аль хэдийн sync хийгдсэн")
+          : toast.success(`${data.synced} тоглогчийн stats шинэчлэгдлээ!`)
+      )
     } catch {
       import("sonner").then(({ toast }) => toast.error("Stats sync амжилтгүй"))
     }

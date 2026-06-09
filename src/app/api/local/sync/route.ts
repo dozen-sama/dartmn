@@ -90,6 +90,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ synced: 0 })
   }
 
+  // Idempotency: session-ийг нэг л удаа sync хийнэ (claim-first). Дахин sync
+  // (reload, retry, давхар дарах) хийвэл стат давхар тоологдохгүй.
+  const { error: claimErr } = await supabase
+    .from("synced_local_sessions").insert({ session_id: session.id })
+  if (claimErr) {
+    if (claimErr.code === "23505") {
+      return NextResponse.json({ synced: 0, alreadySynced: true })
+    }
+    return NextResponse.json({ error: "Sync эхлүүлэхэд алдаа" }, { status: 500 })
+  }
+
   // Fetch current ratings for all linked players
   const profileIds = linkedPlayers.map((p) => p.profileId!)
   const { data: profiles } = await supabase

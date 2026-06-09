@@ -216,6 +216,12 @@ export interface Database {
         Update: Record<string, never>
         Relationships: []
       }
+      synced_local_sessions: {
+        Row: { session_id: string; synced_at: string }
+        Insert: { session_id: string; synced_at?: string }
+        Update: Record<string, never>
+        Relationships: []
+      }
       pending_match_results: {
         Row: {
           id: string
