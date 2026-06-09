@@ -216,6 +216,29 @@ export interface Database {
         Update: Record<string, never>
         Relationships: []
       }
+      pending_match_results: {
+        Row: {
+          id: string
+          reporter_id: string
+          opponent_id: string
+          winner_id: string
+          format: string | null
+          payload: Json
+          status: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          reporter_id: string
+          opponent_id: string
+          winner_id: string
+          format?: string | null
+          payload: Json
+          status?: string
+        }
+        Update: { status?: string }
+        Relationships: []
+      }
       club_messages: {
         Row: {
           id: string

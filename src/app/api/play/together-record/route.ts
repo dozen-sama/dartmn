@@ -1,27 +1,13 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server"
-import { canDoubleOut } from "@/lib/local-game/checkouts"
-import { calculateEloChange } from "@/lib/rating"
+import type { Json } from "@/types/database"
 import { NextRequest, NextResponse } from "next/server"
 
 interface Throw { score: number; darts: number; bust?: boolean; before: number }
 interface PlayerResult { profileId: string; throws: Throw[]; isWinner: boolean }
 
-function dartStats(throws: Throw[]) {
-  let count180 = 0, highestCheckout = 0, points = 0, darts = 0, hits = 0, attempts = 0
-  for (const t of throws) {
-    darts += t.darts || 3
-    if (!t.bust) points += t.score
-    if (t.score === 180) count180++
-    if (t.before <= 170 && canDoubleOut(t.before)) attempts++
-    if (!t.bust && t.before - t.score === 0) {
-      hits++
-      if (t.score > highestCheckout) highestCheckout = t.score
-    }
-  }
-  return { count180, highestCheckout, points, darts, hits, attempts }
-}
-
-// "Хамтдаа тоглох" 1v1 (хоёулаа DartMN бүртгэлтэй) дуусахад ELO + статистик бүртгэнэ.
+// "Хамтдаа тоглох" 1v1 (хоёулаа бүртгэлтэй) дуусахад үр дүнг ХҮЛЭЭГДЭЖ БУЙ болгож,
+// өрсөлдөгчид баталгаажуулах хүсэлт (notification) явуулна. Зөвхөн өрсөлдөгч
+// баталгаажуулсны дараа ELO/статистик орно (/api/play/confirm-result).
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -35,52 +21,38 @@ export async function POST(req: NextRequest) {
   if (!a.profileId || !b.profileId || a.profileId === b.profileId) {
     return NextResponse.json({ error: "Хоёр өөр бүртгэл хэрэгтэй" }, { status: 400 })
   }
-  // Зөвхөн тухайн тоглолтод оролцсон хүн л бүртгэнэ
+  // Мэдээлэгч нь оролцогчдын нэг байх ёстой
   if (user.id !== a.profileId && user.id !== b.profileId) {
     return NextResponse.json({ error: "Эрхгүй" }, { status: 403 })
   }
 
+  const reporterId = user.id
+  const opponentId = reporterId === a.profileId ? b.profileId : a.profileId
+  const winnerId = players.find((p) => p.isWinner)?.profileId
+  if (!winnerId) return NextResponse.json({ error: "Ялагч тодорхойгүй" }, { status: 400 })
+
   const admin = await createAdminClient()
-  const { data: profs } = await admin.from("profiles")
-    .select("id, rating_points, matches_played, matches_won, count_180, highest_checkout, career_points, career_darts, checkout_hits, checkout_attempts, average_score, checkout_percentage")
-    .in("id", [a.profileId, b.profileId])
-  if (!profs || profs.length !== 2) return NextResponse.json({ error: "Профайл олдсонгүй" }, { status: 404 })
 
-  const byId = Object.fromEntries(profs.map((p) => [p.id, p]))
-  const ratingA = byId[a.profileId].rating_points
-  const ratingB = byId[b.profileId].rating_points
-  const history: { player_id: string; rating_before: number; rating_after: number; change: number; reason: string }[] = []
+  const { data: pending, error } = await admin.from("pending_match_results").insert({
+    reporter_id: reporterId,
+    opponent_id: opponentId,
+    winner_id: winnerId,
+    payload: { players } as unknown as Json,
+    status: "pending",
+  }).select("id").single()
+  if (error || !pending) return NextResponse.json({ error: "Хадгалахад алдаа гарлаа" }, { status: 500 })
 
-  for (const pl of players) {
-    const cur = byId[pl.profileId]
-    const opp = pl.profileId === a.profileId ? ratingB : ratingA
-    const change = calculateEloChange(cur.rating_points, opp, pl.isWinner)
-    const newRating = Math.max(0, cur.rating_points + change)
-    const ds = dartStats(pl.throws)
-    const newCareerPoints = cur.career_points + ds.points
-    const newCareerDarts = cur.career_darts + ds.darts
-    const newHits = cur.checkout_hits + ds.hits
-    const newAttempts = cur.checkout_attempts + ds.attempts
+  const { data: reporter } = await admin.from("profiles").select("display_name, username").eq("id", reporterId).single()
+  const rName = reporter?.display_name || reporter?.username || "Тоглогч"
+  await admin.from("notifications").insert({
+    user_id: opponentId,
+    type: "match_confirm",
+    title: "Тоглолтын үр дүн баталгаажуулах",
+    body: `${rName} тантай тоглосон үр дүнг бүртгэлээ. Зөв бол баталгаажуулна уу.`,
+    icon: "🎯",
+    link: `/play/confirm/${pending.id}`,
+    data: { pending_id: pending.id },
+  })
 
-    await admin.from("profiles").update({
-      rating_points: newRating,
-      matches_played: cur.matches_played + 1,
-      matches_won: cur.matches_won + (pl.isWinner ? 1 : 0),
-      count_180: cur.count_180 + ds.count180,
-      highest_checkout: Math.max(cur.highest_checkout, ds.highestCheckout),
-      average_score: newCareerDarts > 0 ? (newCareerPoints / newCareerDarts) * 3 : cur.average_score,
-      checkout_percentage: newAttempts > 0 ? newHits / newAttempts : cur.checkout_percentage,
-      career_points: newCareerPoints,
-      career_darts: newCareerDarts,
-      checkout_hits: newHits,
-      checkout_attempts: newAttempts,
-    }).eq("id", pl.profileId)
-
-    history.push({ player_id: pl.profileId, rating_before: cur.rating_points, rating_after: newRating, change, reason: "Хамтдаа тоглох (1v1)" })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (admin as any).rpc("check_achievements", { p_player_id: pl.profileId })
-  }
-
-  if (history.length) await admin.from("rating_history").insert(history)
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ ok: true, pending: true })
 }

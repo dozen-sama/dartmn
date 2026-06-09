@@ -196,7 +196,7 @@ export function TogetherGame() {
         { profileId: link0.id, throws: teamThrows(0), isWinner: d.winner === 0 },
         { profileId: link1.id, throws: teamThrows(1), isWinner: d.winner === 1 },
       ] }),
-    }).then(r => r.ok && toast.success("ELO ба статистик бүртгэгдлээ")).catch(() => {})
+    }).then(r => r.ok && toast.success("Өрсөлдөгчид баталгаажуулах хүсэлт илгээгдлээ")).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [d.winner])
 
