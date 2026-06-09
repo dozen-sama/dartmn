@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import { ArrowLeft, BarChart3, Check, Delete, RefreshCw, Target, Trophy, Zap } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -164,16 +164,26 @@ function Solo501({ onBack }: { onBack: () => void }) {
   const [throws, setThrows] = useState<number[]>([])  // bust бус онооны нийлбэр (дундажид)
   const [finished, setFinished] = useState(false)
   const [doubleOut, setDoubleOut] = useState(true)
+  // Шидэлт бүрийн бүртгэл — дуусахад статистикт илгээнэ
+  const logRef = useRef<{ score: number; darts: number; bust: boolean; before: number }[]>([])
 
   function handleScore(score: number, darts: number) {
     const outcome = classifyTurn(remaining, score, { doubleOut })
+    logRef.current.push({ score, darts, bust: outcome.type === "bust", before: remaining })
     // Bust ч гэсэн шидсэн дарт/visit тоологдоно (бодит дадлага) — зөвхөн оноо revert
     setVisits(v => v + 1)
     setTotalDarts(d => d + darts)
     if (outcome.type === "bust") { toast.error("Bust! — оноо хэвээр"); return }
     setThrows(prev => [...prev, score])
     setRemaining(outcome.remaining)
-    if (outcome.type === "checkout") setFinished(true)
+    if (outcome.type === "checkout") {
+      setFinished(true)
+      // Нэвтэрсэн тоглогчийн хувийн статистикт бүртгэх (зочинд нөлөөлөхгүй)
+      fetch("/api/play/solo-stats", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visits: logRef.current, finished: true }),
+      }).then(r => r.ok && toast.success("Статистикт бүртгэгдлээ")).catch(() => {})
+    }
   }
 
   const avg = totalDarts > 0 ? (throws.reduce((a, s) => a + s, 0) / totalDarts * 3).toFixed(1) : "—"
@@ -197,7 +207,7 @@ function Solo501({ onBack }: { onBack: () => void }) {
         ))}
       </div>
       <div className="flex gap-3">
-        <button onClick={() => { setRemaining(501); setVisits(0); setTotalDarts(0); setThrows([]); setFinished(false) }}
+        <button onClick={() => { logRef.current = []; setRemaining(501); setVisits(0); setTotalDarts(0); setThrows([]); setFinished(false) }}
           className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold glow-primary">
           Дахин
         </button>
