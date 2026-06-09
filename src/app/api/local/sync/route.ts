@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
 import { LocalSession, LocalMatch, LocalPlayer } from "@/lib/local-game/types"
+import { canDoubleOut } from "@/lib/local-game/checkouts"
 
 interface SyncPayload {
   session: LocalSession
@@ -51,6 +52,43 @@ function calcPlayerStats(playerId: string, matches: LocalMatch[], players: Local
   return { matchesPlayed, matchesWon, legsWon, legsLost, matchResults }
 }
 
+// Шидэлт бүрээс дартсны статистик (180, дундаж, checkout, сайн лег)
+function calcDartStats(playerId: string, matches: LocalMatch[], startScore: number) {
+  let count180 = 0, highestCheckout = 0, totalPoints = 0, totalDarts = 0
+  let bestLeg = Infinity, checkoutHits = 0, checkoutAttempts = 0
+
+  for (const m of matches) {
+    if (m.status !== "completed") continue
+    if (m.player1Id !== playerId && m.player2Id !== playerId) continue
+    for (const leg of m.legs) {
+      const throws = (leg.throws?.[playerId] ?? []) as { score: number; remaining: number; darts?: number; bust?: boolean }[]
+      if (throws.length === 0) continue
+      let before = startScore
+      let legDarts = 0
+      for (const t of throws) {
+        const darts = t.darts ?? 3
+        legDarts += darts
+        totalDarts += darts
+        if (!t.bust) totalPoints += t.score
+        if (t.score === 180) count180++
+        // Checkout оролдлого: ээлжийн өмнө finishable байсан эсэх
+        if (before <= 170 && canDoubleOut(before)) checkoutAttempts++
+        if (!t.bust && t.remaining === 0) {
+          checkoutHits++
+          if (t.score > highestCheckout) highestCheckout = t.score
+        }
+        before = t.bust ? before : t.remaining
+      }
+      if (leg.winnerId === playerId && legDarts > 0) bestLeg = Math.min(bestLeg, legDarts)
+    }
+  }
+  return {
+    count180, highestCheckout, totalPoints, totalDarts,
+    bestLeg: bestLeg === Infinity ? 0 : bestLeg,
+    checkoutHits, checkoutAttempts,
+  }
+}
+
 export async function POST(req: NextRequest) {
   const { session } = (await req.json()) as SyncPayload
 
@@ -70,7 +108,7 @@ export async function POST(req: NextRequest) {
   const profileIds = linkedPlayers.map((p) => p.profileId!)
   const { data: profiles } = await supabase
     .from("profiles")
-    .select("id, rating_points, matches_played, matches_won, count_180, highest_checkout, tournament_wins")
+    .select("id, rating_points, matches_played, matches_won, count_180, highest_checkout, tournament_wins, best_leg, career_points, career_darts, checkout_hits, checkout_attempts")
     .in("id", profileIds)
 
   if (!profiles) return NextResponse.json({ error: "Profiles not found" }, { status: 404 })
@@ -88,6 +126,18 @@ export async function POST(req: NextRequest) {
 
     const stats = calcPlayerStats(player.id, session.matches, session.players)
     if (stats.matchesPlayed === 0) continue
+
+    // Дартсны статистик (career-cumulative)
+    const dart = calcDartStats(player.id, session.matches, session.startScore)
+    const newCareerPoints = currentProfile.career_points + dart.totalPoints
+    const newCareerDarts = currentProfile.career_darts + dart.totalDarts
+    const newCheckoutHits = currentProfile.checkout_hits + dart.checkoutHits
+    const newCheckoutAttempts = currentProfile.checkout_attempts + dart.checkoutAttempts
+    const newAvg = newCareerDarts > 0 ? (newCareerPoints / newCareerDarts) * 3 : 0
+    const newCheckoutPct = newCheckoutAttempts > 0 ? newCheckoutHits / newCheckoutAttempts : 0
+    const newHighest = Math.max(currentProfile.highest_checkout, dart.highestCheckout)
+    const prevBest = currentProfile.best_leg
+    const newBest = dart.bestLeg > 0 ? (prevBest > 0 ? Math.min(prevBest, dart.bestLeg) : dart.bestLeg) : prevBest
 
     let newRating = currentProfile.rating_points
     let totalEloChange = 0
@@ -119,10 +169,19 @@ export async function POST(req: NextRequest) {
     const { error } = await supabase
       .from("profiles")
       .update({
-        rating_points: Math.max(0, newRating) as any,
-        matches_played: (currentProfile.matches_played + stats.matchesPlayed) as any,
-        matches_won: (currentProfile.matches_won + stats.matchesWon) as any,
-        tournament_wins: (currentProfile.tournament_wins + (isTournamentWinner ? 1 : 0)) as any,
+        rating_points: Math.max(0, newRating),
+        matches_played: currentProfile.matches_played + stats.matchesPlayed,
+        matches_won: currentProfile.matches_won + stats.matchesWon,
+        tournament_wins: currentProfile.tournament_wins + (isTournamentWinner ? 1 : 0),
+        count_180: currentProfile.count_180 + dart.count180,
+        highest_checkout: newHighest,
+        best_leg: newBest,
+        average_score: newAvg,
+        checkout_percentage: newCheckoutPct,
+        career_points: newCareerPoints,
+        career_darts: newCareerDarts,
+        checkout_hits: newCheckoutHits,
+        checkout_attempts: newCheckoutAttempts,
       })
       .eq("id", profileId)
 

@@ -27,6 +27,10 @@ export interface Database {
           highest_checkout: number
           best_leg: number
           count_180: number
+          career_points: number
+          career_darts: number
+          checkout_hits: number
+          checkout_attempts: number
           is_premium: boolean
           premium_expires_at: string | null
           primary_club_id: string | null
@@ -73,6 +77,10 @@ export interface Database {
           highest_checkout?: number
           best_leg?: number
           count_180?: number
+          career_points?: number
+          career_darts?: number
+          checkout_hits?: number
+          checkout_attempts?: number
           matches_played?: number
           matches_won?: number
           tournament_wins?: number
