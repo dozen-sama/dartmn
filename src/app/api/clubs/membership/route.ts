@@ -31,7 +31,8 @@ export async function POST(req: NextRequest) {
   if (action === "approve") {
     // Гишүүн болгох (давхардсан бол алдаа алгасна)
     const { error } = await admin.from("club_members").insert({ club_id, player_id, role: "member" })
-    if (error && !/duplicate|unique/i.test(error.message)) {
+    // 23505 = unique_violation (аль хэдийн гишүүн) — алгасна
+    if (error && error.code !== "23505") {
       return NextResponse.json({ error: "Зөвшөөрөхөд алдаа гарлаа" }, { status: 500 })
     }
     await admin.from("notifications").insert({

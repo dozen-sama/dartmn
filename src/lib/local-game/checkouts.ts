@@ -186,14 +186,6 @@ export function getCheckout(remaining: number): string | null {
   return CHECKOUTS[remaining] ?? null
 }
 
-export function getImpossibleCheckoutWarning(afterScore: number): string | null {
-  if (IMPOSSIBLE_CHECKOUTS.has(afterScore)) {
-    return `${afterScore} — checkout боломжгүй утга. Дахин тооцоолно уу.`
-  }
-  if (afterScore === 1) return "1 — checkout боломжгүй. (Хамгийн бага checkout: D1 = 2)"
-  return null
-}
-
 // Whether `remaining` can be finished on a double in ≤3 darts.
 // Every number in [2,170] is a valid double-out finish EXCEPT the impossible set.
 // NOTE: do NOT derive this from the CHECKOUTS suggestion table above — that table
@@ -245,16 +237,4 @@ export function classifyTurn(before: number, points: number, rules: TurnRules): 
   // Left exactly 1 with double-out on → cannot finish (min double is D1 = 2) → bust.
   if (rules.doubleOut && after === 1) return { type: "bust", remaining: before }
   return { type: "score", remaining: after }
-}
-
-// Score segment parsing: "T20" → 60, "D16" → 32, "Bull" → 50, "S15" → 15
-export function parseSegment(seg: string): number {
-  if (seg === "Bull" || seg === "BULL") return 50
-  if (seg === "bull" || seg === "25") return 25
-  const m = seg.match(/^([TDS])(\d+)$/)
-  if (!m) return parseInt(seg) || 0
-  const n = parseInt(m[2])
-  if (m[1] === "T") return n * 3
-  if (m[1] === "D") return n * 2
-  return n
 }

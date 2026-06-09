@@ -20,12 +20,14 @@ export function AccountLinkPicker({ value, onChange, placeholder }: {
   const search = useCallback((query: string) => {
     setQ(query)
     if (tRef.current) clearTimeout(tRef.current)
-    if (query.trim().length < 2) { setResults([]); return }
+    // PostgREST .or()-д тусгай тэмдэгт (, ( ) * % \ :) утга агуулдаг тул цэвэрлэнэ
+    const safe = query.replace(/[%,()*\\:]/g, " ").trim()
+    if (safe.length < 2) { setResults([]); return }
     tRef.current = setTimeout(async () => {
       const supabase = createClient()
       const { data } = await supabase.from("profiles")
         .select("id, display_name, username")
-        .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
+        .or(`username.ilike.%${safe}%,display_name.ilike.%${safe}%`)
         .limit(6)
       setResults((data ?? []).map((d) => ({ id: d.id, name: d.display_name, username: d.username })))
       setOpen(true)

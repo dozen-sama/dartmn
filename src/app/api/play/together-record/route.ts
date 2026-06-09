@@ -1,14 +1,10 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server"
 import { canDoubleOut } from "@/lib/local-game/checkouts"
+import { calculateEloChange } from "@/lib/rating"
 import { NextRequest, NextResponse } from "next/server"
 
 interface Throw { score: number; darts: number; bust?: boolean; before: number }
 interface PlayerResult { profileId: string; throws: Throw[]; isWinner: boolean }
-
-function eloChange(my: number, opp: number, won: boolean, k = 32): number {
-  const expected = 1 / (1 + Math.pow(10, (opp - my) / 400))
-  return Math.round(k * ((won ? 1 : 0) - expected))
-}
 
 function dartStats(throws: Throw[]) {
   let count180 = 0, highestCheckout = 0, points = 0, darts = 0, hits = 0, attempts = 0
@@ -58,7 +54,7 @@ export async function POST(req: NextRequest) {
   for (const pl of players) {
     const cur = byId[pl.profileId]
     const opp = pl.profileId === a.profileId ? ratingB : ratingA
-    const change = eloChange(cur.rating_points, opp, pl.isWinner)
+    const change = calculateEloChange(cur.rating_points, opp, pl.isWinner)
     const newRating = Math.max(0, cur.rating_points + change)
     const ds = dartStats(pl.throws)
     const newCareerPoints = cur.career_points + ds.points

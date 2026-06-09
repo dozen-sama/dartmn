@@ -120,8 +120,8 @@ export function LiveView() {
   const p2LegWins = match.legs.filter(l => l.winnerId === p2Id).length
 
   // Last 3 throws per player in current leg
-  const last1 = p1Throws.slice(-3).map((t: any) => t.score ?? 0)
-  const last2 = p2Throws.slice(-3).map((t: any) => t.score ?? 0)
+  const last1 = p1Throws.slice(-3).map((t: any) => ({ score: t.score ?? 0, bust: !!t.bust }))
+  const last2 = p2Throws.slice(-3).map((t: any) => ({ score: t.score ?? 0, bust: !!t.bust }))
 
   const isOngoing   = match.status === "ongoing"
   const isCompleted = match.status === "completed"
@@ -261,7 +261,8 @@ export function LiveView() {
                   {last.map((s, i) => (
                     <div key={i} className={cn("rounded-md px-2.5 py-1 border text-center min-w-[36px]",
                       isActive ? "bg-primary/10 border-primary/20" : "bg-white/5 border-white/10")}>
-                      <p className={cn("text-base font-bold score-display", isActive ? "text-primary" : "text-white/40")}>{s}</p>
+                      <p className={cn("text-base font-bold score-display",
+                        s.bust ? "text-red-500/50 line-through" : isActive ? "text-primary" : "text-white/40")}>{s.score}</p>
                     </div>
                   ))}
                 </div>

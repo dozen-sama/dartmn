@@ -1,4 +1,5 @@
 import { Metadata } from "next"
+import { Suspense } from "react"
 import { createClient } from "@/lib/supabase/server"
 import { notFound } from "next/navigation"
 import { ClubDetail } from "./ClubDetail"
@@ -41,12 +42,14 @@ export default async function ClubPage({ params }: { params: Promise<{ id: strin
   ])
 
   return (
-    <ClubDetail
-      club={club as any}
-      members={(membersResult.data ?? []) as any[]}
-      requests={(requestsResult.data ?? []) as any[]}
-      currentUserId={user?.id ?? null}
-      myRole={myMemberResult.data?.role ?? null}
-    />
+    <Suspense>
+      <ClubDetail
+        club={club as any}
+        members={(membersResult.data ?? []) as any[]}
+        requests={(requestsResult.data ?? []) as any[]}
+        currentUserId={user?.id ?? null}
+        myRole={myMemberResult.data?.role ?? null}
+      />
+    </Suspense>
   )
 }

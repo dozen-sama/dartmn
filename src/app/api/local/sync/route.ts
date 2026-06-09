@@ -2,15 +2,10 @@ import { createAdminClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
 import { LocalSession, LocalMatch, LocalPlayer } from "@/lib/local-game/types"
 import { canDoubleOut } from "@/lib/local-game/checkouts"
+import { calculateEloChange } from "@/lib/rating"
 
 interface SyncPayload {
   session: LocalSession
-}
-
-// ELO calculation
-function eloChange(myRating: number, oppRating: number, won: boolean, k = 32): number {
-  const expected = 1 / (1 + Math.pow(10, (oppRating - myRating) / 400))
-  return Math.round(k * ((won ? 1 : 0) - expected))
 }
 
 // Count stats for a player from completed matches
@@ -148,7 +143,7 @@ export async function POST(req: NextRequest) {
         ? (ratingMap[result.oppProfileId] ?? 1000)
         : 1000 // Guest default rating
 
-      const change = eloChange(newRating, oppRating, result.won)
+      const change = calculateEloChange(newRating, oppRating, result.won)
       totalEloChange += change
       newRating += change
 
