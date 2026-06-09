@@ -62,7 +62,6 @@ export default async function StatsPage() {
       icon: Target,
       color: "text-green-400",
       stats: [
-        { label: "Финиш %", value: `${(profile.checkout_percentage * 100).toFixed(1)}%`, pct: Math.round(profile.checkout_percentage * 100) },
         { label: "Хамгийн өндөр финиш", value: profile.highest_checkout || "—", pct: profile.highest_checkout > 0 ? Math.round((profile.highest_checkout / 170) * 100) : 0 },
         { label: "Хамгийн сайн лег", value: profile.best_leg ? `${profile.best_leg} дарт` : "—", pct: profile.best_leg > 0 ? Math.max(0, Math.round(100 - ((profile.best_leg - 9) / 30) * 100)) : 0 },
       ],

@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { mn } from "@/locales/mn"
 import { Match, Profile, Tournament, TournamentRegistration } from "@/types/database"
-import { formatAverage, formatDate, formatNumber, formatPercentage } from "@/lib/utils/format"
+import { formatAverage, formatDate, formatNumber } from "@/lib/utils/format"
 import { cn } from "@/lib/utils"
 import { getTier } from "@/lib/rating"
 import { TierBadge } from "@/components/rating/TierBadge"
@@ -203,7 +203,6 @@ export function ProfileContent({ profile: p, isOwner, clubName, recentMatches, t
               </CardHeader>
               <CardContent className="px-4 pb-4 space-y-3">
                 <StatRow label="Highest Checkout" value={p.highest_checkout || "—"} accent={p.highest_checkout > 0} />
-                <StatRow label="Checkout %" value={formatPercentage(p.checkout_percentage)} />
                 <StatRow label="Best Leg" value={p.best_leg ? `${p.best_leg} darts` : "—"} accent={p.best_leg > 0} />
                 <StatRow label="180s" value={formatNumber(p.count_180)} accent={p.count_180 > 0} />
               </CardContent>

@@ -96,6 +96,14 @@ export function NotificationPanel({ userId }: Props) {
     tournament_starting: "text-primary bg-primary/10",
     club_joined: "text-purple-400 bg-purple-400/10",
     club_tier: "text-amber-400 bg-amber-400/10",
+    // Клубт элсэх хүсэлт
+    club_join_request: "text-blue-400 bg-blue-400/10",
+    club_approved: "text-green-400 bg-green-400/10",
+    club_rejected: "text-destructive bg-destructive/10",
+    // 1v1 тоглолт баталгаажуулах
+    match_confirm: "text-amber-400 bg-amber-400/10",
+    match_confirmed: "text-green-400 bg-green-400/10",
+    match_rejected: "text-destructive bg-destructive/10",
   }
 
   return (
