@@ -21,10 +21,14 @@ export async function POST(req: NextRequest) {
 
   const admin = await createAdminClient()
 
-  // Хүсэлт байгаа эсэх
-  const { data: request } = await admin
-    .from("club_join_requests").select("id").eq("club_id", club_id).eq("player_id", player_id).maybeSingle()
-  if (!request) return NextResponse.json({ error: "Хүсэлт олдсонгүй" }, { status: 404 })
+  // Claim-first: хүсэлтийг атомаар устгаж эзэмшинэ. Зэрэг (race) approve/reject
+  // дуудлагуудаас зөвхөн эхэлж устгасан нь үргэлжилнэ; нөгөө нь 409 авна.
+  const { data: claimed } = await admin
+    .from("club_join_requests").delete()
+    .eq("club_id", club_id).eq("player_id", player_id).select("id")
+  if (!claimed || claimed.length === 0) {
+    return NextResponse.json({ error: "Хүсэлт олдсонгүй эсвэл аль хэдийн шийдэгдсэн" }, { status: 409 })
+  }
 
   const { data: club } = await admin.from("clubs").select("name").eq("id", club_id).single()
 
@@ -49,9 +53,6 @@ export async function POST(req: NextRequest) {
       icon: "🚫", link: `/clubs/${club_id}`,
     })
   }
-
-  // Хүсэлтийг устгах
-  await admin.from("club_join_requests").delete().eq("id", request.id)
 
   return NextResponse.json({ ok: true })
 }
