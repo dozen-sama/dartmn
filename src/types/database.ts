@@ -755,6 +755,10 @@ export interface Database {
           format: "501" | "301" | "cricket"
           best_of: number
           status: "waiting" | "ongoing" | "completed"
+          mode: "1v1" | "2v2" | "3v3"
+          double_out: boolean
+          starter_team: number | null
+          winner_team: number | null
           match_id: string | null
           created_at: string
         }
@@ -766,13 +770,88 @@ export interface Database {
           format: "501" | "301" | "cricket"
           best_of?: number
           status?: "waiting" | "ongoing" | "completed"
+          mode?: "1v1" | "2v2" | "3v3"
+          double_out?: boolean
+          starter_team?: number | null
+          winner_team?: number | null
           match_id?: string | null
         }
         Update: {
           guest_id?: string | null
           status?: "waiting" | "ongoing" | "completed"
+          starter_team?: number | null
+          winner_team?: number | null
           match_id?: string | null
         }
+        Relationships: []
+      }
+      room_players: {
+        Row: {
+          id: string
+          room_id: string
+          player_id: string
+          team: number
+          slot: number
+          is_ready: boolean
+          joined_at: string
+        }
+        Insert: {
+          id?: string
+          room_id: string
+          player_id: string
+          team: number
+          slot: number
+          is_ready?: boolean
+        }
+        Update: { is_ready?: boolean }
+        Relationships: []
+      }
+      room_invites: {
+        Row: {
+          id: string
+          room_id: string
+          inviter_id: string
+          invitee_id: string
+          team: number
+          slot: number
+          status: "pending" | "accepted" | "declined"
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          room_id: string
+          inviter_id: string
+          invitee_id: string
+          team: number
+          slot: number
+          status?: "pending" | "accepted" | "declined"
+        }
+        Update: { status?: "pending" | "accepted" | "declined" }
+        Relationships: []
+      }
+      room_visits: {
+        Row: {
+          id: string
+          room_id: string
+          seq: number
+          team: number
+          slot: number
+          points: number
+          darts: number
+          created_by: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          room_id: string
+          seq: number
+          team: number
+          slot: number
+          points: number
+          darts?: number
+          created_by: string
+        }
+        Update: { points?: number; darts?: number }
         Relationships: []
       }
       achievements: {
@@ -886,3 +965,6 @@ export type LeagueStanding = Tables<"league_standings">
 export type RatingHistory = Tables<"rating_history">
 export type PaymentTransaction = Tables<"payment_transactions">
 export type OnlineRoom = Tables<"online_rooms">
+export type RoomPlayer = Tables<"room_players">
+export type RoomInvite = Tables<"room_invites">
+export type RoomVisit = Tables<"room_visits">

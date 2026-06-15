@@ -426,6 +426,10 @@ CREATE TABLE public.online_rooms (
   format TEXT NOT NULL CHECK (format IN ('501', '301', 'cricket')),
   best_of INTEGER NOT NULL DEFAULT 3,
   status TEXT NOT NULL DEFAULT 'waiting' CHECK (status IN ('waiting', 'ongoing', 'completed')),
+  mode TEXT NOT NULL DEFAULT '1v1' CHECK (mode IN ('1v1', '2v2', '3v3')),
+  double_out BOOLEAN NOT NULL DEFAULT true,
+  starter_team SMALLINT,
+  winner_team SMALLINT,
   match_id UUID REFERENCES public.matches(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -441,10 +445,71 @@ CREATE POLICY "Guests can join rooms" ON public.online_rooms FOR UPDATE USING (
 CREATE INDEX online_rooms_status_idx ON public.online_rooms USING btree (status);
 CREATE INDEX online_rooms_code_idx ON public.online_rooms USING btree (room_code);
 
+-- room_players: every participant (incl. host), team + slot + ready
+CREATE TABLE public.room_players (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  room_id UUID NOT NULL REFERENCES public.online_rooms(id) ON DELETE CASCADE,
+  player_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  team SMALLINT NOT NULL,
+  slot SMALLINT NOT NULL,
+  is_ready BOOLEAN NOT NULL DEFAULT false,
+  joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (room_id, player_id),
+  UNIQUE (room_id, team, slot)
+);
+CREATE INDEX room_players_room_idx ON public.room_players (room_id);
+ALTER TABLE public.room_players ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Room players viewable by everyone" ON public.room_players FOR SELECT USING (true);
+CREATE POLICY "Users join themselves" ON public.room_players FOR INSERT WITH CHECK (auth.uid() = player_id);
+CREATE POLICY "Players update own ready" ON public.room_players FOR UPDATE USING (auth.uid() = player_id);
+CREATE POLICY "Player or host removes player" ON public.room_players FOR DELETE USING (
+  auth.uid() = player_id
+  OR auth.uid() = (SELECT host_id FROM public.online_rooms r WHERE r.id = room_id)
+);
+
+-- room_invites: host invites specific @users to a team/slot
+CREATE TABLE public.room_invites (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  room_id UUID NOT NULL REFERENCES public.online_rooms(id) ON DELETE CASCADE,
+  inviter_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  invitee_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  team SMALLINT NOT NULL,
+  slot SMALLINT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (room_id, invitee_id)
+);
+CREATE INDEX room_invites_invitee_idx ON public.room_invites (invitee_id);
+ALTER TABLE public.room_invites ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Invites viewable by everyone" ON public.room_invites FOR SELECT USING (true);
+CREATE POLICY "Inviter creates invite" ON public.room_invites FOR INSERT WITH CHECK (auth.uid() = inviter_id);
+CREATE POLICY "Invitee responds" ON public.room_invites FOR UPDATE USING (auth.uid() = invitee_id);
+
+-- room_visits: event-sourced live scoreboard (points + darts + who threw)
+CREATE TABLE public.room_visits (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  room_id UUID NOT NULL REFERENCES public.online_rooms(id) ON DELETE CASCADE,
+  seq INTEGER NOT NULL,
+  team SMALLINT NOT NULL,
+  slot SMALLINT NOT NULL,
+  points INTEGER NOT NULL,
+  darts SMALLINT NOT NULL DEFAULT 3,
+  created_by UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (room_id, seq)
+);
+CREATE INDEX room_visits_room_idx ON public.room_visits (room_id, seq);
+ALTER TABLE public.room_visits ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Visits viewable by everyone" ON public.room_visits FOR SELECT USING (true);
+CREATE POLICY "Players insert own visit" ON public.room_visits FOR INSERT WITH CHECK (auth.uid() = created_by);
+
 -- ============================================================
 -- Enable Realtime for online rooms and throws
 -- ============================================================
 ALTER PUBLICATION supabase_realtime ADD TABLE public.online_rooms;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.room_players;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.room_invites;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.room_visits;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.throws;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.matches;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.match_legs;

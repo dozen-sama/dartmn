@@ -1,7 +1,7 @@
 import { Metadata } from "next"
 import { createClient } from "@/lib/supabase/server"
 import { redirect, notFound } from "next/navigation"
-import { OnlineRoom } from "./OnlineRoom"
+import { OnlineRoom, type RoomPlayerView } from "./OnlineRoom"
 
 export const metadata: Metadata = { title: "Онлайн тоглолт" }
 
@@ -13,27 +13,39 @@ export default async function RoomPage({ params }: { params: Promise<{ roomId: s
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const { data: room } = await supabase
-    .from("online_rooms")
-    .select("*, host:profiles!online_rooms_host_id_fkey(id, display_name, username, avatar_url, rating_points), guest:profiles!online_rooms_guest_id_fkey(id, display_name, username, avatar_url, rating_points)")
-    .eq("id", roomId)
-    .single()
-
+  const { data: room } = await supabase.from("online_rooms").select("*").eq("id", roomId).single()
   if (!room) notFound()
 
-  // If guest slot is empty and current user is not host, join as guest
-  if (!room.guest_id && room.host_id !== user.id && room.status === "waiting") {
-    await supabase.from("online_rooms").update({ guest_id: user.id, status: "ongoing" }).eq("id", roomId)
-  }
+  const { data: rp } = await supabase.from("room_players").select("*").eq("room_id", roomId)
+  const players = rp ?? []
 
-  const { data: profile } = await supabase.from("profiles")
-    .select("id, display_name, username, avatar_url, rating_points").eq("id", user.id).single()
+  const ids = [...new Set([room.host_id, ...players.map((p) => p.player_id)])]
+  const { data: profs } = await supabase
+    .from("profiles").select("id, display_name, username, avatar_url, rating_points").in("id", ids)
+  const byId = Object.fromEntries((profs ?? []).map((p) => [p.id, p]))
+
+  const playerViews: RoomPlayerView[] = players.map((p) => ({
+    player_id: p.player_id,
+    team: p.team,
+    slot: p.slot,
+    is_ready: p.is_ready,
+    profile: byId[p.player_id] ?? null,
+  }))
+
+  // Энэ хэрэглэгчид ирсэн хүлээгдэж буй урилга (уригдсан ч ороогүй бол)
+  const { data: invite } = await supabase
+    .from("room_invites")
+    .select("id, team, slot, status")
+    .eq("room_id", roomId).eq("invitee_id", user.id).eq("status", "pending")
+    .maybeSingle()
 
   return (
     <OnlineRoom
-      room={room as any}
+      room={room}
+      players={playerViews}
+      myInvite={invite ?? null}
       currentUserId={user.id}
-      currentProfile={profile as any}
+      hostName={byId[room.host_id]?.display_name || byId[room.host_id]?.username || "Host"}
     />
   )
 }

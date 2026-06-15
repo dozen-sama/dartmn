@@ -1,17 +1,20 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { ArrowLeft, Clock, Copy, Loader2, Users, Zap } from "lucide-react"
+import { ArrowLeft, Check, Copy, Loader2, LogOut, Users, X, Zap } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { AccountLinkPicker, type LinkedAccount } from "@/components/game/AccountLinkPicker"
 import { createClient } from "@/lib/supabase/client"
 import { getTier } from "@/lib/rating"
+import { teamSize, totalPlayers, type RoomMode } from "@/lib/local-game/room"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { buttonVariants } from "@/components/ui/button"
+import type { OnlineRoom as Room } from "@/types/database"
 
 interface Profile {
   id: string
@@ -21,111 +24,207 @@ interface Profile {
   rating_points: number
 }
 
-interface RoomData {
-  id: string
-  room_code: string
-  host_id: string
-  guest_id: string | null
-  format: string
-  best_of: number
-  status: string
-  host: Profile | null
-  guest: Profile | null
+export interface RoomPlayerView {
+  player_id: string
+  team: number
+  slot: number
+  is_ready: boolean
+  profile: Profile | null
 }
+
+interface InviteView {
+  id: string
+  invitee_id: string
+  team: number
+  slot: number
+  profile: Profile | null
+}
+
+interface MyInvite { id: string; team: number; slot: number; status: string }
 
 interface Props {
-  room: RoomData
+  room: Room
+  players: RoomPlayerView[]
+  myInvite: MyInvite | null
   currentUserId: string
-  currentProfile: Profile
+  hostName: string
 }
 
-export function OnlineRoom({ room, currentUserId, currentProfile }: Props) {
+export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }: Props) {
   const router = useRouter()
-  const [liveRoom, setLiveRoom] = useState(room)
   const supabase = createClient()
+  const [liveRoom, setLiveRoom] = useState<Room>(room)
+  const [livePlayers, setLivePlayers] = useState<RoomPlayerView[]>(players)
+  const [invites, setInvites] = useState<InviteView[]>([])
+  const [invite, setInvite] = useState<MyInvite | null>(myInvite)
+  const [busy, setBusy] = useState(false)
+  const joinedRef = useRef(false)
 
-  const isHost = currentUserId === room.host_id
-  const opponent = isHost ? liveRoom.guest : liveRoom.host
-  const isWaiting = !liveRoom.guest_id || liveRoom.status === "waiting"
+  const mode = liveRoom.mode as RoomMode
+  const n = teamSize(mode)
+  const me = livePlayers.find((p) => p.player_id === currentUserId) ?? null
+  const isHost = liveRoom.host_id === currentUserId
 
+  // Бүх төлвийг сэргээнэ (realtime өөрчлөлт бүрд)
+  const refresh = useCallback(async () => {
+    const { data: r } = await supabase.from("online_rooms").select("*").eq("id", room.id).maybeSingle()
+    if (r) setLiveRoom(r)
+    const { data: rp } = await supabase.from("room_players").select("*").eq("room_id", room.id)
+    const { data: inv } = await supabase.from("room_invites")
+      .select("id, invitee_id, team, slot, status").eq("room_id", room.id).eq("status", "pending")
+    const ids = [...new Set([...(rp ?? []).map((p) => p.player_id), ...(inv ?? []).map((i) => i.invitee_id)])]
+    const { data: profs } = ids.length
+      ? await supabase.from("profiles").select("id, display_name, username, avatar_url, rating_points").in("id", ids)
+      : { data: [] as Profile[] }
+    const byId = Object.fromEntries((profs ?? []).map((p) => [p.id, p as Profile]))
+    setLivePlayers((rp ?? []).map((p) => ({
+      player_id: p.player_id, team: p.team, slot: p.slot, is_ready: p.is_ready, profile: byId[p.player_id] ?? null,
+    })))
+    setInvites((inv ?? []).map((i) => ({
+      id: i.id, invitee_id: i.invitee_id, team: i.team, slot: i.slot, profile: byId[i.invitee_id] ?? null,
+    })))
+    const mineInv = (inv ?? []).find((i) => i.invitee_id === currentUserId)
+    setInvite(mineInv ? { id: mineInv.id, team: mineInv.team, slot: mineInv.slot, status: "pending" } : null)
+  }, [room.id, currentUserId, supabase])
+
+  // Realtime — өрөө, тоглогчид, урилгууд
   useEffect(() => {
-    const channel = supabase
-      .channel(`room-${room.id}`)
-      .on("postgres_changes", {
-        event: "UPDATE",
-        schema: "public",
-        table: "online_rooms",
-        filter: `id=eq.${room.id}`,
-      }, async (payload) => {
-        const updated = payload.new as any
-        if (updated.guest_id && !liveRoom.guest) {
-          // Fetch guest profile
-          const { data: guest } = await supabase.from("profiles")
-            .select("id, display_name, username, avatar_url, rating_points")
-            .eq("id", updated.guest_id).single()
-          setLiveRoom((prev) => ({ ...prev, ...updated, guest }))
-          toast.success("Өрсөлдөгч нэгдлээ!")
-        } else {
-          setLiveRoom((prev) => ({ ...prev, ...updated }))
-        }
-      })
-      .subscribe()
+    const ch = supabase.channel(`room-${room.id}`)
+    for (const table of ["online_rooms", "room_players", "room_invites"]) {
+      ch.on("postgres_changes", { event: "*", schema: "public", table,
+        filter: table === "online_rooms" ? `id=eq.${room.id}` : `room_id=eq.${room.id}` },
+        () => { refresh() })
+    }
+    ch.subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [room.id, refresh, supabase])
 
-    return () => { supabase.removeChannel(channel) }
-  }, [room.id])
+  // Кодоор орсон тоглогч (уригдаагүй, ороогүй) → дараагийн нээлттэй slot
+  useEffect(() => {
+    if (joinedRef.current) return
+    if (liveRoom.status !== "waiting") return
+    if (me || invite) return
+    joinedRef.current = true
+    fetch(`/api/play/room/${room.id}/join`, { method: "POST" })
+      .then((r) => { if (!r.ok) joinedRef.current = false; return refresh() })
+      .catch(() => { joinedRef.current = false })
+  }, [liveRoom.status, me, invite, room.id, refresh])
 
   function copyCode() {
-    navigator.clipboard.writeText(room.room_code)
+    navigator.clipboard.writeText(liveRoom.room_code)
     toast.success("Код хуулагдлаа")
   }
 
-  function PlayerSlot({ profile, label, isMe }: { profile: Profile | null; label: string; isMe: boolean }) {
-    if (!profile) {
+  async function post(url: string, body?: unknown) {
+    setBusy(true)
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: body ? { "Content-Type": "application/json" } : {},
+        body: body ? JSON.stringify(body) : undefined,
+      })
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}))
+        toast.error(e.error ?? "Алдаа гарлаа")
+        return false
+      }
+      await refresh()
+      return true
+    } finally { setBusy(false) }
+  }
+
+  async function toggleReady() {
+    if (!me) return
+    await post(`/api/play/room/${room.id}/ready`, { ready: !me.is_ready })
+  }
+  async function invitePlayer(team: number, slot: number, acc: LinkedAccount) {
+    const ok = await post(`/api/play/room/${room.id}/invite`, { inviteeId: acc.id, team, slot })
+    if (ok) toast.success(`@${acc.username} уригдлаа`)
+  }
+  async function respondInvite(action: "accept" | "decline") {
+    if (!invite) return
+    const ok = await post(`/api/play/room/invite/${invite.id}`, { action })
+    if (ok && action === "decline") router.push("/play")
+  }
+  async function leave() {
+    await fetch(`/api/play/room/${room.id}/leave`, { method: "POST" }).catch(() => {})
+    router.push("/play")
+  }
+
+  const filled = livePlayers.length
+  const need = totalPlayers(mode)
+  const playerAt = (team: number, slot: number) => livePlayers.find((p) => p.team === team && p.slot === slot)
+  const inviteAt = (team: number, slot: number) => invites.find((i) => i.team === team && i.slot === slot)
+
+  // ── GAME PHASE (Phase B-д бодит самбар) ───────────────────
+  if (liveRoom.status === "ongoing") {
+    return (
+      <div className="max-w-sm mx-auto flex flex-col items-center justify-center min-h-[50vh] gap-4 text-center">
+        <Zap className="h-10 w-10 text-primary" />
+        <h1 className="text-xl font-bold">Тоглолт эхэллээ!</h1>
+        <p className="text-sm text-muted-foreground">
+          Онооны самбар удахгүй нэмэгдэнэ. ({mode} · {liveRoom.format} · BO{liveRoom.best_of})
+        </p>
+        <Link href="/play" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>Тоглох хуудас</Link>
+      </div>
+    )
+  }
+  if (liveRoom.status === "completed") {
+    return (
+      <div className="max-w-sm mx-auto flex flex-col items-center justify-center min-h-[50vh] gap-4 text-center">
+        <div className="text-5xl">🏆</div>
+        <h1 className="text-xl font-bold">Тоглолт дууссан</h1>
+        <Link href="/play" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>Тоглох хуудас</Link>
+      </div>
+    )
+  }
+
+  // ── READY-UP LOBBY ────────────────────────────────────────
+  function SlotCard({ team, slot }: { team: number; slot: number }) {
+    const p = playerAt(team, slot)
+    const inv = inviteAt(team, slot)
+    if (p) {
+      const tier = p.profile ? getTier(p.profile.rating_points) : null
+      const mine = p.player_id === currentUserId
       return (
-        <div className="flex flex-col items-center gap-3 p-6 rounded-xl border-2 border-dashed border-border/50">
-          <div className="h-16 w-16 rounded-full bg-secondary/50 flex items-center justify-center">
-            <Users className="h-7 w-7 text-muted-foreground" />
+        <div className={cn("flex items-center gap-3 p-3 rounded-xl border-2 transition-all",
+          p.is_ready ? "border-green-500/40 bg-green-500/5" : mine ? "border-primary/40 bg-primary/5" : "border-border/50 bg-secondary/20")}>
+          <Avatar className="h-10 w-10 border border-border">
+            <AvatarImage src={p.profile?.avatar_url ?? undefined} />
+            <AvatarFallback className="bg-primary/20 text-primary font-bold text-sm">
+              {(p.profile?.display_name ?? "?").slice(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold truncate">{p.profile?.display_name ?? "Тоглогч"}{mine && " (та)"}</p>
+            {tier && <p className={cn("text-[11px] font-semibold", tier.color)}>{tier.tier} · {p.profile?.rating_points}</p>}
           </div>
-          <div className="text-center">
-            <p className="text-sm font-medium text-muted-foreground">{label}</p>
-            <p className="text-xs text-muted-foreground/60 mt-0.5">Хүлээж байна...</p>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: "0ms" }} />
-            <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: "150ms" }} />
-            <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: "300ms" }} />
-          </div>
+          {p.is_ready
+            ? <Badge className="bg-green-500/15 text-green-400 border-green-500/30 text-[10px] shrink-0"><Check className="h-3 w-3 mr-0.5" />Бэлэн</Badge>
+            : <span className="text-[10px] text-muted-foreground shrink-0">Хүлээж байна</span>}
         </div>
       )
     }
-
-    const tier = getTier(profile.rating_points)
+    // Хоосон байр
     return (
-      <div className={cn("flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all",
-        isMe ? "border-primary/40 bg-primary/5" : "border-border/50 bg-secondary/20")}>
-        <div className="relative">
-          <Avatar className="h-16 w-16 border-2 border-border">
-            <AvatarImage src={profile.avatar_url ?? undefined} />
-            <AvatarFallback className="bg-primary/20 text-primary font-bold text-xl">
-              {profile.display_name.slice(0, 2).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          {isMe && <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-green-400 border-2 border-background" />}
+      <div className="p-3 rounded-xl border-2 border-dashed border-border/50 space-y-2">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Users className="h-4 w-4" />
+          <span className="text-xs">{inv ? `@${inv.profile?.username ?? "..."} уригдсан` : "Хоосон"}</span>
         </div>
-        <div className="text-center">
-          <p className="font-bold">{profile.display_name}</p>
-          <p className="text-xs text-muted-foreground">@{profile.username}</p>
-          <p className={cn("text-xs font-semibold mt-1", tier.color)}>{tier.icon} {tier.tier}</p>
-          <p className="text-xs text-muted-foreground">{profile.rating_points} pts</p>
-        </div>
-        {isMe && <Badge className="bg-primary/15 text-primary border-primary/30 text-[10px]">Та</Badge>}
+        {isHost && !inv && (
+          <AccountLinkPicker
+            value={null}
+            placeholder="@username урих"
+            onChange={(a) => { if (a) invitePlayer(team, slot, a) }}
+          />
+        )}
       </div>
     )
   }
 
   return (
     <div className="max-w-xl mx-auto space-y-5">
-      {/* Header */}
       <div className="flex items-center gap-3">
         <Link href="/play" className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-8 w-8")}>
           <ArrowLeft className="h-4 w-4" />
@@ -133,86 +232,84 @@ export function OnlineRoom({ room, currentUserId, currentProfile }: Props) {
         <div className="flex-1">
           <h1 className="text-lg font-bold">Онлайн тоглолт</h1>
           <div className="flex items-center gap-2 mt-0.5">
+            <Badge variant="outline" className="text-xs border-border/60">{mode}</Badge>
             <Badge variant="outline" className="text-xs border-border/60">{liveRoom.format}</Badge>
             <Badge variant="outline" className="text-xs border-border/60">BO{liveRoom.best_of}</Badge>
-            {isWaiting ? (
-              <Badge className="text-xs bg-yellow-500/15 text-yellow-400 border-yellow-500/30 pulse-live">Хүлээж байна</Badge>
-            ) : (
-              <Badge className="text-xs bg-primary/15 text-primary border-primary/30 pulse-live">LIVE</Badge>
-            )}
+            <Badge className="text-xs bg-yellow-500/15 text-yellow-400 border-yellow-500/30 pulse-live">
+              Хүлээж байна {filled}/{need}
+            </Badge>
           </div>
         </div>
       </div>
 
-      {/* Room code */}
-      <Card className="border-border/50 bg-card/80">
-        <CardContent className="p-4 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs text-muted-foreground">Өрөөний код</p>
-            <p className="font-mono text-2xl font-black tracking-widest">{room.room_code}</p>
-          </div>
-          <button onClick={copyCode}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/60 text-xs hover:bg-secondary transition-colors">
-            <Copy className="h-3.5 w-3.5" />
-            Хуулах
-          </button>
-        </CardContent>
-      </Card>
-
-      {/* Players */}
-      <div className="grid grid-cols-2 gap-4">
-        <PlayerSlot profile={liveRoom.host} label="Host" isMe={isHost} />
-        <PlayerSlot profile={liveRoom.guest} label="Guest" isMe={!isHost} />
-      </div>
-
-      {/* VS divider */}
-      <div className="text-center">
-        <span className="text-2xl font-black text-muted-foreground/30">VS</span>
-      </div>
-
-      {/* Waiting state */}
-      {isWaiting && isHost && (
-        <Card className="border-yellow-500/20 bg-yellow-500/5">
-          <CardContent className="p-4 flex items-start gap-3">
-            <Clock className="h-5 w-5 text-yellow-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-semibold text-yellow-400">Өрсөлдөгч хүлээж байна</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Дээрх <strong className="text-foreground">{room.room_code}</strong> кодыг найздаа илгээгээрэй.
-                Нэгдсэний дараа тоглолт эхэлнэ.
-              </p>
+      {/* Урилга — уригдсан ч ороогүй */}
+      {invite && !me && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-4 space-y-3">
+            <p className="text-sm"><strong>{hostName}</strong> таныг Баг {invite.team + 1}-д урьж байна.</p>
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={() => respondInvite("decline")} disabled={busy}
+                className="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors text-sm disabled:opacity-40">
+                <X className="h-4 w-4" /> Татгалзах
+              </button>
+              <button onClick={() => respondInvite("accept")} disabled={busy}
+                className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold glow-primary text-sm disabled:opacity-40">
+                <Check className="h-4 w-4" /> Нэгдэх
+              </button>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Game started */}
-      {!isWaiting && (
-        <Card className="border-primary/20 bg-primary/5">
-          <CardContent className="p-4 space-y-4">
-            <p className="text-sm font-semibold flex items-center gap-2">
-              <Zap className="h-4 w-4 text-primary" />
-              Тоглолт эхэлсэн!
+      {/* Өрөөний код */}
+      <Card className="border-border/50 bg-card/80">
+        <CardContent className="p-4 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs text-muted-foreground">Өрөөний код</p>
+            <p className="font-mono text-2xl font-black tracking-widest">{liveRoom.room_code}</p>
+          </div>
+          <button onClick={copyCode}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/60 text-xs hover:bg-secondary transition-colors">
+            <Copy className="h-3.5 w-3.5" /> Хуулах
+          </button>
+        </CardContent>
+      </Card>
+
+      {/* Багууд */}
+      <div className="grid grid-cols-2 gap-4">
+        {[0, 1].map((team) => (
+          <div key={team} className="space-y-2">
+            <p className={cn("text-sm font-bold text-center", team === 0 ? "text-primary" : "text-blue-400")}>
+              Баг {team + 1}
             </p>
-            <p className="text-xs text-muted-foreground">
-              Одоогоор оноо автоматаар бүртгэгдэхгүй байна. Тоглогч бүр зөвшилцөн оноо оруулна.
-              Ирээдүйд e-dart board болон камерийн дэмжлэг нэмэгдэх болно.
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="text-center bg-secondary/40 rounded-lg py-4">
-                <p className="text-3xl font-black text-primary score-display">{liveRoom.format}</p>
-                <p className="text-xs text-muted-foreground mt-1">Таны оноо</p>
-              </div>
-              <div className="text-center bg-secondary/40 rounded-lg py-4">
-                <p className="text-3xl font-black score-display">{liveRoom.format}</p>
-                <p className="text-xs text-muted-foreground mt-1">Өрсөлдөгч</p>
-              </div>
-            </div>
-            <p className="text-xs text-center text-muted-foreground/60">
-              Камерийн дэмжлэг нэмэгдэхэд автомат оноо бүртгэгдэнэ
-            </p>
-          </CardContent>
-        </Card>
+            {Array.from({ length: n }).map((_, slot) => (
+              <SlotCard key={slot} team={team} slot={slot} />
+            ))}
+          </div>
+        ))}
+      </div>
+
+      {/* Миний удирдлага */}
+      {me && (
+        <div className="flex items-center gap-3">
+          <button onClick={leave} disabled={busy}
+            className="flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl border border-border/60 text-sm text-muted-foreground hover:bg-secondary transition-colors disabled:opacity-40">
+            <LogOut className="h-4 w-4" /> Гарах
+          </button>
+          <button onClick={toggleReady} disabled={busy}
+            className={cn("flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold transition-all disabled:opacity-40",
+              me.is_ready
+                ? "border-2 border-green-500/40 text-green-400 bg-green-500/5"
+                : "bg-primary text-primary-foreground glow-primary")}>
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+            {me.is_ready ? "Бэлэн боллоо ✓" : "Бэлэн"}
+          </button>
+        </div>
+      )}
+      {me && filled < need && (
+        <p className="text-[11px] text-center text-muted-foreground">
+          Бүх тоглогч ({need}) нэгдэж бэлэн болоход тоглолт автоматаар эхэлнэ.
+        </p>
       )}
     </div>
   )

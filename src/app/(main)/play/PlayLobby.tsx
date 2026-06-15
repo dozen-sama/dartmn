@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { Copy, Loader2, Monitor, Plus, Search, Users, Zap } from "lucide-react"
+import { Loader2, Monitor, Plus, Search, Users, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,11 +14,9 @@ import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
-import { Separator } from "@/components/ui/separator"
 import { createClient } from "@/lib/supabase/client"
 import { mn } from "@/locales/mn"
 import { OnlineRoom, Profile } from "@/types/database"
-import { generateRoomCode } from "@/lib/utils/format"
 
 type ProfileSnippet = Pick<Profile, "id" | "display_name" | "username" | "avatar_url" | "rating_points">
 
@@ -36,37 +34,26 @@ export function PlayLobby({ profile, activeRooms }: Props) {
   const [creating, setCreating] = useState(false)
   const [joining, setJoining] = useState(false)
   const [joinCode, setJoinCode] = useState("")
-  const [format, setFormat] = useState<"501" | "301" | "cricket">("501")
+  const [mode, setMode] = useState<"1v1" | "2v2" | "3v3">("1v1")
+  const [format, setFormat] = useState<"501" | "301">("501")
   const [bestOf, setBestOf] = useState("3")
-  const [createdCode, setCreatedCode] = useState<string | null>(null)
 
   async function handleCreateRoom() {
     if (!profile) return toast.error("Нэвтрэх шаардлагатай")
     setCreating(true)
-    const supabase = createClient()
-    const code = generateRoomCode()
-
-    const { data, error } = await supabase
-      .from("online_rooms")
-      .insert({
-        room_code: code,
-        host_id: profile.id,
-        format,
-        best_of: parseInt(bestOf),
-        status: "waiting",
-      })
-      .select("id")
-      .single()
-
-    if (error || !data) {
-      toast.error("Өрөө үүсгэхэд алдаа гарлаа")
+    const res = await fetch("/api/play/room/create", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode, format, bestOf: parseInt(bestOf), doubleOut: true }),
+    })
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}))
+      toast.error(e.error ?? "Өрөө үүсгэхэд алдаа гарлаа")
       setCreating(false)
       return
     }
-
-    setCreatedCode(code)
+    const { id } = await res.json()
     setCreating(false)
-    router.push(`/play/${data.id}`)
+    router.push(`/play/${id}`)
   }
 
   async function handleJoinRoom() {
@@ -88,11 +75,6 @@ export function PlayLobby({ profile, activeRooms }: Props) {
     }
 
     router.push(`/play/${room.id}`)
-  }
-
-  function copyCode(code: string) {
-    navigator.clipboard.writeText(code)
-    toast.success(mn.play.codeCopied)
   }
 
   return (
@@ -232,6 +214,19 @@ export function PlayLobby({ profile, activeRooms }: Props) {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
+              <Label className="text-sm">Тоглолтын хэлбэр</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {(["1v1", "2v2", "3v3"] as const).map((m) => (
+                  <button key={m} type="button" onClick={() => setMode(m)}
+                    className={cn("py-2 rounded-lg border-2 text-sm font-bold transition-all",
+                      mode === m ? "border-primary bg-primary/15 text-primary" : "border-border/50 text-muted-foreground hover:border-border")}>
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
               <Label className="text-sm">Тоглоомын формат</Label>
               <Select value={format} onValueChange={(v) => v && setFormat(v as typeof format)}>
                 <SelectTrigger className="bg-secondary/50 border-border/60">
@@ -240,7 +235,6 @@ export function PlayLobby({ profile, activeRooms }: Props) {
                 <SelectContent>
                   <SelectItem value="501">501</SelectItem>
                   <SelectItem value="301">301</SelectItem>
-                  <SelectItem value="cricket">Cricket</SelectItem>
                 </SelectContent>
               </Select>
             </div>

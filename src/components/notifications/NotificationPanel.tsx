@@ -104,6 +104,9 @@ export function NotificationPanel({ userId }: Props) {
     match_confirm: "text-amber-400 bg-amber-400/10",
     match_confirmed: "text-green-400 bg-green-400/10",
     match_rejected: "text-destructive bg-destructive/10",
+    // Онлайн өрөөний урилга
+    room_invite: "text-primary bg-primary/10",
+    room_invite_accepted: "text-green-400 bg-green-400/10",
   }
 
   return (
