@@ -68,9 +68,9 @@ export function TogetherGame() {
   // Засах горимд эхний цохилт хуучин утгыг орлох эсэх
   const freshRef = useRef(false)
   const inputRef = useRef<HTMLInputElement>(null)
-  // 1v1 DartMN бүртгэл холболт (ELO/статистикт бүртгэх)
-  const [link0, setLink0] = useState<LinkedAccount | null>(null)
-  const [link1, setLink1] = useState<LinkedAccount | null>(null)
+  // DartMN бүртгэл холболт — тоглогч бүрээр (түлхүүр `${ti}-${pi}`).
+  // Хоёр багийн БҮХ тоглогч холбогдсон үед л ELO/статистик бүртгэгдэнэ.
+  const [links, setLinks] = useState<Record<string, LinkedAccount | null>>({})
   const recordedRef = useRef(false)
 
   const legsToWin = Math.ceil(bestOf / 2)
@@ -86,13 +86,19 @@ export function TogetherGame() {
       players: t.players.map((p, j) => j === playerIdx ? name : p),
     }))
   }
+  function setLink(teamIdx: number, playerIdx: number, a: LinkedAccount | null) {
+    setLinks(prev => ({ ...prev, [`${teamIdx}-${playerIdx}`]: a }))
+  }
+  // Тоглогчийн тоо өөрчлөгдөхөд индексжсэн холболтууд гажихаас сэргийлж цэвэрлэнэ
   function addPlayer(teamIdx: number) {
     setTeams(prev => prev.map((t, i) => i !== teamIdx ? t : { ...t, players: [...t.players, ""] }))
+    setLinks({})
   }
   function removePlayer(teamIdx: number, playerIdx: number) {
     setTeams(prev => prev.map((t, i) => i !== teamIdx ? t : {
       ...t, players: t.players.filter((_, j) => j !== playerIdx),
     }))
+    setLinks({})
   }
 
   function applyMode(m: GameMode) {
@@ -103,6 +109,7 @@ export function TogetherGame() {
       { name: "Баг 1", players: Array(c[0]).fill("") },
       { name: "Баг 2", players: Array(c[1]).fill("") },
     ])
+    setLinks({})
   }
 
   function startGame() {
@@ -178,25 +185,36 @@ export function TogetherGame() {
 
   const d = derive()
 
-  // 1v1 + хоёулаа бүртгэлтэй бол тоглолт дуусахад ELO/статистик нэг удаа илгээх
+  // Баг бүрийн БҮХ тоглогч холбогдсон бол тоглолт дуусахад ELO/статистик нэг удаа
+  // илгээх (1v1/2v2/3v3). Чөлөөт горимд бүртгэхгүй.
   useEffect(() => {
     if (d.winner === null || recordedRef.current) return
-    if (mode !== "1v1" || !link0 || !link1) return
+    if (mode === "free" || roster.length !== 2) return
+    const allLinked = roster.every((t, ti) => t.players.every((_, pi) => links[`${ti}-${pi}`]))
+    if (!allLinked) return
     recordedRef.current = true
     const flat = d.legsView.flat()
-    const teamThrows = (team: number) => flat.filter(v => v.team === team).map(v => ({
-      score: v.points,
-      darts: visits[v.idx]?.darts ?? 3,
-      bust: v.bust,
-      before: v.bust ? v.remaining : v.remaining + v.points,
-    }))
+    const playerThrows = (ti: number, pi: number) =>
+      flat.filter(v => v.team === ti && v.player === pi).map(v => ({
+        score: v.points,
+        darts: visits[v.idx]?.darts ?? 3,
+        bust: v.bust,
+        before: v.bust ? v.remaining : v.remaining + v.points,
+      }))
+    const players = roster.flatMap((t, ti) => t.players.map((_, pi) => ({
+      profileId: links[`${ti}-${pi}`]!.id,
+      team: ti,
+      throws: playerThrows(ti, pi),
+      isWinner: d.winner === ti,
+    })))
     fetch("/api/play/together-record", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ players: [
-        { profileId: link0.id, throws: teamThrows(0), isWinner: d.winner === 0 },
-        { profileId: link1.id, throws: teamThrows(1), isWinner: d.winner === 1 },
-      ] }),
-    }).then(r => r.ok && toast.success("Өрсөлдөгчид баталгаажуулах хүсэлт илгээгдлээ")).catch(() => {})
+      body: JSON.stringify({ players, teamNames: roster.map(t => t.name), mode }),
+    }).then(async r => {
+      if (r.ok) { toast.success("Өрсөлдөгчид баталгаажуулах хүсэлт илгээгдлээ"); return }
+      const e = await r.json().catch(() => ({}))
+      toast.error(e.error ?? "Үр дүн бүртгэхэд алдаа гарлаа")
+    }).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [d.winner])
 
@@ -307,8 +325,7 @@ export function TogetherGame() {
     setVisits([])
     setEditingIndex(null)
     setInput("")
-    setLink0(null)
-    setLink1(null)
+    setLinks({})
     recordedRef.current = false
   }
 
@@ -431,17 +448,27 @@ export function TogetherGame() {
               <CardContent className="p-4 space-y-3">
                 <input value={team.name} onChange={e => setTeamName(ti, e.target.value)}
                   className="w-full bg-transparent text-sm font-bold border-b border-border/40 pb-1 focus:outline-none focus:border-primary" />
-                <div className="space-y-1.5">
+                <div className="space-y-2.5">
                   {team.players.map((p, pi) => (
-                    <div key={pi} className="flex items-center gap-1.5">
-                      <span className={cn("text-[10px] font-bold w-4 text-center", ti === 0 ? "text-primary" : "text-blue-400")}>{pi + 1}</span>
-                      <input value={p} onChange={e => setPlayer(ti, pi, e.target.value)}
-                        placeholder={`Тоглогч ${pi + 1}`}
-                        className="flex-1 bg-secondary/50 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary border border-border/40" />
-                      {team.players.length > 1 && (
-                        <button onClick={() => removePlayer(ti, pi)} className="text-muted-foreground hover:text-destructive">
-                          <Minus className="h-3 w-3" />
-                        </button>
+                    <div key={pi} className="space-y-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className={cn("text-[10px] font-bold w-4 text-center", ti === 0 ? "text-primary" : "text-blue-400")}>{pi + 1}</span>
+                        <input value={p} onChange={e => setPlayer(ti, pi, e.target.value)}
+                          placeholder={`Тоглогч ${pi + 1}`}
+                          className="flex-1 bg-secondary/50 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary border border-border/40" />
+                        {team.players.length > 1 && (
+                          <button onClick={() => removePlayer(ti, pi)} className="text-muted-foreground hover:text-destructive">
+                            <Minus className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
+                      {mode !== "free" && (
+                        <div className="pl-5">
+                          <AccountLinkPicker
+                            value={links[`${ti}-${pi}`] ?? null}
+                            onChange={(a) => { setLink(ti, pi, a); if (a) setPlayer(ti, pi, a.name) }}
+                          />
+                        </div>
                       )}
                     </div>
                   ))}
@@ -452,22 +479,13 @@ export function TogetherGame() {
                     </button>
                   )}
                 </div>
-                {mode === "1v1" && (
-                  <AccountLinkPicker
-                    value={ti === 0 ? link0 : link1}
-                    onChange={(a) => {
-                      if (ti === 0) setLink0(a); else setLink1(a)
-                      if (a) setPlayer(ti, 0, a.name)
-                    }}
-                  />
-                )}
               </CardContent>
             </Card>
           ))}
         </div>
-        {mode === "1v1" && (
+        {mode !== "free" && (
           <p className="text-[11px] text-center text-muted-foreground">
-            Хоёр тоглогчийг DartMN бүртгэлд холбовол ELO ба статистик автоматаар бүртгэгдэнэ.
+            Хоёр багийн БҮХ тоглогчийг DartMN бүртгэлд холбовол ELO ба статистик автоматаар бүртгэгдэнэ.
           </p>
         )}
 

@@ -2,8 +2,8 @@ import { createClient, createAdminClient } from "@/lib/supabase/server"
 import { applyMatchResult, type MatchPlayer } from "@/lib/local-game/match-stats"
 import { NextRequest, NextResponse } from "next/server"
 
-// Хүлээгдэж буй 1v1 үр дүнг өрсөлдөгч баталгаажуулах / татгалзах.
-// Баталгаажуулсан үед л ELO/статистик орно (нэг удаа — claim-first).
+// Хүлээгдэж буй үр дүнг эсрэг багийн гишүүн баталгаажуулах / татгалзах (1v1 →
+// ганц өрсөлдөгч). Баталгаажуулсан үед л ELO/статистик орно (нэг удаа — claim-first).
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -17,7 +17,10 @@ export async function POST(req: NextRequest) {
   const admin = await createAdminClient()
   const { data: pmr } = await admin.from("pending_match_results").select("*").eq("id", id).maybeSingle()
   if (!pmr) return NextResponse.json({ error: "Олдсонгүй" }, { status: 404 })
-  if (pmr.opponent_id !== user.id) return NextResponse.json({ error: "Зөвхөн өрсөлдөгч баталгаажуулна" }, { status: 403 })
+  // Эсрэг багийн аль нэг гишүүн баталгаажуулна (1v1 → ганц өрсөлдөгч).
+  // confirmerIds байхгүй хуучин бичлэгт opponent_id руу буцаж нийцнэ.
+  const confirmerIds = (pmr.payload as { confirmerIds?: string[] })?.confirmerIds ?? [pmr.opponent_id]
+  if (!confirmerIds.includes(user.id)) return NextResponse.json({ error: "Зөвхөн өрсөлдөгч баталгаажуулна" }, { status: 403 })
   if (pmr.status !== "pending") return NextResponse.json({ error: "Аль хэдийн шийдэгдсэн" }, { status: 409 })
 
   // Claim — зөвхөн status='pending' үед нэг л дуудлага амжина (давхар apply-аас сэргийлнэ)
@@ -29,8 +32,9 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === "confirm") {
-    const players = (pmr.payload as { players?: MatchPlayer[] })?.players ?? []
-    const ok = await applyMatchResult(admin, players)
+    const pl = pmr.payload as { players?: MatchPlayer[]; mode?: string }
+    const players = pl?.players ?? []
+    const ok = await applyMatchResult(admin, players, pl?.mode ? `${pl.mode} тоглолт` : "Тоглолт")
     if (!ok) return NextResponse.json({ error: "Бүртгэхэд алдаа гарлаа" }, { status: 500 })
     await admin.from("notifications").insert({
       user_id: pmr.reporter_id, type: "match_confirmed",

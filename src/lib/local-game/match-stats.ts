@@ -1,7 +1,9 @@
 import { calculateEloChange } from "@/lib/rating"
 
 export interface MatchThrow { score: number; darts: number; bust?: boolean; before: number }
-export interface MatchPlayer { profileId: string; throws: MatchThrow[]; isWinner: boolean }
+// team — багийн индекс (0/1). Байхгүй бол массив дахь индексээ баг гэж үзнэ
+// (1v1 → баг тус бүр нэг хүн, хуучин үр дүнтэй нийцнэ).
+export interface MatchPlayer { profileId: string; team?: number; throws: MatchThrow[]; isWinner: boolean }
 
 // Шидэлтээс дартсны статистик. checkout % нь нийт-оноо оруулгаас найдвартай
 // тооцоологдохгүй (аль дарт double руу шидсэнийг мэдэхгүй) тул бодохгүй —
@@ -17,28 +19,42 @@ export function dartStats(throws: MatchThrow[]) {
   return { count180, highestCheckout, points, darts }
 }
 
-// 1v1 тоглолтын үр дүнг хоёр тоглогчид хэрэглэнэ: харилцан ELO + статистик +
-// rating history. admin = service-role client. Idempotency-г дуудагч хариуцна
-// (зөвхөн status='pending' үед нэг удаа дуудна).
+// Тоглолтын үр дүнг бүх тоглогчид хэрэглэнэ: ELO + статистик + rating history.
+// 1v1 ба багийн (2v2/3v3) тоглолтыг хоёуланг нь зохицуулна — тоглогч бүр
+// ӨРСӨЛДӨГЧ БАГИЙН ДУНДАЖ rating-тай харьцаж ELO авна (1v1 → өрсөлдөгчийнхөө
+// rating, өөрчлөлтгүй). admin = service-role client. Idempotency-г дуудагч
+// хариуцна (зөвхөн status='pending' үед нэг удаа дуудна).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function applyMatchResult(admin: any, players: MatchPlayer[], reason = "1v1 тоглолт"): Promise<boolean> {
-  if (players.length !== 2) return false
-  const [a, b] = players
+export async function applyMatchResult(admin: any, players: MatchPlayer[], reason = "Тоглолт"): Promise<boolean> {
+  if (players.length < 2) return false
+  const ids = players.map((p) => p.profileId)
+  if (new Set(ids).size !== ids.length) return false  // давхар тоглогч
   const { data: profs } = await admin.from("profiles")
     .select("id, rating_points, matches_played, matches_won, count_180, highest_checkout, career_points, career_darts, average_score")
-    .in("id", [a.profileId, b.profileId])
-  if (!profs || profs.length !== 2) return false
+    .in("id", ids)
+  if (!profs || profs.length !== ids.length) return false
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const byId = Object.fromEntries(profs.map((p: any) => [p.id, p]))
-  const ratingA = byId[a.profileId].rating_points
-  const ratingB = byId[b.profileId].rating_points
+  const teamOf = (pl: MatchPlayer, i: number) => pl.team ?? i
+  // Баг тус бүрийн rating-ийн жагсаалт (дундажийг өрсөлдөгчид нь тооцоход)
+  const ratingsByTeam = new Map<number, number[]>()
+  players.forEach((pl, i) => {
+    const t = teamOf(pl, i)
+    const arr = ratingsByTeam.get(t) ?? []
+    arr.push(byId[pl.profileId].rating_points)
+    ratingsByTeam.set(t, arr)
+  })
+  const avg = (arr: number[]) => arr.reduce((s, x) => s + x, 0) / arr.length
   const history: { player_id: string; rating_before: number; rating_after: number; change: number; reason: string }[] = []
 
-  await Promise.all(players.map(async (pl) => {
+  await Promise.all(players.map(async (pl, i) => {
     const cur = byId[pl.profileId]
-    const opp = pl.profileId === a.profileId ? ratingB : ratingA
-    const change = calculateEloChange(cur.rating_points, opp, pl.isWinner)
+    const myTeam = teamOf(pl, i)
+    // Өрсөлдөгч багуудын бүх тоглогчийн rating-ийн дундаж
+    const oppRatings: number[] = []
+    ratingsByTeam.forEach((arr, t) => { if (t !== myTeam) oppRatings.push(...arr) })
+    const change = calculateEloChange(cur.rating_points, avg(oppRatings), pl.isWinner)
     const newRating = Math.max(0, cur.rating_points + change)
     const ds = dartStats(pl.throws)
     const newCareerPoints = cur.career_points + ds.points

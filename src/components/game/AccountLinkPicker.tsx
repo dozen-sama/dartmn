@@ -63,7 +63,8 @@ export function AccountLinkPicker({ value, onChange, placeholder }: {
         <div className="absolute z-30 mt-1 w-full bg-popover border border-border/60 rounded-md shadow-lg overflow-hidden">
           {results.map((r) => (
             <button key={r.id} type="button"
-              onClick={() => { onChange(r); setQ(""); setResults([]); setOpen(false) }}
+              // onMouseDown — input-ийн onBlur (хаах) гүйцэхээс ӨМНӨ сонголтыг барина
+              onMouseDown={(e) => { e.preventDefault(); onChange(r); setQ(""); setResults([]); setOpen(false) }}
               className="flex flex-col items-start w-full px-2.5 py-1.5 hover:bg-secondary/60 text-left">
               <span className="text-xs font-medium truncate max-w-full">{r.name}</span>
               <span className="text-[10px] text-muted-foreground">@{r.username}</span>
