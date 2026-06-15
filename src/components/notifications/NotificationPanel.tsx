@@ -32,8 +32,8 @@ export function NotificationPanel({ userId }: Props) {
 
   const unreadCount = notifications.filter((n) => !n.is_read).length
 
-  async function fetchNotifications() {
-    setLoading(true)
+  async function fetchNotifications(silent = false) {
+    if (!silent) setLoading(true)
     const { data } = await supabase
       .from("notifications")
       .select("*")
@@ -41,26 +41,36 @@ export function NotificationPanel({ userId }: Props) {
       .order("created_at", { ascending: false })
       .limit(30)
     setNotifications((data as Notification[]) ?? [])
-    setLoading(false)
+    if (!silent) setLoading(false)
   }
 
   useEffect(() => {
-    fetchNotifications()
+    let channel: ReturnType<typeof supabase.channel> | null = null
+    const init = async () => {
+      await fetchNotifications()
+      // notifications-д RLS (auth.uid()=user_id) тул realtime-д хэрэглэгчийн
+      // token тавихгүй бол postgres_changes хүргэгдэхгүй (анон → auth.uid() null)
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.access_token) supabase.realtime.setAuth(session.access_token)
+      channel = supabase
+        .channel(`notifications-${userId}`)
+        .on("postgres_changes", {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${userId}`,
+        }, (payload) => {
+          setNotifications((prev) => [payload.new as Notification, ...prev])
+        })
+        .subscribe()
+    }
+    init()
 
-    // Realtime subscription
-    const channel = supabase
-      .channel(`notifications-${userId}`)
-      .on("postgres_changes", {
-        event: "INSERT",
-        schema: "public",
-        table: "notifications",
-        filter: `user_id=eq.${userId}`,
-      }, (payload) => {
-        setNotifications((prev) => [payload.new as Notification, ...prev])
-      })
-      .subscribe()
+    // Realtime гацвал найдвартай байхын тулд бага зэрэг polling (чимээгүй)
+    const poll = setInterval(() => { fetchNotifications(true) }, 30000)
 
-    return () => { supabase.removeChannel(channel) }
+    return () => { if (channel) supabase.removeChannel(channel); clearInterval(poll) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId])
 
   // Close on outside click
