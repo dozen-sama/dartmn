@@ -752,11 +752,13 @@ export interface Database {
           room_code: string
           host_id: string
           guest_id: string | null
-          format: "501" | "301" | "cricket"
+          format: "501" | "301" | "170" | "cricket"
           best_of: number
           status: "waiting" | "ongoing" | "completed"
           mode: "1v1" | "2v2" | "3v3"
           double_out: boolean
+          limit_rounds: number | null
+          bull_finish: boolean
           starter_team: number | null
           winner_team: number | null
           match_id: string | null
@@ -767,11 +769,13 @@ export interface Database {
           room_code: string
           host_id: string
           guest_id?: string | null
-          format: "501" | "301" | "cricket"
+          format: "501" | "301" | "170" | "cricket"
           best_of?: number
           status?: "waiting" | "ongoing" | "completed"
           mode?: "1v1" | "2v2" | "3v3"
           double_out?: boolean
+          limit_rounds?: number | null
+          bull_finish?: boolean
           starter_team?: number | null
           winner_team?: number | null
           match_id?: string | null

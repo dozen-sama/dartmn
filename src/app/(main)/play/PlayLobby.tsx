@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
+import { VisitLimitPicker } from "@/components/game/VisitLimitPicker"
 import { createClient } from "@/lib/supabase/client"
 import { mn } from "@/locales/mn"
 import { OnlineRoom, Profile } from "@/types/database"
@@ -35,15 +36,23 @@ export function PlayLobby({ profile, activeRooms }: Props) {
   const [joining, setJoining] = useState(false)
   const [joinCode, setJoinCode] = useState("")
   const [mode, setMode] = useState<"1v1" | "2v2" | "3v3">("1v1")
-  const [format, setFormat] = useState<"501" | "301">("501")
+  const [format, setFormat] = useState<"501" | "301" | "170">("501")
   const [bestOf, setBestOf] = useState("3")
+  const [doubleOut, setDoubleOut] = useState(true)
+  const [limitRoundsEnabled, setLimitRoundsEnabled] = useState(false)
+  const [limitRounds, setLimitRounds] = useState(15)
+  const [bullFinish, setBullFinish] = useState(false)
 
   async function handleCreateRoom() {
     if (!profile) return toast.error("Нэвтрэх шаардлагатай")
     setCreating(true)
     const res = await fetch("/api/play/room/create", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode, format, bestOf: parseInt(bestOf), doubleOut: true }),
+      body: JSON.stringify({
+        mode, format, bestOf: parseInt(bestOf), doubleOut,
+        limitRounds: limitRoundsEnabled ? limitRounds : null,
+        bullFinish: limitRoundsEnabled && bullFinish,
+      }),
     })
     if (!res.ok) {
       const e = await res.json().catch(() => ({}))
@@ -235,23 +244,42 @@ export function PlayLobby({ profile, activeRooms }: Props) {
                 <SelectContent>
                   <SelectItem value="501">501</SelectItem>
                   <SelectItem value="301">301</SelectItem>
+                  <SelectItem value="170">170</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-sm">Best of</Label>
-              <Select value={bestOf} onValueChange={(v) => v && setBestOf(v)}>
-                <SelectTrigger className="bg-secondary/50 border-border/60">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">Best of 1</SelectItem>
-                  <SelectItem value="3">Best of 3</SelectItem>
-                  <SelectItem value="5">Best of 5</SelectItem>
-                  <SelectItem value="7">Best of 7</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="space-y-1.5">
+                <Label className="text-sm">Best of</Label>
+                <Select value={bestOf} onValueChange={(v) => v && setBestOf(v)}>
+                  <SelectTrigger className="bg-secondary/50 border-border/60 w-36">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">Best of 1</SelectItem>
+                    <SelectItem value="3">Best of 3</SelectItem>
+                    <SelectItem value="5">Best of 5</SelectItem>
+                    <SelectItem value="7">Best of 7</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer mt-5">
+                <input type="checkbox" checked={doubleOut} onChange={(e) => setDoubleOut(e.target.checked)} className="accent-primary" />
+                <span className="text-sm">Double out</span>
+              </label>
+            </div>
+
+            {/* Visit/round хязгаар + хязгаарт bull finish */}
+            <div className="border-t border-border/40 pt-3">
+              <VisitLimitPicker
+                enabled={limitRoundsEnabled}
+                onToggle={(v) => { setLimitRoundsEnabled(v); if (!v) setBullFinish(false) }}
+                value={limitRounds}
+                onChange={setLimitRounds}
+                bullOff={bullFinish}
+                onBullOffToggle={setBullFinish}
+              />
             </div>
 
             <Button

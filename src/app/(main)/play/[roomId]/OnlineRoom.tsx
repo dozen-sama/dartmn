@@ -219,6 +219,9 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
   const game = deriveX01(sortedVisits.map((v) => ({ points: v.points, darts: v.darts })), {
     startScore: gameStart, doubleOut: liveRoom.double_out, legsToWin,
     starterTeam: liveRoom.starter_team ?? 0, teamSizes: [n, n],
+    limitRoundsEnabled: liveRoom.limit_rounds != null,
+    limitRounds: liveRoom.limit_rounds ?? undefined,
+    bullFinishAtLimit: liveRoom.bull_finish,
   })
   const gActiveTeam = game.activeTeam
   const gActiveSlot = game.currentPlayer[gActiveTeam]
@@ -296,6 +299,12 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
           </button>
           <p className="flex-1 text-center text-xs text-muted-foreground">
             {mode} · {liveRoom.format} · BO{liveRoom.best_of} · {legsToWin} leg
+            {!liveRoom.double_out && " · SO"}
+            {liveRoom.limit_rounds != null && (
+              <span className={cn("ml-1", game.currentRound >= liveRoom.limit_rounds ? "text-destructive" : "")}>
+                · R{game.currentRound}/{liveRoom.limit_rounds}
+              </span>
+            )}
           </p>
           {done
             ? <Badge className="bg-[oklch(0.78_0.16_85)]/15 text-[oklch(0.78_0.16_85)] border-[oklch(0.78_0.16_85)]/30 text-xs">Дууссан</Badge>
@@ -368,6 +377,12 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
           <Link href="/play" className={cn(buttonVariants({ variant: "outline" }), "w-full")}>Тоглох хуудас руу</Link>
         ) : isMyTurn ? (
           <>
+            {liveRoom.bull_finish && liveRoom.limit_rounds != null && game.currentRound >= liveRoom.limit_rounds && (
+              <div className="flex items-center justify-center gap-2 bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-1.5">
+                <span>🎯</span>
+                <p className="text-xs font-bold text-destructive">Bull Finish — зөвхөн 50/25!</p>
+              </div>
+            )}
             {checkoutHint && !isBust && (
               <p className="text-center text-[11px] font-mono text-[oklch(0.78_0.16_85)] font-bold">🎯 {checkoutHint}</p>
             )}
