@@ -43,6 +43,7 @@ export function deriveX01(visits: X01Visit[], cfg: X01Config): X01State {
   const sc: [number, number] = [startScore, startScore]
   const lg: [number, number] = [0, 0]
   const cp: [number, number] = [0, 0]
+  let legStarter = starterTeam
   let active = starterTeam
   let winner: number | null = null
   const legsView: X01VisitView[][] = []
@@ -70,11 +71,13 @@ export function deriveX01(visits: X01Visit[], cfg: X01Config): X01State {
     if (checkout) {
       lg[active]++
       if (lg[active] >= legsToWin) { winner = active; break }
-      // Шинэ leg — оноо reset, тоглогч эргэлдэнэ, эхлэгч солигдоно
+      // Шинэ leg — оноо reset, тоглогч эргэлдэнэ. Эхлэгч нь хэн хожсоноос үл
+      // хамааран leg бүрт ЭЭЛЖИЛНЭ (стандарт дартс).
       sc[0] = startScore; sc[1] = startScore
       cp[0] = (cp[0] + 1) % pcount(0)
       cp[1] = (cp[1] + 1) % pcount(1)
-      active = active === 0 ? 1 : 0
+      legStarter = legStarter === 0 ? 1 : 0
+      active = legStarter
       curLeg = []
       legsView.push(curLeg)
     } else {

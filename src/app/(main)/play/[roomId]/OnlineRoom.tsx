@@ -14,6 +14,7 @@ import { getTier } from "@/lib/rating"
 import { teamSize, totalPlayers, type RoomMode } from "@/lib/local-game/room"
 import { deriveX01 } from "@/lib/local-game/x01"
 import { classifyTurn, getCheckout, isPossibleVisitScore } from "@/lib/local-game/checkouts"
+import { useScoreboardKeyboard } from "@/hooks/useScoreboardKeyboard"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { buttonVariants } from "@/components/ui/button"
@@ -211,21 +212,52 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
   const playerAt = (team: number, slot: number) => livePlayers.find((p) => p.team === team && p.slot === slot)
   const inviteAt = (team: number, slot: number) => invites.find((i) => i.team === team && i.slot === slot)
 
+  // ── Тоглоомын төлөв (хоосон visits-д ч аюулгүй; keyboard hook-д хэрэгтэй) ──
+  const gameStart = parseInt(liveRoom.format) || 501
+  const legsToWin = Math.ceil(liveRoom.best_of / 2)
+  const sortedVisits = [...visits].sort((a, b) => a.seq - b.seq)
+  const game = deriveX01(sortedVisits.map((v) => ({ points: v.points, darts: v.darts })), {
+    startScore: gameStart, doubleOut: liveRoom.double_out, legsToWin,
+    starterTeam: liveRoom.starter_team ?? 0, teamSizes: [n, n],
+  })
+  const gActiveTeam = game.activeTeam
+  const gActiveSlot = game.currentPlayer[gActiveTeam]
+  const gActiveP = playerAt(gActiveTeam, gActiveSlot)
+  const gDone = liveRoom.status === "completed" || game.winner !== null
+  const isMyTurn = liveRoom.status === "ongoing" && !gDone && gActiveP?.player_id === currentUserId
+  const gInputNum = parseInt(input) || 0
+  const gBefore = game.scores[gActiveTeam]
+  const gPreview = input !== "" ? classifyTurn(gBefore, gInputNum, { doubleOut: liveRoom.double_out }) : null
+  const gIsBust = gPreview?.type === "bust"
+  const gIsCheckout = gPreview?.type === "checkout"
+
+  function submitTurnNow() {
+    if (input === "" || submitting || !isMyTurn) return
+    if (!isPossibleVisitScore(gInputNum)) { toast.error(`${gInputNum} — 3 дартаар гаргах боломжгүй оноо`); return }
+    submitTurn(gInputNum, gIsCheckout ? dartsUsed : 3)
+  }
+  // Компьютерийн гар — тоо/Backspace/Enter (input талбарт фокустай үед hook алгасна)
+  useScoreboardKeyboard({
+    onInput: (dg) => setInput((p) => { const next = p + dg; return parseInt(next) > 180 ? p : next }),
+    onDelete: () => setInput((p) => p.slice(0, -1)),
+    onClear: () => setInput(""),
+    onSubmit: submitTurnNow,
+    enabled: isMyTurn,
+  })
+
   // ── GAME PHASE — TV маягийн онооны самбар ─────────────────
   if (liveRoom.status === "ongoing" || liveRoom.status === "completed") {
-    const startScore = parseInt(liveRoom.format) || 501
-    const legsToWin = Math.ceil(liveRoom.best_of / 2)
-    const sorted = [...visits].sort((a, b) => a.seq - b.seq)
-    const d = deriveX01(sorted.map((v) => ({ points: v.points, darts: v.darts })), {
-      startScore, doubleOut: liveRoom.double_out, legsToWin,
-      starterTeam: liveRoom.starter_team ?? 0, teamSizes: [n, n],
-    })
+    // top-level-аас тооцсон төлвийг ашиглана (keyboard hook-той ижил)
+    const d = game
+    const done = gDone
     const winnerTeam = d.winner ?? liveRoom.winner_team
-    const done = liveRoom.status === "completed" || d.winner !== null
-    const activeTeam = d.activeTeam
-    const activeSlot = d.currentPlayer[activeTeam]
-    const activeP = playerAt(activeTeam, activeSlot)
-    const isMyTurn = !done && activeP?.player_id === currentUserId
+    const activeTeam = gActiveTeam
+    const beforeActive = gBefore
+    const inputNum = gInputNum
+    const isBust = gIsBust
+    const isCheckout = gIsCheckout
+    const checkoutHint = beforeActive <= 170 ? getCheckout(beforeActive) : null
+    const doSubmit = submitTurnNow
 
     const nameOf = (t: number, s: number) => playerAt(t, s)?.profile?.display_name ?? "Тоглогч"
     const bigName = (t: number) => n === 1 ? nameOf(t, 0) : `Баг ${t + 1}`
@@ -237,22 +269,10 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
     const activeRound = (activeTeam === 0 ? t0.length : t1.length) + 1
     const rowCount = Math.max(t0.length, t1.length, activeRound)
 
-    const beforeActive = d.scores[activeTeam]
-    const inputNum = parseInt(input) || 0
-    const preview = input !== "" ? classifyTurn(beforeActive, inputNum, { doubleOut: liveRoom.double_out }) : null
-    const isBust = preview?.type === "bust"
-    const isCheckout = preview?.type === "checkout"
-    const checkoutHint = beforeActive <= 170 ? getCheckout(beforeActive) : null
-
     const keypad = (k: number | string) => {
       if (k === "DEL") { setInput((p) => p.slice(0, -1)); return }
       if (k === "*") { setInput(""); return }
       setInput((p) => { const next = p + k; return parseInt(next) > 180 ? p : next })
-    }
-    const doSubmit = () => {
-      if (input === "" || submitting || !isMyTurn) return
-      if (!isPossibleVisitScore(inputNum)) { toast.error(`${inputNum} — 3 дартаар гаргах боломжгүй оноо`); return }
-      submitTurn(inputNum, isCheckout ? dartsUsed : 3)
     }
 
     const scoreCell = (v: typeof t0[number] | undefined, side: 0 | 1) => {
@@ -383,7 +403,7 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
         ) : (
           <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span>{activeP?.profile?.display_name ?? "Өрсөлдөгч"}-ийн ээлжийг хүлээж байна…</span>
+            <span>{gActiveP?.profile?.display_name ?? "Өрсөлдөгч"}-ийн ээлжийг хүлээж байна…</span>
           </div>
         )}
       </div>
