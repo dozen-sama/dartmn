@@ -23,9 +23,11 @@ type GameFormat = "501" | "301" | "170"
 type Phase = "setup" | "bulloff" | "game"
 
 // Нэг ээлж (visit) — зөвхөн оноо + дарт. Багийн ээлж, bust/checkout, leg-ийг replay-ээр тооцно.
+// decide — хязгаарт хүрсэн leg-ийг гараар (bull finish) шийдсэн ялагч баг.
 interface Visit {
   points: number
   darts: number
+  decide?: number
 }
 
 // Replay-ийн үр дүн — нэг ээлжийн харагдац (хүснэгтэд)
@@ -181,32 +183,26 @@ export function TogetherGame() {
     ? (editingView.bust ? editingView.remaining : editingView.remaining + editingView.points)
     : d.scores[ctxTeam]
 
-  // Засаж буй ээлжийн round (bull-finish дүрэм энэ ээлжид мөрдөгдөх эсэхэд)
-  let editRound: number | null = null
-  if (editingIndex !== null) {
-    for (const leg of d.legsView) {
-      const pos = leg.findIndex(v => v.idx === editingIndex)
-      if (pos >= 0) { editRound = Math.floor(pos / 2) + 1; break }
-    }
-  }
-  const ctxAtLimit = limitRoundsEnabled && (editingView
-    ? editRound !== null && editRound >= limitRounds
-    : d.currentRound >= limitRounds)
-
   const hasInput = input !== ""
   const inputNum = parseInt(input) || 0
   const afterScore = ctxBefore - inputNum
-  // Engine-тэй ижил логик — preview ба replay хэзээ ч зөрөхгүй
+  // Engine-тэй ижил логик — preview ба replay хэзээ ч зөрөхгүй. Хязгаарт хүрэхэд
+  // bull шаардахгүй, харин leg-ийг гараар шийднэ (d.legAtLimit) тул энд требований алга.
   const preview = hasInput
-    ? classifyTurn(ctxBefore, inputNum, { doubleOut, requireBullFinish: ctxAtLimit && bullFinishAtLimit })
+    ? classifyTurn(ctxBefore, inputNum, { doubleOut })
     : null
   const isBust = preview?.type === "bust"
   const isCheckout = preview?.type === "checkout"
   const checkoutHint = ctxBefore <= 170 ? getCheckout(ctxBefore) : null
 
-  // Bull finish сануулга (зөвхөн шинэ ээлж дээр харуулна)
+  // Round хязгаарын заагчийн өнгөнд
   const isAtLimit = limitRoundsEnabled && d.currentRound >= limitRounds && editingIndex === null
-  const bullRequired = isAtLimit && bullFinishAtLimit
+
+  function pickLegWinner(team: number) {
+    setVisits(prev => [...prev, { points: 0, darts: 0, decide: team }])
+    setInput("")
+    setEditingIndex(null)
+  }
 
   function keypad(k: number | string) {
     if (k === "DEL") { freshRef.current = false; setInput(p => p.slice(0, -1)); return }
@@ -591,7 +587,8 @@ export function TogetherGame() {
           </div>
 
           {/* History rows: left score | round# | right score */}
-          <div className="py-2">
+          <div ref={(el) => { if (el) el.scrollTop = el.scrollHeight }}
+            className="py-2 max-h-[34vh] overflow-y-auto">
             {Array.from({ length: rowCount }).map((_, i) => {
               const isActiveRow = i === activeRound - 1
               const first = i === 0
@@ -620,82 +617,95 @@ export function TogetherGame() {
           </div>
         </div>
 
-        {/* Checkout hint */}
-        {checkoutHint && editingIndex === null && !isBust && (
-          <p className="text-center text-[11px] font-mono text-[oklch(0.78_0.16_85)] font-bold">🎯 {checkoutHint}</p>
-        )}
-
-        {/* Bull finish warning */}
-        {bullRequired && editingIndex === null && (
-          <div className="flex items-center justify-center gap-2 bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-1.5">
-            <span>🎯</span>
-            <p className="text-xs font-bold text-destructive">Bull Finish — зөвхөн 50/25!</p>
+        {/* Хязгаарт хүрсэн (bull finish) — гараар ялагч сонгох */}
+        {d.legAtLimit && editingIndex === null ? (
+          <div className="space-y-2">
+            <div className="flex items-center justify-center gap-2 bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-1.5">
+              <span>🎯</span>
+              <p className="text-xs font-bold text-destructive">Хязгаарт хүрлээ (bull finish) — хэн хожив?</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[0, 1].map((t) => (
+                <button key={t} onClick={() => pickLegWinner(t)}
+                  className={cn("py-3 rounded-xl border-2 font-bold text-sm transition-all",
+                    t === 0 ? "border-primary/40 hover:bg-primary/10 text-primary" : "border-blue-500/40 hover:bg-blue-500/10 text-blue-400")}>
+                  {roster[t].players.length === 1 ? roster[t].players[0] : roster[t].name} хожсон
+                </button>
+              ))}
+            </div>
           </div>
-        )}
+        ) : (
+          <>
+            {/* Checkout hint */}
+            {checkoutHint && editingIndex === null && !isBust && (
+              <p className="text-center text-[11px] font-mono text-[oklch(0.78_0.16_85)] font-bold">🎯 {checkoutHint}</p>
+            )}
 
-        {/* Input row */}
-        <div className="flex items-center justify-between px-1">
-          {editingIndex !== null ? (
-            <button onClick={cancelEdit} className="flex items-center gap-1 text-xs font-semibold text-primary">
-              <Pencil className="h-3.5 w-3.5" /> Засаж байна <X className="h-3.5 w-3.5" />
+            {/* Input row */}
+            <div className="flex items-center justify-between px-1">
+              {editingIndex !== null ? (
+                <button onClick={cancelEdit} className="flex items-center gap-1 text-xs font-semibold text-primary">
+                  <Pencil className="h-3.5 w-3.5" /> Засаж байна <X className="h-3.5 w-3.5" />
+                </button>
+              ) : (
+                <span className="text-xs text-muted-foreground truncate">
+                  ▶ {roster[d.activeTeam].players[d.currentPlayer[d.activeTeam]]}
+                </span>
+              )}
+              <div className="flex items-center gap-2">
+                {isBust && <Badge className="bg-destructive/15 text-destructive border-destructive/30">BUST</Badge>}
+                {isCheckout && <Badge className="bg-green-500/15 text-green-400 border-green-500/30">CHECKOUT</Badge>}
+                {!isBust && !isCheckout && hasInput && <span className="text-xs font-mono text-muted-foreground">→ {afterScore}</span>}
+                <input
+                  ref={inputRef}
+                  value={input}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/[^0-9]/g, "")
+                    freshRef.current = false
+                    if (v === "") { setInput(""); return }
+                    if (parseInt(v) > 180) return
+                    setInput(v)
+                  }}
+                  onFocus={(e) => e.target.select()}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submit() } }}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="0"
+                  aria-label="Оноо"
+                  className={cn("w-20 bg-transparent text-right text-3xl font-black score-display tabular-nums outline-none placeholder:text-muted-foreground/40",
+                    isBust ? "text-destructive" : isCheckout ? "text-green-400" : "")}
+                />
+              </div>
+            </div>
+
+            {/* Dart selector — зөвхөн checkout үед */}
+            {isCheckout && (
+              <DartSelector value={dartsUsed} onChange={setDartsUsed} label="Хэдэн дартаар checkout хийв?" />
+            )}
+
+            {/* Keypad */}
+            <div className="grid grid-cols-3 gap-2">
+              {KEYPAD.flat().map((k, i) => (
+                <button key={i} onClick={() => keypad(k)} onMouseDown={(e) => e.preventDefault()}
+                  className={cn("h-12 rounded-xl text-lg font-bold transition-all active:scale-95",
+                    k === "DEL" ? "bg-secondary/80 text-destructive" :
+                    k === "*" ? "bg-secondary/80 text-muted-foreground" :
+                    "bg-secondary/50 hover:bg-secondary border border-border/30")}>
+                  {k === "DEL" ? <Delete className="h-5 w-5 mx-auto" /> : k === "*" ? "C" : k}
+                </button>
+              ))}
+            </div>
+
+            {/* Submit */}
+            <button onClick={submit} disabled={!hasInput}
+              className={cn("w-full py-3 rounded-xl font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed",
+                isCheckout ? "bg-green-600 hover:bg-green-700 text-white" :
+                isBust ? "bg-destructive text-white" :
+                "bg-primary text-primary-foreground glow-primary")}>
+              {editingIndex !== null ? "Засах ✓" : isCheckout ? "✓ Checkout!" : isBust ? "Bust — ээлж алдах" : "Оруулах"}
             </button>
-          ) : (
-            <span className="text-xs text-muted-foreground truncate">
-              ▶ {roster[d.activeTeam].players[d.currentPlayer[d.activeTeam]]}
-            </span>
-          )}
-          <div className="flex items-center gap-2">
-            {isBust && <Badge className="bg-destructive/15 text-destructive border-destructive/30">BUST</Badge>}
-            {isCheckout && <Badge className="bg-green-500/15 text-green-400 border-green-500/30">CHECKOUT</Badge>}
-            {!isBust && !isCheckout && hasInput && <span className="text-xs font-mono text-muted-foreground">→ {afterScore}</span>}
-            <input
-              ref={inputRef}
-              value={input}
-              onChange={(e) => {
-                const v = e.target.value.replace(/[^0-9]/g, "")
-                freshRef.current = false
-                if (v === "") { setInput(""); return }
-                if (parseInt(v) > 180) return
-                setInput(v)
-              }}
-              onFocus={(e) => e.target.select()}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submit() } }}
-              inputMode="numeric"
-              pattern="[0-9]*"
-              placeholder="0"
-              aria-label="Оноо"
-              className={cn("w-20 bg-transparent text-right text-3xl font-black score-display tabular-nums outline-none placeholder:text-muted-foreground/40",
-                isBust ? "text-destructive" : isCheckout ? "text-green-400" : "")}
-            />
-          </div>
-        </div>
-
-        {/* Dart selector — зөвхөн checkout үед */}
-        {isCheckout && (
-          <DartSelector value={dartsUsed} onChange={setDartsUsed} label="Хэдэн дартаар checkout хийв?" />
+          </>
         )}
-
-        {/* Keypad */}
-        <div className="grid grid-cols-3 gap-2">
-          {KEYPAD.flat().map((k, i) => (
-            <button key={i} onClick={() => keypad(k)} onMouseDown={(e) => e.preventDefault()}
-              className={cn("h-12 rounded-xl text-lg font-bold transition-all active:scale-95",
-                k === "DEL" ? "bg-secondary/80 text-destructive" :
-                k === "*" ? "bg-secondary/80 text-muted-foreground" :
-                "bg-secondary/50 hover:bg-secondary border border-border/30")}>
-              {k === "DEL" ? <Delete className="h-5 w-5 mx-auto" /> : k === "*" ? "C" : k}
-            </button>
-          ))}
-        </div>
-
-        {/* Submit */}
-        <button onClick={submit} disabled={!hasInput}
-          className={cn("w-full py-3 rounded-xl font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed",
-            isCheckout ? "bg-green-600 hover:bg-green-700 text-white" :
-            isBust ? "bg-destructive text-white" :
-            "bg-primary text-primary-foreground glow-primary")}>
-          {editingIndex !== null ? "Засах ✓" : isCheckout ? "✓ Checkout!" : isBust ? "Bust — ээлж алдах" : "Оруулах"}
-        </button>
       </div>
     )
   }

@@ -208,6 +208,22 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
     } finally { setSubmitting(false) }
   }
 
+  async function submitDecide(winnerTeam: number) {
+    setSubmitting(true)
+    try {
+      const res = await fetch(`/api/play/room/${room.id}/decide`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ winnerTeam }),
+      })
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}))
+        toast.error(e.error ?? "Алдаа гарлаа")
+        return
+      }
+      const { data } = await supabase.from("room_visits").select("*").eq("room_id", room.id).order("seq")
+      if (data) setVisits(data as RoomVisit[])
+    } finally { setSubmitting(false) }
+  }
+
   async function submitBulloff(score: number) {
     setBusy(true)
     try {
@@ -234,7 +250,8 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
   const gameStart = parseInt(liveRoom.format) || 501
   const legsToWin = Math.ceil(liveRoom.best_of / 2)
   const sortedVisits = [...visits].sort((a, b) => a.seq - b.seq)
-  const game = deriveX01(sortedVisits.map((v) => ({ points: v.points, darts: v.darts })), {
+  const game = deriveX01(sortedVisits.map((v) =>
+    v.points === -1 ? { points: 0, darts: 0, decide: v.team } : { points: v.points, darts: v.darts }), {
     startScore: gameStart, doubleOut: liveRoom.double_out, legsToWin,
     starterTeam: liveRoom.starter_team ?? 0, teamSizes: [n, n],
     limitRoundsEnabled: liveRoom.limit_rounds != null,
@@ -245,7 +262,7 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
   const gActiveSlot = game.currentPlayer[gActiveTeam]
   const gActiveP = playerAt(gActiveTeam, gActiveSlot)
   const gDone = liveRoom.status === "completed" || game.winner !== null
-  const isMyTurn = liveRoom.status === "ongoing" && !gDone && gActiveP?.player_id === currentUserId
+  const isMyTurn = liveRoom.status === "ongoing" && !gDone && !game.legAtLimit && gActiveP?.player_id === currentUserId
   const gInputNum = parseInt(input) || 0
   const gBefore = game.scores[gActiveTeam]
   const gPreview = input !== "" ? classifyTurn(gBefore, gInputNum, { doubleOut: liveRoom.double_out }) : null
@@ -422,7 +439,8 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
             <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60">Legs</span>
             <span className={cn("font-black tabular-nums", activeTeam === 1 ? "text-blue-400" : "text-muted-foreground")}>{d.legs[1]}</span>
           </div>
-          <div className="py-2">
+          <div ref={(el) => { if (el) el.scrollTop = el.scrollHeight }}
+            className="py-2 max-h-[34vh] overflow-y-auto">
             {Array.from({ length: rowCount }).map((_, i) => {
               const isActiveRow = !done && i === activeRound - 1
               return (
@@ -446,6 +464,22 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
         {/* Дууссан → буцах */}
         {done ? (
           <Link href="/play" className={cn(buttonVariants({ variant: "outline" }), "w-full")}>Тоглох хуудас руу</Link>
+        ) : game.legAtLimit ? (
+          <div className="space-y-2">
+            <div className="flex items-center justify-center gap-2 bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-1.5">
+              <span>🎯</span>
+              <p className="text-xs font-bold text-destructive">Хязгаарт хүрлээ (bull finish) — хэн хожив?</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[0, 1].map((t) => (
+                <button key={t} onClick={() => submitDecide(t)} disabled={submitting}
+                  className={cn("py-3 rounded-xl border-2 font-bold text-sm transition-all disabled:opacity-40",
+                    t === 0 ? "border-primary/40 hover:bg-primary/10 text-primary" : "border-blue-500/40 hover:bg-blue-500/10 text-blue-400")}>
+                  {bigName(t)} хожсон
+                </button>
+              ))}
+            </div>
+          </div>
         ) : isMyTurn ? (
           <>
             {liveRoom.bull_finish && liveRoom.limit_rounds != null && game.currentRound >= liveRoom.limit_rounds && (

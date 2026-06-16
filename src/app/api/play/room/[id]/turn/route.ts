@@ -2,6 +2,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server"
 import { deriveX01, type X01Visit } from "@/lib/local-game/x01"
 import { isPossibleVisitScore } from "@/lib/local-game/checkouts"
 import { teamSize, type RoomMode } from "@/lib/local-game/room"
+import { finishOnlineRoom } from "@/lib/local-game/room-finish"
 import { NextRequest, NextResponse } from "next/server"
 
 // Нэг ээлж (visit) илгээх. Replay-ээр хэний ээлж болохыг шалгаж, зөвхөн идэвхтэй
@@ -26,10 +27,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const [{ data: rp }, { data: rv }] = await Promise.all([
     admin.from("room_players").select("player_id, team, slot").eq("room_id", id),
-    admin.from("room_visits").select("seq, points, darts").eq("room_id", id).order("seq"),
+    admin.from("room_visits").select("seq, team, points, darts").eq("room_id", id).order("seq"),
   ])
   const players = rp ?? []
-  const visits: X01Visit[] = (rv ?? []).map((v) => ({ points: v.points, darts: v.darts }))
+  // points === -1 → гараар шийдсэн (bull finish) ялагч баг
+  const visits: X01Visit[] = (rv ?? []).map((v) =>
+    v.points === -1 ? { points: 0, darts: 0, decide: v.team } : { points: v.points, darts: v.darts })
 
   const mode = room.mode as RoomMode
   const ts = teamSize(mode)
@@ -46,6 +49,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const state = deriveX01(visits, cfg)
   if (state.winner !== null) return NextResponse.json({ error: "Тоглолт аль хэдийн дууссан" }, { status: 409 })
+  if (state.legAtLimit) return NextResponse.json({ error: "Хязгаарт хүрсэн — ялагчийг сонгоно уу" }, { status: 409 })
 
   // Идэвхтэй тоглогч = (activeTeam, currentPlayer[activeTeam])
   const activeTeam = state.activeTeam
@@ -69,11 +73,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const after = deriveX01([...visits, { points: pts, darts: drt }], cfg)
   let completed = false
   if (after.winner !== null) {
-    await admin.from("online_rooms")
-      .update({ status: "completed", winner_team: after.winner })
-      .eq("id", id).eq("status", "ongoing")
-    completed = true
-    // Phase C: applyMatchResult-ээр ELO/статистик энд орно
+    completed = await finishOnlineRoom(admin, id, after, players, [...visits, { points: pts, darts: drt }], room.mode)
   }
 
   return NextResponse.json({
