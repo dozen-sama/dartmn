@@ -29,8 +29,22 @@ export function NotificationPanel({ userId }: Props) {
   const [loading, setLoading] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
   const [supabase] = useState(() => createClient())
+  // "Харсан" хязгаар (localStorage) — bell дээрх тоо нь зөвхөн ҮҮНЭЭС ХОЙШ ирсэн
+  // мэдэгдлийг тоолно. Панел доторх dot нь is_read-ээр (уншаагүйг) хэвээр ялгана.
+  const [seenUntil, setSeenUntil] = useState<string>(() =>
+    (typeof window !== "undefined" ? localStorage.getItem(`notif_seen_${userId}`) : null) ?? ""
+  )
 
   const unreadCount = notifications.filter((n) => !n.is_read).length
+  // Bell badge — харснаас хойшхи уншаагүй (шинэ) мэдэгдлийн тоо
+  const newCount = notifications.filter((n) => !n.is_read && n.created_at > seenUntil).length
+
+  function markSeen() {
+    const newest = notifications[0]?.created_at
+    const stamp = newest && newest > seenUntil ? newest : new Date().toISOString()
+    setSeenUntil(stamp)
+    if (typeof window !== "undefined") localStorage.setItem(`notif_seen_${userId}`, stamp)
+  }
 
   async function fetchNotifications(silent = false) {
     if (!silent) setLoading(true)
@@ -123,13 +137,13 @@ export function NotificationPanel({ userId }: Props) {
     <div ref={panelRef} className="relative">
       {/* Bell button */}
       <button
-        onClick={() => setOpen(!open)}
+        onClick={() => { const willOpen = !open; setOpen(willOpen); if (willOpen) markSeen() }}
         className="relative flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
       >
         <Bell className="h-4 w-4" />
-        {unreadCount > 0 && (
+        {newCount > 0 && (
           <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground">
-            {unreadCount > 9 ? "9+" : unreadCount}
+            {newCount > 9 ? "9+" : newCount}
           </span>
         )}
       </button>
