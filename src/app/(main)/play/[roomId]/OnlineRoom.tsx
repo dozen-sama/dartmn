@@ -3,18 +3,23 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { ArrowLeft, Check, Copy, Loader2, LogOut, Users, X, Zap } from "lucide-react"
+import { ArrowLeft, Check, Copy, Delete, Loader2, LogOut, Users, X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { AccountLinkPicker, type LinkedAccount } from "@/components/game/AccountLinkPicker"
+import { DartSelector } from "@/components/game/DartSelector"
 import { createClient } from "@/lib/supabase/client"
 import { getTier } from "@/lib/rating"
 import { teamSize, totalPlayers, type RoomMode } from "@/lib/local-game/room"
+import { deriveX01 } from "@/lib/local-game/x01"
+import { classifyTurn, getCheckout, isPossibleVisitScore } from "@/lib/local-game/checkouts"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { buttonVariants } from "@/components/ui/button"
-import type { OnlineRoom as Room } from "@/types/database"
+import type { OnlineRoom as Room, RoomVisit } from "@/types/database"
+
+const KEYPAD = [[7, 8, 9], [4, 5, 6], [1, 2, 3], ["*", 0, "DEL"]] as const
 
 interface Profile {
   id: string
@@ -61,6 +66,12 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
   const [invite, setInvite] = useState<MyInvite | null>(myInvite)
   const [busy, setBusy] = useState(false)
   const joinedRef = useRef(false)
+  // Тоглоомын фаз — event-sourced visits
+  const [visits, setVisits] = useState<RoomVisit[]>([])
+  const visitsLoadedRef = useRef(false)
+  const [input, setInput] = useState("")
+  const [dartsUsed, setDartsUsed] = useState(3)
+  const [submitting, setSubmitting] = useState(false)
 
   const mode = liveRoom.mode as RoomMode
   const n = teamSize(mode)
@@ -91,7 +102,7 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
     setInvite(mineInv ? { id: mineInv.id, team: mineInv.team, slot: mineInv.slot, status: "pending" } : null)
   }, [room.id, currentUserId, supabase])
 
-  // Realtime — өрөө, тоглогчид, урилгууд
+  // Realtime — өрөө, тоглогчид, урилгууд (refresh), visits (append)
   useEffect(() => {
     const ch = supabase.channel(`room-${room.id}`)
     for (const table of ["online_rooms", "room_players", "room_invites"]) {
@@ -99,9 +110,22 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
         filter: table === "online_rooms" ? `id=eq.${room.id}` : `room_id=eq.${room.id}` },
         () => { refresh() })
     }
+    ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "room_visits",
+      filter: `room_id=eq.${room.id}` }, (payload) => {
+      const v = payload.new as RoomVisit
+      setVisits((prev) => prev.some((x) => x.seq === v.seq) ? prev : [...prev, v].sort((a, b) => a.seq - b.seq))
+    })
     ch.subscribe()
     return () => { supabase.removeChannel(ch) }
   }, [room.id, refresh, supabase])
+
+  // Тоглолт эхэлсэн/дууссан үед visits-ийг нэг удаа татна
+  useEffect(() => {
+    if (liveRoom.status === "waiting" || visitsLoadedRef.current) return
+    visitsLoadedRef.current = true
+    supabase.from("room_visits").select("*").eq("room_id", room.id).order("seq")
+      .then(({ data }) => { if (data) setVisits(data as RoomVisit[]) })
+  }, [liveRoom.status, room.id, supabase])
 
   // Кодоор орсон тоглогч (уригдаагүй, ороогүй) → дараагийн нээлттэй slot
   useEffect(() => {
@@ -158,30 +182,210 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
     router.push("/play")
   }
 
+  async function submitTurn(points: number, darts: number) {
+    setSubmitting(true)
+    try {
+      const res = await fetch(`/api/play/room/${room.id}/turn`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ points, darts }),
+      })
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}))
+        toast.error(e.error ?? "Алдаа гарлаа")
+        return
+      }
+      const d = await res.json()
+      // Optimistic — өөрийн ээлжийг шууд харуулна (realtime echo dedupe-ээр давхцахгүй)
+      if (d.visit) {
+        setVisits((prev) => prev.some((x) => x.seq === d.visit.seq) ? prev : [...prev, {
+          id: `local-${d.visit.seq}`, room_id: room.id, created_by: currentUserId,
+          created_at: new Date().toISOString(), ...d.visit,
+        } as RoomVisit].sort((a, b) => a.seq - b.seq))
+      }
+      setInput(""); setDartsUsed(3)
+    } finally { setSubmitting(false) }
+  }
+
   const filled = livePlayers.length
   const need = totalPlayers(mode)
   const playerAt = (team: number, slot: number) => livePlayers.find((p) => p.team === team && p.slot === slot)
   const inviteAt = (team: number, slot: number) => invites.find((i) => i.team === team && i.slot === slot)
 
-  // ── GAME PHASE (Phase B-д бодит самбар) ───────────────────
-  if (liveRoom.status === "ongoing") {
+  // ── GAME PHASE — TV маягийн онооны самбар ─────────────────
+  if (liveRoom.status === "ongoing" || liveRoom.status === "completed") {
+    const startScore = parseInt(liveRoom.format) || 501
+    const legsToWin = Math.ceil(liveRoom.best_of / 2)
+    const sorted = [...visits].sort((a, b) => a.seq - b.seq)
+    const d = deriveX01(sorted.map((v) => ({ points: v.points, darts: v.darts })), {
+      startScore, doubleOut: liveRoom.double_out, legsToWin,
+      starterTeam: liveRoom.starter_team ?? 0, teamSizes: [n, n],
+    })
+    const winnerTeam = d.winner ?? liveRoom.winner_team
+    const done = liveRoom.status === "completed" || d.winner !== null
+    const activeTeam = d.activeTeam
+    const activeSlot = d.currentPlayer[activeTeam]
+    const activeP = playerAt(activeTeam, activeSlot)
+    const isMyTurn = !done && activeP?.player_id === currentUserId
+
+    const nameOf = (t: number, s: number) => playerAt(t, s)?.profile?.display_name ?? "Тоглогч"
+    const bigName = (t: number) => n === 1 ? nameOf(t, 0) : `Баг ${t + 1}`
+    const subName = (t: number) => n === 1 ? null : nameOf(t, d.currentPlayer[t])
+
+    const curLeg = d.legsView[d.legsView.length - 1] ?? []
+    const t0 = curLeg.filter((v) => v.team === 0)
+    const t1 = curLeg.filter((v) => v.team === 1)
+    const activeRound = (activeTeam === 0 ? t0.length : t1.length) + 1
+    const rowCount = Math.max(t0.length, t1.length, activeRound)
+
+    const beforeActive = d.scores[activeTeam]
+    const inputNum = parseInt(input) || 0
+    const preview = input !== "" ? classifyTurn(beforeActive, inputNum, { doubleOut: liveRoom.double_out }) : null
+    const isBust = preview?.type === "bust"
+    const isCheckout = preview?.type === "checkout"
+    const checkoutHint = beforeActive <= 170 ? getCheckout(beforeActive) : null
+
+    const keypad = (k: number | string) => {
+      if (k === "DEL") { setInput((p) => p.slice(0, -1)); return }
+      if (k === "*") { setInput(""); return }
+      setInput((p) => { const next = p + k; return parseInt(next) > 180 ? p : next })
+    }
+    const doSubmit = () => {
+      if (input === "" || submitting || !isMyTurn) return
+      if (!isPossibleVisitScore(inputNum)) { toast.error(`${inputNum} — 3 дартаар гаргах боломжгүй оноо`); return }
+      submitTurn(inputNum, isCheckout ? dartsUsed : 3)
+    }
+
+    const scoreCell = (v: typeof t0[number] | undefined, side: 0 | 1) => {
+      if (!v) return <div className="h-9" />
+      return (
+        <div className={cn("h-9 w-full flex items-center", side === 0 ? "justify-end pr-3" : "justify-start pl-3")}>
+          <span className={cn("text-3xl font-bold score-display leading-none",
+            v.bust ? "text-destructive/50 line-through" : v.checkout ? "text-green-400" : "text-foreground/85")}>
+            {v.points}
+          </span>
+        </div>
+      )
+    }
+
     return (
-      <div className="max-w-sm mx-auto flex flex-col items-center justify-center min-h-[50vh] gap-4 text-center">
-        <Zap className="h-10 w-10 text-primary" />
-        <h1 className="text-xl font-bold">Тоглолт эхэллээ!</h1>
-        <p className="text-sm text-muted-foreground">
-          Онооны самбар удахгүй нэмэгдэнэ. ({mode} · {liveRoom.format} · BO{liveRoom.best_of})
-        </p>
-        <Link href="/play" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>Тоглох хуудас</Link>
-      </div>
-    )
-  }
-  if (liveRoom.status === "completed") {
-    return (
-      <div className="max-w-sm mx-auto flex flex-col items-center justify-center min-h-[50vh] gap-4 text-center">
-        <div className="text-5xl">🏆</div>
-        <h1 className="text-xl font-bold">Тоглолт дууссан</h1>
-        <Link href="/play" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>Тоглох хуудас</Link>
+      <div className="max-w-sm mx-auto space-y-3">
+        {/* Top bar */}
+        <div className="flex items-center gap-2">
+          <button onClick={leave} className="text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <p className="flex-1 text-center text-xs text-muted-foreground">
+            {mode} · {liveRoom.format} · BO{liveRoom.best_of} · {legsToWin} leg
+          </p>
+          {done
+            ? <Badge className="bg-[oklch(0.78_0.16_85)]/15 text-[oklch(0.78_0.16_85)] border-[oklch(0.78_0.16_85)]/30 text-xs">Дууссан</Badge>
+            : <Badge className="bg-primary/15 text-primary border-primary/30 pulse-live text-xs">LIVE</Badge>}
+        </div>
+
+        {/* Winner banner */}
+        {done && winnerTeam !== null && winnerTeam !== undefined && (
+          <div className="text-center py-4 rounded-xl bg-[oklch(0.78_0.16_85)]/10 border border-[oklch(0.78_0.16_85)]/30">
+            <div className="text-4xl mb-1">🏆</div>
+            <p className="text-lg font-black text-[oklch(0.78_0.16_85)]">{bigName(winnerTeam)} хожлоо!</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{d.legs[0]} — {d.legs[1]}</p>
+          </div>
+        )}
+
+        {/* TV scoreboard */}
+        <div className="rounded-xl overflow-hidden border border-border/40">
+          <div className="grid grid-cols-2">
+            {[0, 1].map((i) => (
+              <div key={i} className={cn("py-2.5 px-3 text-center min-w-0 transition-colors",
+                !done && activeTeam === i
+                  ? (i === 0 ? "bg-primary text-primary-foreground" : "bg-blue-600 text-white")
+                  : "bg-secondary/60 text-muted-foreground")}>
+                <p className="text-base font-extrabold truncate leading-tight">{bigName(i)}</p>
+                {subName(i) && <p className="text-[11px] opacity-80 truncate">{subName(i)}</p>}
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 bg-card">
+            {[0, 1].map((i) => {
+              const active = !done && activeTeam === i
+              return (
+                <div key={i} className={cn("flex items-center justify-center px-3 py-2 border-border/40",
+                  i === 0 ? "border-r" : "", active ? "bg-foreground" : "")}>
+                  {active && <span className="h-1.5 w-1.5 rounded-full bg-background shrink-0 mr-1.5" />}
+                  <span className={cn("text-5xl font-black score-display leading-none",
+                    active ? "text-background" : "text-foreground/55")}>{d.scores[i]}</span>
+                </div>
+              )
+            })}
+          </div>
+          <div className="flex items-center justify-center gap-3 bg-secondary/40 py-1 text-xs">
+            <span className={cn("font-black tabular-nums", activeTeam === 0 ? "text-primary" : "text-muted-foreground")}>{d.legs[0]}</span>
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60">Legs</span>
+            <span className={cn("font-black tabular-nums", activeTeam === 1 ? "text-blue-400" : "text-muted-foreground")}>{d.legs[1]}</span>
+          </div>
+          <div className="py-2">
+            {Array.from({ length: rowCount }).map((_, i) => {
+              const isActiveRow = !done && i === activeRound - 1
+              return (
+                <div key={i} className="grid grid-cols-[1fr_auto_1fr] items-center">
+                  {scoreCell(t0[i], 0)}
+                  <div className="relative flex items-center justify-center w-12">
+                    {isActiveRow && (
+                      <span className={cn("absolute text-yellow-400 text-xs", activeTeam === 0 ? "-left-0.5" : "-right-0.5")}>
+                        {activeTeam === 0 ? "◀" : "▶"}
+                      </span>
+                    )}
+                    <span className="h-9 w-7 flex items-center justify-center text-sm font-bold bg-zinc-800 text-zinc-300">{i + 1}</span>
+                  </div>
+                  {scoreCell(t1[i], 1)}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Дууссан → буцах */}
+        {done ? (
+          <Link href="/play" className={cn(buttonVariants({ variant: "outline" }), "w-full")}>Тоглох хуудас руу</Link>
+        ) : isMyTurn ? (
+          <>
+            {checkoutHint && !isBust && (
+              <p className="text-center text-[11px] font-mono text-[oklch(0.78_0.16_85)] font-bold">🎯 {checkoutHint}</p>
+            )}
+            <div className="flex items-center justify-between px-1">
+              <span className="text-xs font-semibold text-primary">Таны ээлж</span>
+              <div className="flex items-center gap-2">
+                {isBust && <Badge className="bg-destructive/15 text-destructive border-destructive/30">BUST</Badge>}
+                {isCheckout && <Badge className="bg-green-500/15 text-green-400 border-green-500/30">CHECKOUT</Badge>}
+                {!isBust && !isCheckout && input !== "" && <span className="text-xs font-mono text-muted-foreground">→ {beforeActive - inputNum}</span>}
+                <span className={cn("text-3xl font-black score-display tabular-nums w-16 text-right",
+                  isBust ? "text-destructive" : isCheckout ? "text-green-400" : "")}>{input || "0"}</span>
+              </div>
+            </div>
+            {isCheckout && <DartSelector value={dartsUsed} onChange={setDartsUsed} label="Хэдэн дартаар checkout хийв?" />}
+            <div className="grid grid-cols-3 gap-2">
+              {KEYPAD.flat().map((k, i) => (
+                <button key={i} onClick={() => keypad(k)}
+                  className={cn("h-12 rounded-xl text-lg font-bold transition-all active:scale-95",
+                    k === "DEL" ? "bg-secondary/80 text-destructive" :
+                    k === "*" ? "bg-secondary/80 text-muted-foreground" :
+                    "bg-secondary/50 hover:bg-secondary border border-border/30")}>
+                  {k === "DEL" ? <Delete className="h-5 w-5 mx-auto" /> : k === "*" ? "C" : k}
+                </button>
+              ))}
+            </div>
+            <button onClick={doSubmit} disabled={input === "" || submitting}
+              className={cn("w-full py-3 rounded-xl font-bold transition-all disabled:opacity-40",
+                isCheckout ? "bg-green-600 hover:bg-green-700 text-white" :
+                isBust ? "bg-destructive text-white" : "bg-primary text-primary-foreground glow-primary")}>
+              {submitting ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : isCheckout ? "✓ Checkout!" : isBust ? "Bust — ээлж алдах" : "Оруулах"}
+            </button>
+          </>
+        ) : (
+          <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>{activeP?.profile?.display_name ?? "Өрсөлдөгч"}-ийн ээлжийг хүлээж байна…</span>
+          </div>
+        )}
       </div>
     )
   }

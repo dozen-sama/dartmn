@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { getCheckout, classifyTurn, isPossibleVisitScore } from "@/lib/local-game/checkouts"
+import { deriveX01 } from "@/lib/local-game/x01"
 import { useScoreboardKeyboard } from "@/hooks/useScoreboardKeyboard"
 import { BullOff } from "@/components/game/BullOff"
 import { VisitLimitPicker } from "@/components/game/VisitLimitPicker"
@@ -131,59 +132,12 @@ export function TogetherGame() {
     setPhase("game")
   }
 
-  // ── Replay: visits → бүх төлөв ──────────────────────────
-  function derive() {
-    const sc: [number, number] = [startScore, startScore]
-    const lg: [number, number] = [0, 0]
-    const cp: [number, number] = [0, 0]
-    let active = starterTeam
-    let legStarter = starterTeam
-    let winner: number | null = null
-    const legsView: VisitView[][] = []
-    let curLeg: VisitView[] = []
-    legsView.push(curLeg)
-
-    const pcount = (t: number) => Math.max(1, roster[t]?.players.length ?? 1)
-
-    for (let i = 0; i < visits.length; i++) {
-      if (winner !== null) break
-      const v = visits[i]
-      const before = sc[active]
-      // Энэ ээлжийн round (bull-finish house rule-д). curLeg-д хоёр баг ээлжлэн ордог.
-      const roundForThis = Math.floor(curLeg.length / 2) + 1
-      const atLimit = limitRoundsEnabled && roundForThis >= limitRounds
-      const outcome = classifyTurn(before, v.points, {
-        doubleOut,
-        requireBullFinish: atLimit && bullFinishAtLimit,
-      })
-      const bust = outcome.type === "bust"
-      const checkout = outcome.type === "checkout"
-      const remaining = outcome.remaining  // score→after, bust→before, checkout→0
-      curLeg.push({ team: active, player: cp[active], points: v.points, remaining, bust, checkout, idx: i })
-
-      if (checkout) {
-        lg[active]++
-        if (lg[active] >= legsToWin) { winner = active; break }
-        // Шинэ leg — оноо reset, тоглогч эргэлдэнэ, эхлэгч солигдоно
-        sc[0] = startScore; sc[1] = startScore
-        cp[0] = (cp[0] + 1) % pcount(0)
-        cp[1] = (cp[1] + 1) % pcount(1)
-        legStarter = active === 0 ? 1 : 0
-        active = legStarter
-        curLeg = []
-        legsView.push(curLeg)
-      } else {
-        sc[active] = remaining
-        cp[active] = (cp[active] + 1) % pcount(active)
-        active = active === 0 ? 1 : 0
-      }
-    }
-
-    const currentRound = Math.floor(curLeg.length / 2) + 1
-    return { scores: sc, legs: lg, currentPlayer: cp, activeTeam: active, winner, legsView, currentRound }
-  }
-
-  const d = derive()
+  // ── Replay: visits → бүх төлөв (хуваалцсан engine) ──────
+  const d = deriveX01(visits, {
+    startScore, doubleOut, legsToWin, starterTeam,
+    teamSizes: [roster[0]?.players.length ?? 1, roster[1]?.players.length ?? 1],
+    limitRoundsEnabled, limitRounds, bullFinishAtLimit,
+  })
 
   // Баг бүрийн БҮХ тоглогч холбогдсон бол тоглолт дуусахад ELO/статистик нэг удаа
   // илгээх (1v1/2v2/3v3). Чөлөөт горимд бүртгэхгүй.
