@@ -28,7 +28,7 @@ export function NotificationPanel({ userId }: Props) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
-  const supabase = createClient()
+  const [supabase] = useState(() => createClient())
 
   const unreadCount = notifications.filter((n) => !n.is_read).length
 

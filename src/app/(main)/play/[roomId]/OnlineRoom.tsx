@@ -52,7 +52,9 @@ interface Props {
 
 export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }: Props) {
   const router = useRouter()
-  const supabase = createClient()
+  // Тогтвортой client — render бүрд шинэ үүсгэвэл realtime subscription байнга
+  // салж-холбогдож event алдагдана
+  const [supabase] = useState(() => createClient())
   const [liveRoom, setLiveRoom] = useState<Room>(room)
   const [livePlayers, setLivePlayers] = useState<RoomPlayerView[]>(players)
   const [invites, setInvites] = useState<InviteView[]>([])
@@ -65,13 +67,15 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
   const me = livePlayers.find((p) => p.player_id === currentUserId) ?? null
   const isHost = liveRoom.host_id === currentUserId
 
-  // Бүх төлвийг сэргээнэ (realtime өөрчлөлт бүрд)
+  // Бүх төлвийг сэргээнэ (realtime өөрчлөлт бүрд). Бие даасан query-г зэрэг
   const refresh = useCallback(async () => {
-    const { data: r } = await supabase.from("online_rooms").select("*").eq("id", room.id).maybeSingle()
+    const [{ data: r }, { data: rp }, { data: inv }] = await Promise.all([
+      supabase.from("online_rooms").select("*").eq("id", room.id).maybeSingle(),
+      supabase.from("room_players").select("*").eq("room_id", room.id),
+      supabase.from("room_invites")
+        .select("id, invitee_id, team, slot, status").eq("room_id", room.id).eq("status", "pending"),
+    ])
     if (r) setLiveRoom(r)
-    const { data: rp } = await supabase.from("room_players").select("*").eq("room_id", room.id)
-    const { data: inv } = await supabase.from("room_invites")
-      .select("id, invitee_id, team, slot, status").eq("room_id", room.id).eq("status", "pending")
     const ids = [...new Set([...(rp ?? []).map((p) => p.player_id), ...(inv ?? []).map((i) => i.invitee_id)])]
     const { data: profs } = ids.length
       ? await supabase.from("profiles").select("id, display_name, username, avatar_url, rating_points").in("id", ids)
@@ -135,7 +139,10 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
 
   async function toggleReady() {
     if (!me) return
-    await post(`/api/play/room/${room.id}/ready`, { ready: !me.is_ready })
+    const next = !me.is_ready
+    // Optimistic — өөрийн төлвийг шууд харуулна (round-trip хүлээхгүй)
+    setLivePlayers((prev) => prev.map((p) => p.player_id === currentUserId ? { ...p, is_ready: next } : p))
+    await post(`/api/play/room/${room.id}/ready`, { ready: next })
   }
   async function invitePlayer(team: number, slot: number, acc: LinkedAccount) {
     const ok = await post(`/api/play/room/${room.id}/invite`, { inviteeId: acc.id, team, slot })

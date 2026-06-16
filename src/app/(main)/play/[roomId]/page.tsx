@@ -13,12 +13,18 @@ export default async function RoomPage({ params }: { params: Promise<{ roomId: s
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const { data: room } = await supabase.from("online_rooms").select("*").eq("id", roomId).single()
+  // Бие даасан query-г зэрэг (навигацийн саатлыг багасгана)
+  const [{ data: room }, { data: rp }, { data: invite }] = await Promise.all([
+    supabase.from("online_rooms").select("*").eq("id", roomId).single(),
+    supabase.from("room_players").select("*").eq("room_id", roomId),
+    supabase.from("room_invites")
+      .select("id, team, slot, status")
+      .eq("room_id", roomId).eq("invitee_id", user.id).eq("status", "pending")
+      .maybeSingle(),
+  ])
   if (!room) notFound()
 
-  const { data: rp } = await supabase.from("room_players").select("*").eq("room_id", roomId)
   const players = rp ?? []
-
   const ids = [...new Set([room.host_id, ...players.map((p) => p.player_id)])]
   const { data: profs } = await supabase
     .from("profiles").select("id, display_name, username, avatar_url, rating_points").in("id", ids)
@@ -31,13 +37,6 @@ export default async function RoomPage({ params }: { params: Promise<{ roomId: s
     is_ready: p.is_ready,
     profile: byId[p.player_id] ?? null,
   }))
-
-  // Энэ хэрэглэгчид ирсэн хүлээгдэж буй урилга (уригдсан ч ороогүй бол)
-  const { data: invite } = await supabase
-    .from("room_invites")
-    .select("id, team, slot, status")
-    .eq("room_id", roomId).eq("invitee_id", user.id).eq("status", "pending")
-    .maybeSingle()
 
   return (
     <OnlineRoom
