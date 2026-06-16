@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Нэвтрээгүй байна" }, { status: 401 })
 
-  const { mode, format, bestOf, doubleOut, limitRounds, bullFinish } = await req.json()
+  const { mode, format, bestOf, doubleOut, limitRounds, bullFinish, startMethod } = await req.json()
   if (!MODES.includes(mode)) return NextResponse.json({ error: "Буруу горим" }, { status: 400 })
   if (!FORMATS.includes(format)) return NextResponse.json({ error: "Буруу формат" }, { status: 400 })
   const bo = BEST_OF.includes(bestOf) ? bestOf : 3
@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
       double_out: doubleOut !== false,
       limit_rounds: lr,
       bull_finish: bf,
+      start_method: startMethod === "bulloff" ? "bulloff" : "random",
       status: "waiting",
     }).select("id").single()
     if (data && !error) roomId = data.id

@@ -12,7 +12,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { ready } = await req.json()
 
   const admin = await createAdminClient()
-  const { data: room } = await admin.from("online_rooms").select("id, mode, status").eq("id", id).maybeSingle()
+  const { data: room } = await admin.from("online_rooms").select("id, mode, status, start_method").eq("id", id).maybeSingle()
   if (!room) return NextResponse.json({ error: "Өрөө олдсонгүй" }, { status: 404 })
   if (room.status !== "waiting") return NextResponse.json({ error: "Тоглолт эхэлсэн" }, { status: 409 })
 
@@ -27,11 +27,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const allReady = allIn && players!.every((p) => p.is_ready)
 
   if (allReady) {
-    const starter = Math.random() < 0.5 ? 0 : 1
     // Claim — зөвхөн status='waiting' үед нэг л шилжүүлэг амжина
-    await admin.from("online_rooms")
-      .update({ status: "ongoing", starter_team: starter })
-      .eq("id", id).eq("status", "waiting")
+    if (room.start_method === "bulloff") {
+      await admin.from("online_rooms").update({ status: "bulloff" }).eq("id", id).eq("status", "waiting")
+    } else {
+      const starter = Math.random() < 0.5 ? 0 : 1
+      await admin.from("online_rooms")
+        .update({ status: "ongoing", starter_team: starter })
+        .eq("id", id).eq("status", "waiting")
+    }
   }
 
   return NextResponse.json({ ok: true })

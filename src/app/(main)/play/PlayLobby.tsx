@@ -42,6 +42,7 @@ export function PlayLobby({ profile, activeRooms }: Props) {
   const [limitRoundsEnabled, setLimitRoundsEnabled] = useState(false)
   const [limitRounds, setLimitRounds] = useState(15)
   const [bullFinish, setBullFinish] = useState(false)
+  const [startMethod, setStartMethod] = useState<"random" | "bulloff">("random")
 
   async function handleCreateRoom() {
     if (!profile) return toast.error("Нэвтрэх шаардлагатай")
@@ -52,6 +53,7 @@ export function PlayLobby({ profile, activeRooms }: Props) {
         mode, format, bestOf: parseInt(bestOf), doubleOut,
         limitRounds: limitRoundsEnabled ? limitRounds : null,
         bullFinish: limitRoundsEnabled && bullFinish,
+        startMethod,
       }),
     })
     if (!res.ok) {
@@ -280,6 +282,20 @@ export function PlayLobby({ profile, activeRooms }: Props) {
                 bullOff={bullFinish}
                 onBullOffToggle={setBullFinish}
               />
+            </div>
+
+            {/* Эхлэгчийг тодорхойлох арга */}
+            <div className="space-y-1.5">
+              <Label className="text-sm">Хэн эхлэх</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {([["random", "Санамсаргүй"], ["bulloff", "Bull-off"]] as const).map(([v, label]) => (
+                  <button key={v} type="button" onClick={() => setStartMethod(v)}
+                    className={cn("py-2 rounded-lg border-2 text-sm font-bold transition-all",
+                      startMethod === v ? "border-primary bg-primary/15 text-primary" : "border-border/50 text-muted-foreground hover:border-border")}>
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <Button

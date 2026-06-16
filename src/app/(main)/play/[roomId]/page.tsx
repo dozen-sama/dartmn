@@ -35,6 +35,7 @@ export default async function RoomPage({ params }: { params: Promise<{ roomId: s
     team: p.team,
     slot: p.slot,
     is_ready: p.is_ready,
+    bulloff: p.bulloff,
     profile: byId[p.player_id] ?? null,
   }))
 

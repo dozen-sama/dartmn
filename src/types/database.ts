@@ -754,11 +754,12 @@ export interface Database {
           guest_id: string | null
           format: "501" | "301" | "170" | "cricket"
           best_of: number
-          status: "waiting" | "ongoing" | "completed"
+          status: "waiting" | "bulloff" | "ongoing" | "completed"
           mode: "1v1" | "2v2" | "3v3"
           double_out: boolean
           limit_rounds: number | null
           bull_finish: boolean
+          start_method: "random" | "bulloff"
           starter_team: number | null
           winner_team: number | null
           match_id: string | null
@@ -771,18 +772,19 @@ export interface Database {
           guest_id?: string | null
           format: "501" | "301" | "170" | "cricket"
           best_of?: number
-          status?: "waiting" | "ongoing" | "completed"
+          status?: "waiting" | "bulloff" | "ongoing" | "completed"
           mode?: "1v1" | "2v2" | "3v3"
           double_out?: boolean
           limit_rounds?: number | null
           bull_finish?: boolean
+          start_method?: "random" | "bulloff"
           starter_team?: number | null
           winner_team?: number | null
           match_id?: string | null
         }
         Update: {
           guest_id?: string | null
-          status?: "waiting" | "ongoing" | "completed"
+          status?: "waiting" | "bulloff" | "ongoing" | "completed"
           starter_team?: number | null
           winner_team?: number | null
           match_id?: string | null
@@ -797,6 +799,7 @@ export interface Database {
           team: number
           slot: number
           is_ready: boolean
+          bulloff: number | null
           joined_at: string
         }
         Insert: {
@@ -806,8 +809,9 @@ export interface Database {
           team: number
           slot: number
           is_ready?: boolean
+          bulloff?: number | null
         }
-        Update: { is_ready?: boolean }
+        Update: { is_ready?: boolean; bulloff?: number | null }
         Relationships: []
       }
       room_invites: {

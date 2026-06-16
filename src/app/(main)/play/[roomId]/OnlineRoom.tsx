@@ -35,6 +35,7 @@ export interface RoomPlayerView {
   team: number
   slot: number
   is_ready: boolean
+  bulloff: number | null
   profile: Profile | null
 }
 
@@ -94,7 +95,7 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
       : { data: [] as Profile[] }
     const byId = Object.fromEntries((profs ?? []).map((p) => [p.id, p as Profile]))
     setLivePlayers((rp ?? []).map((p) => ({
-      player_id: p.player_id, team: p.team, slot: p.slot, is_ready: p.is_ready, profile: byId[p.player_id] ?? null,
+      player_id: p.player_id, team: p.team, slot: p.slot, is_ready: p.is_ready, bulloff: p.bulloff, profile: byId[p.player_id] ?? null,
     })))
     setInvites((inv ?? []).map((i) => ({
       id: i.id, invitee_id: i.invitee_id, team: i.team, slot: i.slot, profile: byId[i.invitee_id] ?? null,
@@ -207,6 +208,23 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
     } finally { setSubmitting(false) }
   }
 
+  async function submitBulloff(score: number) {
+    setBusy(true)
+    try {
+      const res = await fetch(`/api/play/room/${room.id}/bulloff`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ score }),
+      })
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}))
+        toast.error(e.error ?? "Алдаа гарлаа")
+        return
+      }
+      const d = await res.json()
+      if (d.tie) toast("Тэнцлээ — дахин шиднэ үү")
+      await refresh()
+    } finally { setBusy(false) }
+  }
+
   const filled = livePlayers.length
   const need = totalPlayers(mode)
   const playerAt = (team: number, slot: number) => livePlayers.find((p) => p.team === team && p.slot === slot)
@@ -247,6 +265,59 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
     onSubmit: submitTurnNow,
     enabled: isMyTurn,
   })
+
+  // ── BULL-OFF — хэн эхлэхийг тодорхойлно ───────────────────
+  if (liveRoom.status === "bulloff") {
+    const reps = [0, 1].map((t) => playerAt(t, 0))
+    const myRep = reps.find((r) => r?.player_id === currentUserId)
+    const myEntered = myRep?.bulloff != null
+    const repName = (t: number) => reps[t]?.profile?.display_name ?? `Баг ${t + 1}`
+    return (
+      <div className="max-w-sm mx-auto space-y-5 py-4">
+        <div className="text-center space-y-1">
+          <div className="text-4xl">🎯</div>
+          <h1 className="text-xl font-bold">Bull-off</h1>
+          <p className="text-sm text-muted-foreground">Баг бүрийн 1-р тоглогч бухенд шидээд оноогоо оруулна. Өндөр (ойр) нь эхэлнэ.</p>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {[0, 1].map((t) => (
+            <div key={t} className={cn("rounded-xl border-2 p-4 text-center",
+              reps[t]?.bulloff != null ? "border-green-500/40 bg-green-500/5" : "border-border/50 bg-secondary/20")}>
+              <p className="text-sm font-bold truncate">{repName(t)}</p>
+              <p className="text-xs mt-1">
+                {reps[t]?.bulloff != null
+                  ? <span className="text-green-400 font-bold">✓ Шидсэн</span>
+                  : <span className="text-muted-foreground">Хүлээж байна…</span>}
+              </p>
+            </div>
+          ))}
+        </div>
+        {myRep ? (
+          myEntered ? (
+            <div className="flex items-center justify-center gap-2 py-3 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Нөгөө талыг хүлээж байна…
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-center text-xs text-muted-foreground">Та юу оносон бэ?</p>
+              <div className="grid grid-cols-3 gap-2">
+                {([["Bull (50)", 50], ["25", 25], ["Алдсан", 0]] as const).map(([label, val]) => (
+                  <button key={val} onClick={() => submitBulloff(val)} disabled={busy}
+                    className="py-3 rounded-xl border-2 border-border/50 font-bold text-sm hover:border-primary hover:bg-primary/10 transition-all disabled:opacity-40">
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )
+        ) : (
+          <div className="flex items-center justify-center gap-2 py-3 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Багуудын төлөөлөгчдийг хүлээж байна…
+          </div>
+        )}
+      </div>
+    )
+  }
 
   // ── GAME PHASE — TV маягийн онооны самбар ─────────────────
   if (liveRoom.status === "ongoing" || liveRoom.status === "completed") {
