@@ -98,15 +98,11 @@ export function deriveX01(visits: X01Visit[], cfg: X01Config): X01State {
       sc[active] = remaining
       cp[active] = (cp[active] + 1) % pcount(active)
       active = active === 0 ? 1 : 0
-      // Хязгаарт хүрсэн эсэх (баг бүр limit удаа шидсэн, checkout болоогүй)
-      if (limitEnabled && curLeg.length >= limit * 2) {
-        if (bullFinish) {
-          legAtLimit = true  // гараар ялагч сонгох хүртэл зогсоно
-        } else {
-          // Бага үлдэгдэлтэй нь хождог (тэнцвэл тухайн leg-ийн эхлэгч)
-          const lowTeam = sc[0] < sc[1] ? 0 : sc[1] < sc[0] ? 1 : legStarter
-          if (awardLeg(lowTeam)) break
-        }
+      // Хязгаар нь ЗӨВХӨН bull finish-тэй хослоход үйлчилнэ: баг бүр limit удаа
+      // шидээд checkout болоогүй бол гараар ялагч сонгоно. Bull finish ОFF бол
+      // хязгаар нөлөөгүй — double-out хийх хүртэл (хязгааргүй) үргэлжилнэ.
+      if (limitEnabled && bullFinish && curLeg.length >= limit * 2) {
+        legAtLimit = true  // гараар ялагч сонгох хүртэл зогсоно
       }
     }
   }
