@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { ArrowLeft, Check, Copy, Delete, Loader2, LogOut, Users, X } from "lucide-react"
+import { ArrowLeft, Check, Copy, Delete, Loader2, LogOut, RotateCcw, Users, X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -117,6 +117,12 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
       const v = payload.new as RoomVisit
       setVisits((prev) => prev.some((x) => x.seq === v.seq) ? prev : [...prev, v].sort((a, b) => a.seq - b.seq))
     })
+    // Буцаалт (undo) — DELETE үед бүх visit-ийг дахин татна
+    ch.on("postgres_changes", { event: "DELETE", schema: "public", table: "room_visits",
+      filter: `room_id=eq.${room.id}` }, () => {
+      supabase.from("room_visits").select("*").eq("room_id", room.id).order("seq")
+        .then(({ data }) => { if (data) setVisits(data as RoomVisit[]) })
+    })
     ch.subscribe()
     return () => { supabase.removeChannel(ch) }
   }, [room.id, refresh, supabase])
@@ -208,6 +214,20 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
     } finally { setSubmitting(false) }
   }
 
+  async function undoLast() {
+    setSubmitting(true)
+    try {
+      const res = await fetch(`/api/play/room/${room.id}/undo`, { method: "POST" })
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}))
+        toast.error(e.error ?? "Алдаа гарлаа")
+        return
+      }
+      const { data } = await supabase.from("room_visits").select("*").eq("room_id", room.id).order("seq")
+      if (data) setVisits(data as RoomVisit[])
+    } finally { setSubmitting(false) }
+  }
+
   async function submitDecide(winnerTeam: number) {
     setSubmitting(true)
     try {
@@ -263,6 +283,9 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
   const gActiveP = playerAt(gActiveTeam, gActiveSlot)
   const gDone = liveRoom.status === "completed" || game.winner !== null
   const isMyTurn = liveRoom.status === "ongoing" && !gDone && !game.legAtLimit && gActiveP?.player_id === currentUserId
+  // Сүүлийн шидэлтийг буцаах боломж — зөвхөн өөрийн оруулсан сүүлийнх
+  const lastVisit = sortedVisits[sortedVisits.length - 1]
+  const canUndo = liveRoom.status === "ongoing" && !gDone && !!lastVisit && lastVisit.created_by === currentUserId
   const gInputNum = parseInt(input) || 0
   const gBefore = game.scores[gActiveTeam]
   const gPreview = input !== "" ? classifyTurn(gBefore, gInputNum, { doubleOut: liveRoom.double_out }) : null
@@ -394,6 +417,12 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
               </span>
             )}
           </p>
+          {canUndo && (
+            <button onClick={undoLast} disabled={submitting} title="Сүүлийн оноог буцаах"
+              className="text-muted-foreground hover:text-foreground disabled:opacity-40">
+              <RotateCcw className="h-4 w-4" />
+            </button>
+          )}
           {done
             ? <Badge className="bg-[oklch(0.78_0.16_85)]/15 text-[oklch(0.78_0.16_85)] border-[oklch(0.78_0.16_85)]/30 text-xs">Дууссан</Badge>
             : <Badge className="bg-primary/15 text-primary border-primary/30 pulse-live text-xs">LIVE</Badge>}
