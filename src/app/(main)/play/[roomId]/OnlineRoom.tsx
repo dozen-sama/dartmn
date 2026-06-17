@@ -379,9 +379,9 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
     }
 
     return (
-      <div className="max-w-sm mx-auto space-y-3">
+      <div className="max-w-sm mx-auto flex flex-col gap-2 h-[calc(100dvh-160px)]">
         {/* Top bar */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <button onClick={leave} className="text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-5 w-5" />
           </button>
@@ -409,8 +409,8 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
         )}
 
         {/* TV scoreboard */}
-        <div className="rounded-xl overflow-hidden border border-border/40">
-          <div className="grid grid-cols-2">
+        <div className="rounded-xl overflow-hidden border border-border/40 flex flex-col min-h-0 flex-1">
+          <div className="grid grid-cols-2 shrink-0">
             {[0, 1].map((i) => (
               <div key={i} className={cn("py-2.5 px-3 text-center min-w-0 transition-colors",
                 !done && activeTeam === i
@@ -421,7 +421,7 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
               </div>
             ))}
           </div>
-          <div className="grid grid-cols-2 bg-card">
+          <div className="grid grid-cols-2 bg-card shrink-0">
             {[0, 1].map((i) => {
               const active = !done && activeTeam === i
               return (
@@ -434,13 +434,13 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
               )
             })}
           </div>
-          <div className="flex items-center justify-center gap-3 bg-secondary/40 py-1 text-xs">
+          <div className="flex items-center justify-center gap-3 bg-secondary/40 py-1 text-xs shrink-0">
             <span className={cn("font-black tabular-nums", activeTeam === 0 ? "text-primary" : "text-muted-foreground")}>{d.legs[0]}</span>
             <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60">Legs</span>
             <span className={cn("font-black tabular-nums", activeTeam === 1 ? "text-blue-400" : "text-muted-foreground")}>{d.legs[1]}</span>
           </div>
           <div ref={(el) => { if (el) el.scrollTop = el.scrollHeight }}
-            className="py-2 max-h-[34vh] overflow-y-auto">
+            className="py-2 flex-1 min-h-0 overflow-y-auto">
             {Array.from({ length: rowCount }).map((_, i) => {
               const isActiveRow = !done && i === activeRound - 1
               return (
@@ -502,10 +502,10 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
               </div>
             </div>
             {isCheckout && <DartSelector value={dartsUsed} onChange={setDartsUsed} label="Хэдэн дартаар checkout хийв?" />}
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2 shrink-0">
               {KEYPAD.flat().map((k, i) => (
                 <button key={i} onClick={() => keypad(k)}
-                  className={cn("h-12 rounded-xl text-lg font-bold transition-all active:scale-95",
+                  className={cn("h-11 rounded-xl text-lg font-bold transition-all active:scale-95",
                     k === "DEL" ? "bg-secondary/80 text-destructive" :
                     k === "*" ? "bg-secondary/80 text-muted-foreground" :
                     "bg-secondary/50 hover:bg-secondary border border-border/30")}>
@@ -514,7 +514,7 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
               ))}
             </div>
             <button onClick={doSubmit} disabled={input === "" || submitting}
-              className={cn("w-full py-3 rounded-xl font-bold transition-all disabled:opacity-40",
+              className={cn("w-full py-3 rounded-xl font-bold transition-all disabled:opacity-40 shrink-0",
                 isCheckout ? "bg-green-600 hover:bg-green-700 text-white" :
                 isBust ? "bg-destructive text-white" : "bg-primary text-primary-foreground glow-primary")}>
               {submitting ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : isCheckout ? "✓ Checkout!" : isBust ? "Bust — ээлж алдах" : "Оруулах"}
