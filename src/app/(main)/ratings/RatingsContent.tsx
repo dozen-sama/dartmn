@@ -42,33 +42,33 @@ function Podium({ players }: { players: PlayerRow[] }) {
   const order = [1, 0, 2] // 2nd, 1st, 3rd display order
 
   return (
-    <div className="flex items-end justify-center gap-3 py-4">
+    <div className="flex items-stretch justify-center gap-2 sm:gap-3 py-4 max-w-md mx-auto">
       {order.map((idx) => {
         const p = top3[idx]
-        if (!p) return <div key={idx} className="w-24" />
+        if (!p) return <div key={idx} className="flex-1" />
         const rank = idx + 1
-        const heights = ["h-16", "h-24", "h-12"]
-        const icons = ["🥇", "🥈", "🥉"]
+        const first = rank === 1
+        const ring = first ? "border-yellow-400/40 bg-yellow-400/[0.06]"
+          : rank === 2 ? "border-slate-400/30 bg-slate-400/[0.05]"
+          : "border-amber-700/30 bg-amber-700/[0.05]"
+        const badge = first ? "bg-yellow-400 text-black"
+          : rank === 2 ? "bg-slate-300 text-black"
+          : "bg-amber-600 text-white"
 
         return (
           <Link key={p.id} href={`/profile/${p.username}`}
-            className={cn("flex flex-col items-center gap-2 card-hover rounded-xl p-3 border w-28",
-              rank === 1 ? "border-yellow-400/30 bg-yellow-400/5" :
-              rank === 2 ? "border-slate-400/30 bg-slate-400/5" :
-              "border-amber-700/30 bg-amber-700/5")}>
-            <p className="text-3xl leading-none">{icons[idx]}</p>
-            <div className="text-center min-w-0 w-full">
-              <div className={cn("font-bold", rank === 1 ? "text-base" : "text-sm")}><PlayerName p={p} /></div>
-              <p className="text-xs text-muted-foreground truncate">@{p.username}</p>
-              <div className="mt-1"><TierBadge rating={p.rating_points} size="sm" /></div>
-              <p className="text-sm font-bold text-[oklch(0.78_0.16_85)] mt-1 score-display">{formatNumber(p.rating_points)}</p>
+            className={cn("flex-1 min-w-0 flex flex-col items-center gap-1.5 rounded-2xl border p-3 card-hover", ring)}>
+            <span className="text-base leading-none h-5">{first ? "👑" : ""}</span>
+            <div className={cn("rounded-full flex items-center justify-center font-black shrink-0",
+              badge, first ? "h-9 w-9 text-base" : "h-7 w-7 text-sm")}>{rank}</div>
+            <div className="text-center min-w-0 w-full mt-0.5">
+              <div className={cn("font-bold truncate", first ? "text-base" : "text-sm")}><PlayerName p={p} /></div>
+              <p className="text-[11px] text-muted-foreground truncate">@{p.username}</p>
             </div>
-            {/* Podium pedestal — rank дугаартай */}
-            <div className={cn("w-full rounded-t-md flex items-start justify-center pt-1.5", heights[idx],
-              rank === 1 ? "bg-yellow-400/20" : rank === 2 ? "bg-slate-400/20" : "bg-amber-700/20")}>
-              <span className={cn("text-2xl font-black",
-                rank === 1 ? "text-yellow-400/70" : rank === 2 ? "text-slate-400/70" : "text-amber-700/70")}>{rank}</span>
-            </div>
+            <TierBadge rating={p.rating_points} size="sm" />
+            <p className={cn("font-black text-[oklch(0.78_0.16_85)] score-display", first ? "text-lg" : "text-base")}>
+              {formatNumber(p.rating_points)}
+            </p>
           </Link>
         )
       })}
