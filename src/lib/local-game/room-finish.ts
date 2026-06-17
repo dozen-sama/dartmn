@@ -32,6 +32,6 @@ export async function finishOnlineRoom(
       before: v.bust ? v.remaining : v.remaining + v.points,
     })),
   }))
-  await applyMatchResult(admin, matchPlayers, `${mode} онлайн тоглолт`)
+  await applyMatchResult(admin, matchPlayers, `${mode} онлайн тоглолт`, roomId)
   return true
 }

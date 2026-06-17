@@ -25,7 +25,7 @@ export function dartStats(throws: MatchThrow[]) {
 // rating, өөрчлөлтгүй). admin = service-role client. Idempotency-г дуудагч
 // хариуцна (зөвхөн status='pending' үед нэг удаа дуудна).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function applyMatchResult(admin: any, players: MatchPlayer[], reason = "Тоглолт"): Promise<boolean> {
+export async function applyMatchResult(admin: any, players: MatchPlayer[], reason = "Тоглолт", roomId: string | null = null): Promise<boolean> {
   if (players.length < 2) return false
   const ids = players.map((p) => p.profileId)
   if (new Set(ids).size !== ids.length) return false  // давхар тоглогч
@@ -49,7 +49,7 @@ export async function applyMatchResult(admin: any, players: MatchPlayer[], reaso
   // 1v1 үед өрсөлдөгчийг түүхэнд тэмдэглэнэ (багийн үед нэг өрсөлдөгч утгагүй)
   const soloOpponentId = players.length === 2
     ? (id: string) => players.find((q) => q.profileId !== id)!.profileId : null
-  const history: { player_id: string; rating_before: number; rating_after: number; change: number; reason: string; opponent_id: string | null; won: boolean }[] = []
+  const history: { player_id: string; rating_before: number; rating_after: number; change: number; reason: string; opponent_id: string | null; won: boolean; room_id: string | null }[] = []
 
   await Promise.all(players.map(async (pl, i) => {
     const cur = byId[pl.profileId]
@@ -74,7 +74,7 @@ export async function applyMatchResult(admin: any, players: MatchPlayer[], reaso
     }).eq("id", pl.profileId)
     history.push({
       player_id: pl.profileId, rating_before: cur.rating_points, rating_after: newRating, change, reason,
-      opponent_id: soloOpponentId ? soloOpponentId(pl.profileId) : null, won: pl.isWinner,
+      opponent_id: soloOpponentId ? soloOpponentId(pl.profileId) : null, won: pl.isWinner, room_id: roomId,
     })
     await admin.rpc("check_achievements", { p_player_id: pl.profileId })
   }))

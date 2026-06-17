@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { BarChart3, Building2, Edit, MapPin, Pin, Sparkles, Target, Trophy, Zap } from "lucide-react"
+import { BarChart3, Building2, ChevronRight, Edit, MapPin, Pin, Sparkles, Target, Trophy, Zap } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
@@ -31,6 +31,7 @@ interface Props {
     change: number
     won: boolean | null
     reason: string
+    room_id: string | null
     opponent: { display_name: string; username: string } | null
   }[]
   tournaments: (TournamentRegistration & {
@@ -229,14 +230,14 @@ export function ProfileContent({ profile: p, isOwner, clubName, history, tournam
               ) : (
                 history.map((h) => {
                   const won = h.won ?? h.change >= 0
-                  return (
-                    <div key={h.id} className="flex items-center gap-3 px-4 py-3 border-b border-border/30 last:border-0">
+                  const inner = (
+                    <>
                       <div className={`w-2 h-2 rounded-full shrink-0 ${won ? "bg-green-400" : "bg-destructive"}`} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">
                           {h.opponent ? <>vs {h.opponent.display_name}</> : h.reason}
                         </p>
-                        <p className="text-xs text-muted-foreground">{formatDate(h.created_at)}</p>
+                        <p className="text-xs text-muted-foreground">{h.opponent ? `@${h.opponent.username} · ` : ""}{formatDate(h.created_at)}</p>
                       </div>
                       <div className="text-right">
                         <p className={cn("text-sm font-bold score-display", h.change >= 0 ? "text-green-400" : "text-destructive")}>
@@ -246,8 +247,13 @@ export function ProfileContent({ profile: p, isOwner, clubName, history, tournam
                           {won ? "Win" : "Loss"}
                         </Badge>
                       </div>
-                    </div>
+                      {h.room_id && <ChevronRight className="h-4 w-4 text-muted-foreground/50 shrink-0" />}
+                    </>
                   )
+                  const cls = "flex items-center gap-3 px-4 py-3 border-b border-border/30 last:border-0"
+                  return h.room_id
+                    ? <Link key={h.id} href={`/play/${h.room_id}`} className={cn(cls, "hover:bg-secondary/40 transition-colors")}>{inner}</Link>
+                    : <div key={h.id} className={cls}>{inner}</div>
                 })
               )}
             </CardContent>

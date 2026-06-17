@@ -694,6 +694,7 @@ export interface Database {
           rating_after: number
           change: number
           match_id: string | null
+          room_id: string | null
           opponent_id: string | null
           won: boolean | null
           reason: string
@@ -706,6 +707,7 @@ export interface Database {
           rating_after: number
           change: number
           match_id?: string | null
+          room_id?: string | null
           opponent_id?: string | null
           won?: boolean | null
           reason?: string

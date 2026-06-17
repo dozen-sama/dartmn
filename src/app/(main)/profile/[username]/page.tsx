@@ -14,6 +14,7 @@ type MatchHistoryRow = {
   change: number
   won: boolean | null
   reason: string
+  room_id: string | null
   opponent: { display_name: string; username: string } | null
 }
 type RegistrationWithTournament = TournamentRegistration & {
@@ -40,7 +41,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
     // Тоглолтын түүх — rating_history (онлайн/Together rated тоглолтууд). Тэмцээний
     // түүх (matches хүснэгт) онлайн тэмцээн хийгдэхэд нэмэгдэнэ.
     supabase.from("rating_history")
-      .select("id, created_at, change, won, reason, opponent:profiles!rating_history_opponent_id_fkey(display_name, username)")
+      .select("id, created_at, change, won, reason, room_id, opponent:profiles!rating_history_opponent_id_fkey(display_name, username)")
       .eq("player_id", profile.id).order("created_at", { ascending: false }).limit(20),
     supabase.from("tournament_registrations")
       .select("*, tournaments(id, name, status, start_date)")
