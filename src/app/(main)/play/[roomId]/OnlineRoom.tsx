@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { ArrowLeft, Check, Copy, Delete, Loader2, LogOut, RotateCcw, Users, X } from "lucide-react"
+import { ArrowLeft, Check, Copy, Delete, Flag, Loader2, LogOut, RotateCcw, Users, X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -74,6 +74,7 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
   const [input, setInput] = useState("")
   const [dartsUsed, setDartsUsed] = useState(3)
   const [submitting, setSubmitting] = useState(false)
+  const [now, setNow] = useState(() => Date.now())
 
   const mode = liveRoom.mode as RoomMode
   const n = teamSize(mode)
@@ -126,6 +127,12 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
     ch.subscribe()
     return () => { supabase.removeChannel(ch) }
   }, [room.id, refresh, supabase])
+
+  // Идэвхгүйн ялалт зэргийг дахин үнэлэхэд хугацааны tick
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 10000)
+    return () => clearInterval(t)
+  }, [])
 
   // Тоглолт эхэлсэн/дууссан үед visits-ийг нэг удаа татна
   useEffect(() => {
@@ -214,6 +221,26 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
     } finally { setSubmitting(false) }
   }
 
+  async function forfeit() {
+    if (!confirm("Бууж өгөх үү? Өрсөлдөгч ялж, ELO тооцогдоно.")) return
+    setSubmitting(true)
+    try {
+      const res = await fetch(`/api/play/room/${room.id}/forfeit`, { method: "POST" })
+      if (!res.ok) { const e = await res.json().catch(() => ({})); toast.error(e.error ?? "Алдаа гарлаа"); return }
+      toast("Бууж өглөө")
+      await refresh()
+    } finally { setSubmitting(false) }
+  }
+  async function claimWin() {
+    setSubmitting(true)
+    try {
+      const res = await fetch(`/api/play/room/${room.id}/claim`, { method: "POST" })
+      if (!res.ok) { const e = await res.json().catch(() => ({})); toast.error(e.error ?? "Алдаа гарлаа"); return }
+      toast.success("Өрсөлдөгч идэвхгүй — та хожлоо")
+      await refresh()
+    } finally { setSubmitting(false) }
+  }
+
   async function undoLast() {
     setSubmitting(true)
     try {
@@ -286,6 +313,10 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
   // Сүүлийн шидэлтийг буцаах боломж — зөвхөн өөрийн оруулсан сүүлийнх
   const lastVisit = sortedVisits[sortedVisits.length - 1]
   const canUndo = liveRoom.status === "ongoing" && !gDone && !!lastVisit && lastVisit.created_by === currentUserId
+  const canForfeit = liveRoom.status === "ongoing" && !gDone
+  // Өрсөлдөгч өөрийн ээлжийг ≥90с шидэхгүй бол хүлээж буй тал ялалт нэхэж болно
+  const lastAtMs = lastVisit ? new Date(lastVisit.created_at).getTime() : null
+  const opponentIdle = canForfeit && !game.legAtLimit && !isMyTurn && lastAtMs !== null && now - lastAtMs > 90_000
   const gInputNum = parseInt(input) || 0
   const gBefore = game.scores[gActiveTeam]
   const gPreview = input !== "" ? classifyTurn(gBefore, gInputNum, { doubleOut: liveRoom.double_out }) : null
@@ -423,6 +454,12 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
               <RotateCcw className="h-4 w-4" />
             </button>
           )}
+          {canForfeit && (
+            <button onClick={forfeit} disabled={submitting} title="Бууж өгөх"
+              className="text-muted-foreground hover:text-destructive disabled:opacity-40">
+              <Flag className="h-4 w-4" />
+            </button>
+          )}
           {done
             ? <Badge className="bg-[oklch(0.78_0.16_85)]/15 text-[oklch(0.78_0.16_85)] border-[oklch(0.78_0.16_85)]/30 text-xs">Дууссан</Badge>
             : <Badge className="bg-primary/15 text-primary border-primary/30 pulse-live text-xs">LIVE</Badge>}
@@ -550,9 +587,17 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
             </button>
           </>
         ) : (
-          <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span>{gActiveP?.profile?.display_name ?? "Өрсөлдөгч"}-ийн ээлжийг хүлээж байна…</span>
+          <div className="space-y-2">
+            <div className="flex items-center justify-center gap-2 py-3 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>{gActiveP?.profile?.display_name ?? "Өрсөлдөгч"}-ийн ээлжийг хүлээж байна…</span>
+            </div>
+            {opponentIdle && (
+              <button onClick={claimWin} disabled={submitting}
+                className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold glow-primary disabled:opacity-40">
+                Өрсөлдөгч удаан байна — ялалт нэхэх
+              </button>
+            )}
           </div>
         )}
       </div>

@@ -55,7 +55,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const after = deriveX01([...visits, { points: 0, darts: 0, decide: winnerTeam }], cfg)
   let completed = false
   if (after.winner !== null) {
-    completed = await finishOnlineRoom(admin, id, after, players, [...visits, { points: 0, darts: 0, decide: winnerTeam }], room.mode)
+    completed = await finishOnlineRoom(admin, id, after, after.winner, players, [...visits, { points: 0, darts: 0, decide: winnerTeam }], room.mode)
   }
 
   return NextResponse.json({ ok: true, completed })
