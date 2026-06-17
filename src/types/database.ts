@@ -694,6 +694,8 @@ export interface Database {
           rating_after: number
           change: number
           match_id: string | null
+          opponent_id: string | null
+          won: boolean | null
           reason: string
           created_at: string
         }
@@ -704,6 +706,8 @@ export interface Database {
           rating_after: number
           change: number
           match_id?: string | null
+          opponent_id?: string | null
+          won?: boolean | null
           reason?: string
         }
         Update: Record<string, never>

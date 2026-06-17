@@ -9,7 +9,7 @@ import { buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { mn } from "@/locales/mn"
-import { Match, Profile, Tournament, TournamentRegistration } from "@/types/database"
+import { Profile, Tournament, TournamentRegistration } from "@/types/database"
 import { formatAverage, formatDate, formatNumber } from "@/lib/utils/format"
 import { cn } from "@/lib/utils"
 import { getTier } from "@/lib/rating"
@@ -25,7 +25,14 @@ interface Props {
   profile: Profile
   isOwner: boolean
   clubName: string | null
-  recentMatches: (Match & { winner: { display_name: string; username: string } | null })[]
+  history: {
+    id: string
+    created_at: string
+    change: number
+    won: boolean | null
+    reason: string
+    opponent: { display_name: string; username: string } | null
+  }[]
   tournaments: (TournamentRegistration & {
     tournaments: Pick<Tournament, "id" | "name" | "status" | "start_date"> | null
   })[]
@@ -56,7 +63,7 @@ function StatCard({ label, value, sub, highlight }: { label: string; value: stri
   )
 }
 
-export function ProfileContent({ profile: p, isOwner, clubName, recentMatches, tournaments, allAchievements, earnedAchievements, ownedEffects, effects, unlockedFrames }: Props) {
+export function ProfileContent({ profile: p, isOwner, clubName, history, tournaments, allAchievements, earnedAchievements, ownedEffects, effects, unlockedFrames }: Props) {
   const winRate = p.matches_played > 0 ? Math.round((p.matches_won / p.matches_played) * 100) : 0
   const lossCount = p.matches_played - p.matches_won
   const tier = getTier(p.rating_points)
@@ -214,25 +221,27 @@ export function ProfileContent({ profile: p, isOwner, clubName, recentMatches, t
         <TabsContent value="matches" className="mt-4">
           <Card className="border-border/50 bg-card/80">
             <CardContent className="p-0">
-              {recentMatches.length === 0 ? (
+              {history.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12">
                   <Target className="h-10 w-10 text-muted-foreground/20 mb-3" />
                   <p className="text-muted-foreground text-sm">Match history байхгүй байна</p>
                 </div>
               ) : (
-                recentMatches.map((match) => {
-                  const won = match.winner_id === p.id
+                history.map((h) => {
+                  const won = h.won ?? h.change >= 0
                   return (
-                    <div key={match.id} className="flex items-center gap-3 px-4 py-3 border-b border-border/30 last:border-0">
+                    <div key={h.id} className="flex items-center gap-3 px-4 py-3 border-b border-border/30 last:border-0">
                       <div className={`w-2 h-2 rounded-full shrink-0 ${won ? "bg-green-400" : "bg-destructive"}`} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium">{match.format} · BO{match.best_of}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {match.completed_at ? formatDate(match.completed_at) : "—"}
+                        <p className="text-sm font-medium truncate">
+                          {h.opponent ? <>vs {h.opponent.display_name}</> : h.reason}
                         </p>
+                        <p className="text-xs text-muted-foreground">{formatDate(h.created_at)}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-bold score-display">{match.player1_legs}–{match.player2_legs}</p>
+                        <p className={cn("text-sm font-bold score-display", h.change >= 0 ? "text-green-400" : "text-destructive")}>
+                          {h.change >= 0 ? "+" : ""}{h.change}
+                        </p>
                         <Badge variant="outline" className={`text-[10px] ${won ? "border-green-500/30 text-green-400" : "border-destructive/30 text-destructive"}`}>
                           {won ? "Win" : "Loss"}
                         </Badge>

@@ -46,7 +46,10 @@ export async function applyMatchResult(admin: any, players: MatchPlayer[], reaso
     ratingsByTeam.set(t, arr)
   })
   const avg = (arr: number[]) => arr.reduce((s, x) => s + x, 0) / arr.length
-  const history: { player_id: string; rating_before: number; rating_after: number; change: number; reason: string }[] = []
+  // 1v1 үед өрсөлдөгчийг түүхэнд тэмдэглэнэ (багийн үед нэг өрсөлдөгч утгагүй)
+  const soloOpponentId = players.length === 2
+    ? (id: string) => players.find((q) => q.profileId !== id)!.profileId : null
+  const history: { player_id: string; rating_before: number; rating_after: number; change: number; reason: string; opponent_id: string | null; won: boolean }[] = []
 
   await Promise.all(players.map(async (pl, i) => {
     const cur = byId[pl.profileId]
@@ -69,7 +72,10 @@ export async function applyMatchResult(admin: any, players: MatchPlayer[], reaso
       career_points: newCareerPoints,
       career_darts: newCareerDarts,
     }).eq("id", pl.profileId)
-    history.push({ player_id: pl.profileId, rating_before: cur.rating_points, rating_after: newRating, change, reason })
+    history.push({
+      player_id: pl.profileId, rating_before: cur.rating_points, rating_after: newRating, change, reason,
+      opponent_id: soloOpponentId ? soloOpponentId(pl.profileId) : null, won: pl.isWinner,
+    })
     await admin.rpc("check_achievements", { p_player_id: pl.profileId })
   }))
 

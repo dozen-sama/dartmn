@@ -4,12 +4,17 @@ import { Metadata } from "next"
 import { createClient } from "@/lib/supabase/server"
 import { notFound } from "next/navigation"
 import { ProfileContent } from "./ProfileContent"
-import { Match, Profile, Tournament, TournamentRegistration } from "@/types/database"
+import { Profile, Tournament, TournamentRegistration } from "@/types/database"
 import { isPassActive, type EffectRow, type PassRow } from "@/lib/cosmetics"
 import { resolveUnlockedFrames } from "@/lib/cosmetics-server"
 
-type MatchWithWinner = Match & {
-  winner: { display_name: string; username: string } | null
+type MatchHistoryRow = {
+  id: string
+  created_at: string
+  change: number
+  won: boolean | null
+  reason: string
+  opponent: { display_name: string; username: string } | null
 }
 type RegistrationWithTournament = TournamentRegistration & {
   tournaments: Pick<Tournament, "id" | "name" | "status" | "start_date"> | null
@@ -31,11 +36,12 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
     .from("profiles").select("*").eq("username", username).single()
   if (!profile) notFound()
 
-  const [matchesResult, tournamentResult, clubResult, allAchievementsResult, earnedResult, unlocksResult, effectsResult, passesResult] = await Promise.all([
-    supabase.from("matches")
-      .select("*, winner:profiles!matches_winner_id_fkey(display_name, username)")
-      .or(`player1_id.eq.${profile.id},player2_id.eq.${profile.id}`)
-      .eq("status", "completed").order("completed_at", { ascending: false }).limit(10),
+  const [historyResult, tournamentResult, clubResult, allAchievementsResult, earnedResult, unlocksResult, effectsResult, passesResult] = await Promise.all([
+    // Тоглолтын түүх — rating_history (онлайн/Together rated тоглолтууд). Тэмцээний
+    // түүх (matches хүснэгт) онлайн тэмцээн хийгдэхэд нэмэгдэнэ.
+    supabase.from("rating_history")
+      .select("id, created_at, change, won, reason, opponent:profiles!rating_history_opponent_id_fkey(display_name, username)")
+      .eq("player_id", profile.id).order("created_at", { ascending: false }).limit(20),
     supabase.from("tournament_registrations")
       .select("*, tournaments(id, name, status, start_date)")
       .eq("player_id", profile.id).order("registered_at", { ascending: false }).limit(10),
@@ -65,7 +71,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
       profile={profile as Profile}
       isOwner={isOwner}
       clubName={clubName}
-      recentMatches={(matchesResult.data ?? []) as unknown as MatchWithWinner[]}
+      history={(historyResult.data ?? []) as unknown as MatchHistoryRow[]}
       tournaments={(tournamentResult.data ?? []) as unknown as RegistrationWithTournament[]}
       allAchievements={(allAchievementsResult.data ?? []) as any[]}
       earnedAchievements={(earnedResult.data ?? []) as { achievement_key: string; earned_at: string }[]}

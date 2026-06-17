@@ -377,6 +377,8 @@ CREATE TABLE public.rating_history (
   rating_after INTEGER NOT NULL,
   change INTEGER NOT NULL,
   match_id UUID REFERENCES public.matches(id) ON DELETE SET NULL,
+  opponent_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  won BOOLEAN,
   reason TEXT NOT NULL DEFAULT 'match',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
