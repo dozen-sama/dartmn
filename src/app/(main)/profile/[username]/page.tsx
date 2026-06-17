@@ -17,11 +17,13 @@ type RegistrationWithTournament = TournamentRegistration & {
 
 export async function generateMetadata({ params }: { params: Promise<{ username: string }> }): Promise<Metadata> {
   const { username } = await params
-  return { title: `@${username}` }
+  return { title: `@${decodeURIComponent(username)}` }
 }
 
 export default async function ProfilePage({ params }: { params: Promise<{ username: string }> }) {
-  const { username } = await params
+  const { username: raw } = await params
+  // Кирилл username URL-д encode хийгддэг — decode хийж DB-тэй тааруулна
+  const username = decodeURIComponent(raw)
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 

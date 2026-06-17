@@ -47,30 +47,28 @@ function Podium({ players }: { players: PlayerRow[] }) {
         const p = top3[idx]
         if (!p) return <div key={idx} className="w-24" />
         const rank = idx + 1
-        const tier = getTier(p.rating_points)
-        const heights = ["h-20", "h-28", "h-16"]
+        const heights = ["h-16", "h-24", "h-12"]
         const icons = ["🥇", "🥈", "🥉"]
 
         return (
           <Link key={p.id} href={`/profile/${p.username}`}
-            className={cn("flex flex-col items-center gap-2 card-hover rounded-xl p-3 border",
+            className={cn("flex flex-col items-center gap-2 card-hover rounded-xl p-3 border w-28",
               rank === 1 ? "border-yellow-400/30 bg-yellow-400/5" :
               rank === 2 ? "border-slate-400/30 bg-slate-400/5" :
               "border-amber-700/30 bg-amber-700/5")}>
-            <Avatar className={cn("border-2", rank === 1 ? "h-14 w-14 border-yellow-400/50" : "h-10 w-10 border-border")}>
-              <AvatarImage src={p.avatar_url ?? undefined} />
-              <AvatarFallback className="bg-secondary text-sm">{p.display_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-            </Avatar>
-            <div className="text-center">
-              <p className="text-2xl">{icons[idx]}</p>
+            <p className="text-3xl leading-none">{icons[idx]}</p>
+            <div className="text-center min-w-0 w-full">
               <div className={cn("font-bold", rank === 1 ? "text-base" : "text-sm")}><PlayerName p={p} /></div>
-              <p className="text-xs text-muted-foreground">@{p.username}</p>
-              <TierBadge rating={p.rating_points} size="sm" />
+              <p className="text-xs text-muted-foreground truncate">@{p.username}</p>
+              <div className="mt-1"><TierBadge rating={p.rating_points} size="sm" /></div>
               <p className="text-sm font-bold text-[oklch(0.78_0.16_85)] mt-1 score-display">{formatNumber(p.rating_points)}</p>
             </div>
-            {/* Podium block */}
-            <div className={cn("w-full rounded-t-md", heights[idx],
-              rank === 1 ? "bg-yellow-400/20" : rank === 2 ? "bg-slate-400/20" : "bg-amber-700/20")} />
+            {/* Podium pedestal — rank дугаартай */}
+            <div className={cn("w-full rounded-t-md flex items-start justify-center pt-1.5", heights[idx],
+              rank === 1 ? "bg-yellow-400/20" : rank === 2 ? "bg-slate-400/20" : "bg-amber-700/20")}>
+              <span className={cn("text-2xl font-black",
+                rank === 1 ? "text-yellow-400/70" : rank === 2 ? "text-slate-400/70" : "text-amber-700/70")}>{rank}</span>
+            </div>
           </Link>
         )
       })}
