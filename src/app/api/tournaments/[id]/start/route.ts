@@ -20,9 +20,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .eq("id", tournamentId).single()
   if (!t) return NextResponse.json({ error: "Тэмцээн олдсонгүй" }, { status: 404 })
   if (t.organizer_id !== user.id) return NextResponse.json({ error: "Зөвхөн зохион байгуулагч" }, { status: 403 })
-  if (!["draft", "registration"].includes(t.status)) return NextResponse.json({ error: "Тэмцээн аль хэдийн эхэлсэн" }, { status: 409 })
+  if (["completed", "cancelled"].includes(t.status)) return NextResponse.json({ error: "Тэмцээн дууссан/цуцлагдсан" }, { status: 409 })
   if (t.bracket_type !== "single_elimination") return NextResponse.json({ error: "Одоогоор зөвхөн шигшээ (single elimination) дэмжигдэнэ" }, { status: 400 })
   if (t.type !== "singles") return NextResponse.json({ error: "Одоогоор зөвхөн singles дэмжигдэнэ" }, { status: 400 })
+
+  // Bracket аль хэдийн үүссэн бол давхар эхлүүлэхгүй (status ongoing-but-no-matches → сэргээнэ)
+  const { count: existingMatches } = await admin.from("tournament_matches")
+    .select("id", { count: "exact", head: true }).eq("tournament_id", tournamentId)
+  if (existingMatches && existingMatches > 0) return NextResponse.json({ error: "Тэмцээн аль хэдийн эхэлсэн (bracket бий)" }, { status: 409 })
 
   // Бүх бүртгэгдсэн тоглогч (off-platform санхүү — платформ төлбөрөөр хаахгүй;
   // хэн оролцохыг зохион байгуулагч removePlayer-ээр зохицуулна)
