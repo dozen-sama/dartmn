@@ -185,8 +185,8 @@ export function TournamentDetail({ tournament: t, registrations, currentUserId, 
                   Засах
                 </Link>
               )}
-              {/* Үнэгүй → энгийн бүртгэл; бооцоотой бол доорх TournamentBet-ээр бүртгэнэ */}
-              {canRegister && !isOrganizer && (t.entry_fee === 0 || registered) && (
+              {/* Зохион байгуулагч ч өөрөө оролцож болно. Үнэгүй → энгийн бүртгэл; бооцоотой бол доорх TournamentBet. */}
+              {canRegister && (t.entry_fee === 0 || registered) && (
                 <Button
                   size="sm"
                   onClick={handleRegister}
@@ -244,13 +244,14 @@ export function TournamentDetail({ tournament: t, registrations, currentUserId, 
           </div>
 
           {/* Бооцоотой тэмцээн — бүртгэл (банк авах) + зохион байгуулагчийн данс */}
-          {!isOrganizer && t.entry_fee > 0 && currentUserId && (canRegister || registered) && (
+          {t.entry_fee > 0 && currentUserId && (canRegister || registered) && (
             <TournamentBet
               tournamentId={t.id}
               entryFee={t.entry_fee}
               currentUserId={currentUserId}
               registered={registered}
               canRegister={canRegister}
+              isOrganizer={isOrganizer}
               currentUserName={currentUserName}
               password={t.password}
               organizer={{

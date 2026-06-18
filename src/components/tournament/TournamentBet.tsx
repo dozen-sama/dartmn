@@ -15,6 +15,7 @@ interface Props {
   currentUserId: string
   registered: boolean
   canRegister: boolean
+  isOrganizer?: boolean
   currentUserName: string | null
   password: string | null
   organizer: {
@@ -27,7 +28,7 @@ interface Props {
 }
 
 export function TournamentBet({
-  tournamentId, entryFee, currentUserId, registered, canRegister, currentUserName, password, organizer, onRegistered,
+  tournamentId, entryFee, currentUserId, registered, canRegister, isOrganizer = false, currentUserName, password, organizer, onRegistered,
 }: Props) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -38,25 +39,52 @@ export function TournamentBet({
   const [iban, setIban] = useState("")
 
   async function register() {
-    if (password && pw !== password) return toast.error("Нууц үг буруу байна")
-    if (!bankName.trim() || !accountNumber.trim() || !accountHolder.trim()) {
-      return toast.error("Шагнал авах банкны мэдээллээ бүрэн оруулна уу")
+    // Зохион байгуулагч өөртөө бооцоо төлдөггүй тул банк/нууц үг шаардахгүй
+    if (!isOrganizer) {
+      if (password && pw !== password) return toast.error("Нууц үг буруу байна")
+      if (!bankName.trim() || !accountNumber.trim() || !accountHolder.trim()) {
+        return toast.error("Шагнал авах банкны мэдээллээ бүрэн оруулна уу")
+      }
     }
     setLoading(true)
     const supabase = createClient()
     const { error: rErr } = await supabase.from("tournament_registrations")
-      .insert({ tournament_id: tournamentId, player_id: currentUserId, payment_status: "pending" })
+      .insert({ tournament_id: tournamentId, player_id: currentUserId, payment_status: isOrganizer ? "paid" : "pending" })
     if (rErr) { setLoading(false); return toast.error("Бүртгэхэд алдаа гарлаа") }
     // Оролцогчийн шагнал авах данс (нууц — зөвхөн өөрөө + зохион байгуулагч)
-    await supabase.from("tournament_payout_accounts").upsert({
-      tournament_id: tournamentId, player_id: currentUserId,
-      bank_name: bankName.trim(), account_number: accountNumber.trim(),
-      account_holder: accountHolder.trim(), iban: iban.trim() || null,
-    }, { onConflict: "tournament_id,player_id" })
+    if (!isOrganizer) {
+      await supabase.from("tournament_payout_accounts").upsert({
+        tournament_id: tournamentId, player_id: currentUserId,
+        bank_name: bankName.trim(), account_number: accountNumber.trim(),
+        account_holder: accountHolder.trim(), iban: iban.trim() || null,
+      }, { onConflict: "tournament_id,player_id" })
+    }
     setLoading(false)
     setOpen(false)
-    toast.success("Амжилттай бүртгүүллээ! Бооцоогоо шилжүүлнэ үү.")
+    toast.success(isOrganizer ? "Тэмцээндээ оролцлоо!" : "Амжилттай бүртгүүллээ! Бооцоогоо шилжүүлнэ үү.")
     onRegistered()
+  }
+
+  // ── Зохион байгуулагч өөрөө оролцох (бооцоо/банк шаардахгүй) ──
+  if (isOrganizer) {
+    if (registered) {
+      return (
+        <div className="mt-4 pt-4 border-t border-border/50">
+          <p className="text-sm text-muted-foreground">
+            ✓ Та зохион байгуулагчаар тэмцээндээ оролцож байна — өөртөө бооцоо шилжүүлэх шаардлагагүй.
+          </p>
+        </div>
+      )
+    }
+    if (!canRegister) return null
+    return (
+      <div className="mt-4 pt-4 border-t border-border/50">
+        <Button onClick={register} disabled={loading} className="glow-primary w-full sm:w-auto">
+          {loading && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+          Тэмцээндээ оролцох
+        </Button>
+      </div>
+    )
   }
 
   // ── Бүртгүүлсэн → бооцоо өгөх (зохион байгуулагчийн данс) ──
