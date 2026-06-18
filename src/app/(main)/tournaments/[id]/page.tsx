@@ -50,12 +50,20 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
     ? (registrations ?? []).some((r) => r.player_id === user.id)
     : false
 
+  // Бооцооны гүйлгээний утганд бичих нэр (платформ дахь нэр)
+  let currentUserName: string | null = null
+  if (user) {
+    const { data: me } = await supabase.from("profiles").select("display_name, username").eq("id", user.id).single()
+    currentUserName = me?.display_name || me?.username || null
+  }
+
   return (
     <TournamentDetail
       tournament={tournament as unknown as TournamentWithRelations}
       registrations={(registrations ?? []) as unknown as RegistrationWithProfile[]}
       currentUserId={user?.id ?? null}
       isRegistered={isRegistered}
+      currentUserName={currentUserName}
     />
   )
 }

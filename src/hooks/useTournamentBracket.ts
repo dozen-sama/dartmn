@@ -64,6 +64,8 @@ export function useTournamentBracket(tournamentId: string) {
   }, [tournamentId])
 
   useEffect(() => {
+    // setState нь await-ийн дараа (синхрон биш) — fetch-based sync
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData()
     const supabase = createClient()
     const ch = supabase

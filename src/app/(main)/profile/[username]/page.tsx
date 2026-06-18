@@ -67,10 +67,19 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
     ? await resolveUnlockedFrames(profile.id, { rating: profile.rating_points, isPremium: profile.is_premium })
     : []
 
+  // Зохион байгуулагчийн үнэлгээ (тэмцээн зохиогчийн профайлд)
+  const { data: orgRatings } = await supabase.from("organizer_ratings").select("rating").eq("organizer_id", profile.id)
+  const orgRatingCount = orgRatings?.length ?? 0
+  const organizerRating = {
+    count: orgRatingCount,
+    avg: orgRatingCount ? orgRatings!.reduce((s, r) => s + r.rating, 0) / orgRatingCount : 0,
+  }
+
   return (
     <ProfileContent
       profile={profile as Profile}
       isOwner={isOwner}
+      organizerRating={organizerRating}
       clubName={clubName}
       history={(historyResult.data ?? []) as unknown as MatchHistoryRow[]}
       tournaments={(tournamentResult.data ?? []) as unknown as RegistrationWithTournament[]}

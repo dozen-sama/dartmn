@@ -25,7 +25,8 @@ import { Tournament, TournamentRegistration, Profile } from "@/types/database"
 import { formatCurrency, formatDateTime } from "@/lib/utils/format"
 import { OrganizerPanel } from "@/components/tournament/OrganizerPanel"
 import { QRJoin } from "@/components/tournament/QRJoin"
-import { QPay } from "@/components/tournament/QPay"
+import { TournamentBet } from "@/components/tournament/TournamentBet"
+import { OrganizerRating } from "@/components/tournament/OrganizerRating"
 import { useTournamentBracket } from "@/hooks/useTournamentBracket"
 import { BracketView } from "@/components/tournament/BracketView"
 import { PlayerName } from "@/components/cosmetic/PlayerName"
@@ -59,9 +60,10 @@ interface Props {
   registrations: RegistrationWithProfile[]
   currentUserId: string | null
   isRegistered: boolean
+  currentUserName?: string | null
 }
 
-export function TournamentDetail({ tournament: t, registrations, currentUserId, isRegistered }: Props) {
+export function TournamentDetail({ tournament: t, registrations, currentUserId, isRegistered, currentUserName = null }: Props) {
   const [loading, setLoading] = useState(false)
   const [registered, setRegistered] = useState(isRegistered)
   const [playerCount, setPlayerCount] = useState(t.current_players)
@@ -183,7 +185,8 @@ export function TournamentDetail({ tournament: t, registrations, currentUserId, 
                   Засах
                 </Link>
               )}
-              {canRegister && !isOrganizer && (
+              {/* Үнэгүй → энгийн бүртгэл; бооцоотой бол доорх TournamentBet-ээр бүртгэнэ */}
+              {canRegister && !isOrganizer && (t.entry_fee === 0 || registered) && (
                 <Button
                   size="sm"
                   onClick={handleRegister}
@@ -200,8 +203,8 @@ export function TournamentDetail({ tournament: t, registrations, currentUserId, 
             </div>
           </div>
 
-          {/* Password field shown when trying to join private with password */}
-          {canRegister && !registered && t.password && (
+          {/* Password field — үнэгүй+private тэмцээнд (бооцоотой бол TournamentBet дотор) */}
+          {canRegister && !registered && t.password && t.entry_fee === 0 && (
             <div className="mt-4 pt-4 border-t border-border/50 space-y-2">
               <Label className="text-sm flex items-center gap-1.5"><Lock className="h-3.5 w-3.5" />Нууц үг шаардлагатай</Label>
               <div className="flex gap-2">
@@ -240,17 +243,24 @@ export function TournamentDetail({ tournament: t, registrations, currentUserId, 
             </div>
           </div>
 
-          {/* Join Code — organizer болон бүртгүүлсэн хүнд харуулна */}
-          {/* QPay entry fee */}
-          {canRegister && registered && t.entry_fee > 0 && currentUserId && (
-            <div className="mt-4 pt-4 border-t border-border/50">
-              <QPay
-                tournamentId={t.id}
-                playerId={currentUserId}
-                amount={t.entry_fee}
-                onSuccess={() => window.location.reload()}
-              />
-            </div>
+          {/* Бооцоотой тэмцээн — бүртгэл (банк авах) + зохион байгуулагчийн данс */}
+          {!isOrganizer && t.entry_fee > 0 && currentUserId && (canRegister || registered) && (
+            <TournamentBet
+              tournamentId={t.id}
+              entryFee={t.entry_fee}
+              currentUserId={currentUserId}
+              registered={registered}
+              canRegister={canRegister}
+              currentUserName={currentUserName}
+              password={t.password}
+              organizer={{
+                bank_name: t.organizer_bank_name,
+                iban: t.organizer_iban,
+                account_number: t.organizer_account_number,
+                account_holder: t.organizer_account_holder,
+              }}
+              onRegistered={() => { setRegistered(true); setPlayerCount((p) => p + 1) }}
+            />
           )}
 
           {/* QR Join */}
@@ -301,6 +311,9 @@ export function TournamentDetail({ tournament: t, registrations, currentUserId, 
             Bracket
           </TabsTrigger>
           <TabsTrigger value="rules">Дүрэм</TabsTrigger>
+          {t.status === "completed" && (
+            <TabsTrigger value="rating">⭐ Үнэлгээ</TabsTrigger>
+          )}
           {isOrganizer && (
             <TabsTrigger value="manage" className="text-primary data-[state=active]:bg-primary/15">
               ⚙ Удирдах
@@ -377,6 +390,17 @@ export function TournamentDetail({ tournament: t, registrations, currentUserId, 
             </CardContent>
           </Card>
         </TabsContent>
+
+        {t.status === "completed" && (
+          <TabsContent value="rating" className="mt-4">
+            <OrganizerRating
+              tournamentId={t.id}
+              organizerId={t.organizer_id}
+              currentUserId={currentUserId}
+              canRate={registered && !isOrganizer}
+            />
+          </TabsContent>
+        )}
 
         {isOrganizer && (
           <TabsContent value="manage" className="mt-4">

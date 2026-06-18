@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import {
@@ -43,6 +43,23 @@ export function OrganizerPanel({ tournament, registrations }: Props) {
   )
 
   const nextStatus = STATUS_FLOW.find((s) => s.from === tournament.status)
+
+  // Оролцогчдын шагнал авах данс (зөвхөн зохион байгуулагч уншина — RLS)
+  const [payouts, setPayouts] = useState<{ player_id: string; bank_name: string; account_number: string; account_holder: string; iban: string | null; name: string }[]>([])
+  useEffect(() => {
+    if (tournament.entry_fee <= 0) return
+    const supabase = createClient()
+    ;(async () => {
+      const { data } = await supabase.from("tournament_payout_accounts")
+        .select("player_id, bank_name, account_number, account_holder, iban")
+        .eq("tournament_id", tournament.id)
+      if (!data || data.length === 0) { setPayouts([]); return }
+      const ids = data.map((d) => d.player_id)
+      const { data: profs } = await supabase.from("profiles").select("id, display_name, username").in("id", ids)
+      const nameById = new Map((profs ?? []).map((p) => [p.id, p.display_name || p.username]))
+      setPayouts(data.map((d) => ({ ...d, name: nameById.get(d.player_id) ?? "?" })))
+    })()
+  }, [tournament.id, tournament.entry_fee])
 
   async function changeStatus(newStatus: Tournament["status"]) {
     setLoading("status")
@@ -254,6 +271,45 @@ export function OrganizerPanel({ tournament, registrations }: Props) {
           )}
         </CardContent>
       </Card>
+
+      {/* Шагнал тараах — оролцогчдын данс (бооцоотой тэмцээн) */}
+      {tournament.entry_fee > 0 && (
+        <Card className="border-border/50 bg-card/80">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Trophy className="h-4 w-4" />
+              Шагнал тараах — оролцогчдын данс
+              <Badge variant="outline" className="text-xs ml-auto border-border/60">{payouts.length}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {payouts.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">Дансны мэдээлэл оруулсан оролцогч алга</p>
+            ) : (
+              payouts.map((p) => (
+                <div key={p.player_id} className="flex items-center gap-3 px-4 py-2.5 border-b border-border/30 last:border-0 text-sm">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{p.name}</p>
+                    <p className="text-xs text-muted-foreground">{p.bank_name} · {p.account_holder}</p>
+                  </div>
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(p.account_number); toast.success("Данс хуулагдлаа") }}
+                    className="font-mono text-xs tabular-nums text-foreground hover:text-primary shrink-0"
+                    title="Хуулах"
+                  >
+                    {p.account_number}
+                  </button>
+                </div>
+              ))
+            )}
+            {payouts.length > 0 && (
+              <p className="text-[11px] text-muted-foreground px-4 py-2.5 border-t border-border/30">
+                Тэмцээн дууссан/цуцлагдсаны дараа ялагчдад шагналыг эдгээр дансаар шилжүүлнэ үү.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Edit Bracket */}
       <Card className="border-border/50 bg-card/80">

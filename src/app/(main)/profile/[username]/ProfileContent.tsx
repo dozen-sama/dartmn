@@ -24,6 +24,7 @@ import { computeXp, type EffectRow } from "@/lib/cosmetics"
 interface Props {
   profile: Profile
   isOwner: boolean
+  organizerRating?: { avg: number; count: number }
   clubName: string | null
   history: {
     id: string
@@ -64,7 +65,7 @@ function StatCard({ label, value, sub, highlight }: { label: string; value: stri
   )
 }
 
-export function ProfileContent({ profile: p, isOwner, clubName, history, tournaments, allAchievements, earnedAchievements, ownedEffects, effects, unlockedFrames }: Props) {
+export function ProfileContent({ profile: p, isOwner, organizerRating, clubName, history, tournaments, allAchievements, earnedAchievements, ownedEffects, effects, unlockedFrames }: Props) {
   const winRate = p.matches_played > 0 ? Math.round((p.matches_won / p.matches_played) * 100) : 0
   const lossCount = p.matches_played - p.matches_won
   const tier = getTier(p.rating_points)
@@ -137,6 +138,13 @@ export function ProfileContent({ profile: p, isOwner, clubName, history, tournam
                 <Trophy className="h-3.5 w-3.5 text-[oklch(0.78_0.16_85)]" />
                 <span className="font-semibold text-[oklch(0.78_0.16_85)]">{formatNumber(p.rating_points)} pts</span>
               </span>
+              {organizerRating && organizerRating.count > 0 && (
+                <span className="flex items-center gap-1" title="Зохион байгуулагчийн үнэлгээ">
+                  <span>⭐</span>
+                  <span className="font-semibold text-foreground">{organizerRating.avg.toFixed(1)}</span>
+                  <span className="text-muted-foreground">({organizerRating.count})</span>
+                </span>
+              )}
             </div>
           </div>
 

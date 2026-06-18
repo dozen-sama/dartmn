@@ -403,6 +403,10 @@ export interface Database {
           rr_legs_per_set: number
           tournament_type: "open" | "league" | "national" | "club" | "friendly"
           platform_fee: number
+          organizer_bank_name: string | null
+          organizer_iban: string | null
+          organizer_account_number: string | null
+          organizer_account_holder: string | null
           created_at: string
           updated_at: string
         }
@@ -453,6 +457,10 @@ export interface Database {
           rr_first_to?: number
           rr_sets_enabled?: boolean
           rr_legs_per_set?: number
+          organizer_bank_name?: string | null
+          organizer_iban?: string | null
+          organizer_account_number?: string | null
+          organizer_account_holder?: string | null
         }
         Update: {
           name?: string
@@ -487,6 +495,10 @@ export interface Database {
           point_draw?: number
           point_lost?: number
           win_points_are_legs?: boolean
+          organizer_bank_name?: string | null
+          organizer_iban?: string | null
+          organizer_account_number?: string | null
+          organizer_account_holder?: string | null
         }
         Relationships: []
       }
@@ -603,6 +615,58 @@ export interface Database {
           loser_entrant_id?: string | null
           status?: "pending" | "ongoing" | "completed"
           room_id?: string | null
+        }
+        Relationships: []
+      }
+      tournament_payout_accounts: {
+        Row: {
+          id: string
+          tournament_id: string
+          player_id: string
+          bank_name: string
+          iban: string | null
+          account_number: string
+          account_holder: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tournament_id: string
+          player_id: string
+          bank_name: string
+          iban?: string | null
+          account_number: string
+          account_holder: string
+        }
+        Update: {
+          bank_name?: string
+          iban?: string | null
+          account_number?: string
+          account_holder?: string
+        }
+        Relationships: []
+      }
+      organizer_ratings: {
+        Row: {
+          id: string
+          tournament_id: string
+          organizer_id: string
+          rater_id: string
+          rating: number
+          comment: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tournament_id: string
+          organizer_id: string
+          rater_id: string
+          rating: number
+          comment?: string | null
+        }
+        Update: {
+          rating?: number
+          comment?: string | null
         }
         Relationships: []
       }

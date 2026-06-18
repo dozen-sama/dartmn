@@ -168,6 +168,12 @@ export function CreateTournamentForm({ userId, userProfile }: Props) {
   const [entryFee, setEntryFee] = useState(0)
   const [prizePool, setPrizePool] = useState(0)
 
+  // Бооцоо хүлээн авах данс (entry_fee > 0 үед заавал)
+  const [bankName, setBankName] = useState("")
+  const [iban, setIban] = useState("")
+  const [accountNumber, setAccountNumber] = useState("")
+  const [accountHolder, setAccountHolder] = useState("")
+
   const isRR = bracketType === "round_robin" || bracketType === "swiss" || bracketType === "groups_knockout"
 
   const BRACKET_OPTIONS = [
@@ -227,6 +233,10 @@ export function CreateTournamentForm({ userId, userProfile }: Props) {
     e.preventDefault()
     if (!name.trim()) return toast.error("Тэмцээний нэр оруулна уу")
     if (!startDate) return toast.error("Эхлэх огноо оруулна уу")
+    // Бооцоотой тэмцээнд бооцоо хүлээн авах данс заавал
+    if (entryFee > 0 && (!bankName.trim() || !accountNumber.trim() || !accountHolder.trim())) {
+      return toast.error("Бооцоо хүлээн авах банкны мэдээллээ бүрэн оруулна уу")
+    }
 
     setLoading(true)
     const supabase = createClient()
@@ -245,6 +255,10 @@ export function CreateTournamentForm({ userId, userProfile }: Props) {
         max_players: maxPlayers,
         entry_fee: entryFee,
         prize_pool: prizePool,
+        organizer_bank_name: entryFee > 0 ? bankName.trim() : null,
+        organizer_iban: entryFee > 0 ? (iban.trim() || null) : null,
+        organizer_account_number: entryFee > 0 ? accountNumber.trim() : null,
+        organizer_account_holder: entryFee > 0 ? accountHolder.trim() : null,
         start_date: startDate,
         registration_deadline: regDeadline || null,
         location: location || null,
@@ -659,6 +673,40 @@ export function CreateTournamentForm({ userId, userProfile }: Props) {
               onChange={(e) => setPrizePool(parseInt(e.target.value) || 0)}
               className="bg-secondary/50 border-border/60" />
           </div>
+
+          {/* Бооцоо хүлээн авах данс — entry_fee > 0 үед заавал */}
+          {entryFee > 0 && (
+            <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
+              <div>
+                <p className="text-xs font-semibold text-primary">Бооцоо хүлээн авах данс</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Оролцогчид бооцоогоо энэ дансанд шилжүүлнэ. Платформ мөнгөнд оролцдоггүй — та шагналаа өөрөө хариуцна.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Банкны нэр *</Label>
+                <Input value={bankName} onChange={(e) => setBankName(e.target.value)}
+                  placeholder="Хаан банк" className="bg-secondary/50 border-border/60" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Дансны дугаар *</Label>
+                  <Input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)}
+                    placeholder="5xxxxxxxxx" className="bg-secondary/50 border-border/60" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>IBAN</Label>
+                  <Input value={iban} onChange={(e) => setIban(e.target.value)}
+                    placeholder="MN__________" className="bg-secondary/50 border-border/60" />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Данс эзэмшигчийн овог нэр *</Label>
+                <Input value={accountHolder} onChange={(e) => setAccountHolder(e.target.value)}
+                  placeholder="Овог Нэр" className="bg-secondary/50 border-border/60" />
+              </div>
+            </div>
+          )}
         </Section>
 
         {/* ── POINT SYSTEM (RR/Swiss) ── */}
