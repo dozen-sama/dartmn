@@ -24,10 +24,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (t.bracket_type !== "single_elimination") return NextResponse.json({ error: "Одоогоор зөвхөн шигшээ (single elimination) дэмжигдэнэ" }, { status: 400 })
   if (t.type !== "singles") return NextResponse.json({ error: "Одоогоор зөвхөн singles дэмжигдэнэ" }, { status: 400 })
 
-  // Төлбөр төлсөн бүртгэлүүд (үнэгүй тэмцээнд бүртгэл өөрөө 'paid')
+  // Бүх бүртгэгдсэн тоглогч (off-platform санхүү — платформ төлбөрөөр хаахгүй;
+  // хэн оролцохыг зохион байгуулагч removePlayer-ээр зохицуулна)
   const { data: regs } = await admin.from("tournament_registrations")
     .select("player_id, seed, registered_at")
-    .eq("tournament_id", tournamentId).eq("payment_status", "paid")
+    .eq("tournament_id", tournamentId)
     .order("seed", { ascending: true, nullsFirst: false })
     .order("registered_at", { ascending: true })
   if (!regs || regs.length < 2) return NextResponse.json({ error: "Хамгийн багадаа 2 оролцогч хэрэгтэй" }, { status: 400 })

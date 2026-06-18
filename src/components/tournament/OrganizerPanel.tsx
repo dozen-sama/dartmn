@@ -46,6 +46,15 @@ export function OrganizerPanel({ tournament, registrations }: Props) {
 
   async function changeStatus(newStatus: Tournament["status"]) {
     setLoading("status")
+    // Тэмцээн эхлүүлэх = bracket генерацлах (/start RPC өөрөө status-г ongoing болгоно)
+    if (newStatus === "ongoing") {
+      const res = await fetch(`/api/tournaments/${tournament.id}/start`, { method: "POST" })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) toast.error(j.error ?? "Тэмцээн эхлүүлэхэд алдаа гарлаа")
+      else { toast.success("Тэмцээн эхэллээ"); router.refresh() }
+      setLoading(null)
+      return
+    }
     const supabase = createClient()
     const { error } = await supabase
       .from("tournaments")
