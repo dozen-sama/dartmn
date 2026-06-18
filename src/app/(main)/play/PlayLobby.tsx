@@ -174,12 +174,6 @@ export function PlayLobby({ profile, activeRooms }: Props) {
               status: "Хөгжүүлж байна",
             },
             {
-              icon: "🎮",
-              title: "Шууд олон тоглогч",
-              desc: "Хоёр тоглогч нэгэн зэрэг оноо оруулж, шууд харилцах. WebRTC-д суурилсан.",
-              status: "Төлөвлөгдсөн",
-            },
-            {
               icon: "🏟️",
               title: "Online тэмцээн",
               desc: "Олон тоглогчтой online тэмцээн. Автомат bracket, live standings.",

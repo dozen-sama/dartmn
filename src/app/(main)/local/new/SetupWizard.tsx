@@ -381,7 +381,7 @@ export function SetupWizard() {
           <div>
             <p className="text-sm font-medium mb-3">Тэмцээний төрлийг сонгоно уу.</p>
             <div className="flex flex-wrap gap-2">
-              {["Дартс", "Soft-tip Дартс", "Cricket", "Бусад"].map((t) => (
+              {["Дартс", "Soft-tip Дартс", "Бусад"].map((t) => (
                 <button key={t} type="button"
                   className={cn("px-4 py-2 rounded-full border-2 text-sm font-medium transition-all",
                     t === "Дартс" ? "border-primary bg-primary/15 text-primary" : "border-border/50 text-muted-foreground hover:border-border")}>

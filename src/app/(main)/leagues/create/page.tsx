@@ -18,7 +18,7 @@ export default function CreateLeaguePage() {
   const [form, setForm] = useState({
     name: "",
     season: new Date().getFullYear().toString(),
-    format: "501" as "501" | "301" | "cricket",
+    format: "501" as "501" | "301",
     start_date: "",
     max_teams: "16",
     description: "",
@@ -87,11 +87,11 @@ export default function CreateLeaguePage() {
               <div className="space-y-1.5">
                 <Label>Формат</Label>
                 <div className="flex gap-1.5">
-                  {(["501", "301", "cricket"] as const).map((f) => (
+                  {(["501", "301"] as const).map((f) => (
                     <button key={f} type="button" onClick={() => upd("format", f)}
                       className={cn("flex-1 py-1.5 rounded-md border-2 text-xs font-bold transition-all",
                         form.format === f ? "border-primary bg-primary/15 text-primary" : "border-border/50 text-muted-foreground hover:border-border")}>
-                      {f === "cricket" ? "Cricket" : f}
+                      {f}
                     </button>
                   ))}
                 </div>

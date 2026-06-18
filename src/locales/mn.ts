@@ -76,8 +76,6 @@ export const mn = {
     formats: {
       "501": "501",
       "301": "301",
-      cricket: "Cricket",
-      cutthroat: "Cutthroat",
     },
     types: {
       singles: "Singles",

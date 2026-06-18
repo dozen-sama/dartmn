@@ -55,7 +55,7 @@ export function Scoreboard() {
   const p2Throws: any[] = (currentLeg as any).throws?.[p2Id] ?? []
 
   function getRemaining(playerId: string): number {
-    if (!session || session.format === "cricket") return 0
+    if (!session) return 0
     const throws = (currentLeg as any).throws?.[playerId] ?? []
     return session.startScore - throws.reduce((a: number, t: any) => a + (t.bust ? 0 : t.score), 0)
   }

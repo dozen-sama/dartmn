@@ -359,7 +359,7 @@ export interface Database {
           description: string | null
           club_id: string | null
           organizer_id: string
-          format: "501" | "301" | "cricket" | "cutthroat"
+          format: "501" | "301"
           type: "singles" | "doubles" | "team"
           bracket_type: "single_elimination" | "double_elimination" | "round_robin" | "swiss" | "groups_knockout"
           status: "draft" | "registration" | "ongoing" | "completed" | "cancelled"
@@ -412,7 +412,7 @@ export interface Database {
           description?: string | null
           club_id?: string | null
           organizer_id: string
-          format: "501" | "301" | "cricket" | "cutthroat"
+          format: "501" | "301"
           type?: "singles" | "doubles" | "team"
           bracket_type?: "single_elimination" | "double_elimination" | "round_robin" | "swiss" | "groups_knockout"
           status?: "draft" | "registration" | "ongoing" | "completed" | "cancelled"
@@ -471,7 +471,7 @@ export interface Database {
           join_code?: string | null
           password?: string | null
           is_private?: boolean
-          format?: "501" | "301" | "cricket" | "cutthroat"
+          format?: "501" | "301"
           bracket_type?: "single_elimination" | "double_elimination" | "round_robin" | "swiss" | "groups_knockout"
           first_to?: number
           sets_enabled?: boolean
@@ -515,6 +515,97 @@ export interface Database {
         }
         Relationships: []
       }
+      tournament_entrants: {
+        Row: {
+          id: string
+          tournament_id: string
+          display_name: string
+          seed: number
+          group_no: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tournament_id: string
+          display_name: string
+          seed: number
+          group_no?: number | null
+        }
+        Update: {
+          display_name?: string
+          seed?: number
+          group_no?: number | null
+        }
+        Relationships: []
+      }
+      tournament_entrant_players: {
+        Row: {
+          id: string
+          entrant_id: string
+          player_id: string
+          slot: number
+        }
+        Insert: {
+          id?: string
+          entrant_id: string
+          player_id: string
+          slot?: number
+        }
+        Update: {
+          slot?: number
+        }
+        Relationships: []
+      }
+      tournament_matches: {
+        Row: {
+          id: string
+          tournament_id: string
+          round: number
+          match_number: number
+          is_losers_bracket: boolean
+          group_no: number | null
+          side1_entrant_id: string | null
+          side2_entrant_id: string | null
+          side1_legs: number
+          side2_legs: number
+          winner_entrant_id: string | null
+          loser_entrant_id: string | null
+          status: "pending" | "ongoing" | "completed"
+          next_match_id: string | null
+          next_loser_match_id: string | null
+          room_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tournament_id: string
+          round: number
+          match_number: number
+          is_losers_bracket?: boolean
+          group_no?: number | null
+          side1_entrant_id?: string | null
+          side2_entrant_id?: string | null
+          side1_legs?: number
+          side2_legs?: number
+          winner_entrant_id?: string | null
+          loser_entrant_id?: string | null
+          status?: "pending" | "ongoing" | "completed"
+          next_match_id?: string | null
+          next_loser_match_id?: string | null
+          room_id?: string | null
+        }
+        Update: {
+          side1_entrant_id?: string | null
+          side2_entrant_id?: string | null
+          side1_legs?: number
+          side2_legs?: number
+          winner_entrant_id?: string | null
+          loser_entrant_id?: string | null
+          status?: "pending" | "ongoing" | "completed"
+          room_id?: string | null
+        }
+        Relationships: []
+      }
       matches: {
         Row: {
           id: string
@@ -524,7 +615,7 @@ export interface Database {
           match_number: number | null
           player1_id: string
           player2_id: string | null
-          format: "501" | "301" | "cricket" | "cutthroat"
+          format: "501" | "301"
           best_of: number
           player1_legs: number
           player2_legs: number
@@ -542,7 +633,7 @@ export interface Database {
           match_number?: number | null
           player1_id: string
           player2_id?: string | null
-          format: "501" | "301" | "cricket" | "cutthroat"
+          format: "501" | "301"
           best_of?: number
           winner_id?: string | null
           status?: "scheduled" | "ongoing" | "completed" | "cancelled"
@@ -621,7 +712,7 @@ export interface Database {
           name: string
           description: string | null
           season: string
-          format: "501" | "301" | "cricket"
+          format: "501" | "301"
           status: "upcoming" | "ongoing" | "completed"
           max_teams: number
           start_date: string
@@ -634,7 +725,7 @@ export interface Database {
           name: string
           description?: string | null
           season: string
-          format: "501" | "301" | "cricket"
+          format: "501" | "301"
           status?: "upcoming" | "ongoing" | "completed"
           max_teams?: number
           start_date: string
@@ -758,7 +849,7 @@ export interface Database {
           room_code: string
           host_id: string
           guest_id: string | null
-          format: "501" | "301" | "170" | "cricket"
+          format: "501" | "301" | "170"
           best_of: number
           status: "waiting" | "bulloff" | "ongoing" | "completed"
           mode: "1v1" | "2v2" | "3v3"
@@ -769,6 +860,7 @@ export interface Database {
           starter_team: number | null
           winner_team: number | null
           match_id: string | null
+          tournament_match_id: string | null
           created_at: string
         }
         Insert: {
@@ -776,7 +868,7 @@ export interface Database {
           room_code: string
           host_id: string
           guest_id?: string | null
-          format: "501" | "301" | "170" | "cricket"
+          format: "501" | "301" | "170"
           best_of?: number
           status?: "waiting" | "bulloff" | "ongoing" | "completed"
           mode?: "1v1" | "2v2" | "3v3"
@@ -787,6 +879,7 @@ export interface Database {
           starter_team?: number | null
           winner_team?: number | null
           match_id?: string | null
+          tournament_match_id?: string | null
         }
         Update: {
           guest_id?: string | null

@@ -26,7 +26,8 @@ import { formatCurrency, formatDateTime } from "@/lib/utils/format"
 import { OrganizerPanel } from "@/components/tournament/OrganizerPanel"
 import { QRJoin } from "@/components/tournament/QRJoin"
 import { QPay } from "@/components/tournament/QPay"
-import { useLiveTournament } from "@/hooks/useLiveTournament"
+import { useTournamentBracket } from "@/hooks/useTournamentBracket"
+import { BracketView } from "@/components/tournament/BracketView"
 import { PlayerName } from "@/components/cosmetic/PlayerName"
 
 type TournamentWithRelations = Tournament & {
@@ -69,7 +70,8 @@ export function TournamentDetail({ tournament: t, registrations, currentUserId, 
   const [showCodeVisible, setShowCodeVisible] = useState(false)
 
   const isOrganizer = currentUserId === t.organizer_id
-  const { isLive, ongoingMatches } = useLiveTournament(t.id)
+  const bracket = useTournamentBracket(t.id)
+  const ongoingCount = bracket.ongoingCount
 
   async function handleRegister() {
     if (!currentUserId) { toast.error("Нэвтрэх шаардлагатай"); return }
@@ -130,10 +132,10 @@ export function TournamentDetail({ tournament: t, registrations, currentUserId, 
                 <Badge variant="outline" className={`text-xs ${statusColors[t.status]}`}>
                   {mn.tournament.status[t.status]}
                 </Badge>
-                {t.status === "ongoing" && (isLive || ongoingMatches.length > 0) && (
+                {t.status === "ongoing" && ongoingCount > 0 && (
                   <Badge className="text-xs bg-primary/15 text-primary border-primary/30 gap-1 pulse-live">
                     <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                    LIVE · {ongoingMatches.length} тоглолт
+                    LIVE · {ongoingCount} тоглолт
                   </Badge>
                 )}
                 <Badge variant="outline" className="text-xs border-border/60 text-muted-foreground">
@@ -351,15 +353,17 @@ export function TournamentDetail({ tournament: t, registrations, currentUserId, 
         </TabsContent>
 
         <TabsContent value="bracket" className="mt-4">
-          <Card className="border-border/50 bg-card/80">
-            <CardContent className="flex flex-col items-center justify-center py-16">
-              <Trophy className="h-12 w-12 text-muted-foreground/20 mb-4" />
-              <p className="text-muted-foreground font-medium">{bracketLabels[t.bracket_type]}</p>
-              <p className="text-sm text-muted-foreground/60 mt-1">
-                {t.status === "registration" ? "Тэмцээн эхэлсний дараа bracket гарна" : "Bracket бэлэн болоогүй"}
-              </p>
-            </CardContent>
-          </Card>
+          <BracketView
+            tournamentId={t.id}
+            status={t.status}
+            isOrganizer={isOrganizer}
+            currentUserId={currentUserId}
+            bracketType={t.bracket_type}
+            matches={bracket.matches}
+            entrants={bracket.entrants}
+            playerEntrant={bracket.playerEntrant}
+            loading={bracket.loading}
+          />
         </TabsContent>
 
         <TabsContent value="rules" className="mt-4">

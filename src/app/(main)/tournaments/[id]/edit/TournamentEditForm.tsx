@@ -133,8 +133,6 @@ export function TournamentEditForm({ tournament: t, clubs }: Props) {
   const FORMAT_OPTIONS = [
     { value: "501", label: "501", score: 501 },
     { value: "301", label: "301", score: 301 },
-    { value: "cricket", label: "Cricket", score: 0 },
-    { value: "cutthroat", label: "Cutthroat", score: 0 },
   ]
 
   const statusColors: Record<Tournament["status"], string> = {

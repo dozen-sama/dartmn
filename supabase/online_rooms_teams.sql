@@ -10,7 +10,9 @@ ALTER TABLE public.online_rooms
     CHECK (mode IN ('1v1', '2v2', '3v3')),
   ADD COLUMN IF NOT EXISTS double_out BOOLEAN NOT NULL DEFAULT true,
   ADD COLUMN IF NOT EXISTS starter_team SMALLINT,
-  ADD COLUMN IF NOT EXISTS winner_team SMALLINT;
+  ADD COLUMN IF NOT EXISTS winner_team SMALLINT,
+  -- Online тэмцээний bracket match-тай холбоос (tournament_matches; Phase 1)
+  ADD COLUMN IF NOT EXISTS tournament_match_id UUID REFERENCES public.tournament_matches(id) ON DELETE SET NULL;
 
 -- 2) room_players: every participant (incl. host), team + slot + ready --------
 CREATE TABLE IF NOT EXISTS public.room_players (

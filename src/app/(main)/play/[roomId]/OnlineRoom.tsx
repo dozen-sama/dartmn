@@ -55,9 +55,10 @@ interface Props {
   myInvite: MyInvite | null
   currentUserId: string
   hostName: string
+  tournamentId?: string | null
 }
 
-export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }: Props) {
+export function OnlineRoom({ room, players, myInvite, currentUserId, hostName, tournamentId = null }: Props) {
   const router = useRouter()
   // Тогтвортой client — render бүрд шинэ үүсгэвэл realtime subscription байнга
   // салж-холбогдож event алдагдана
@@ -529,7 +530,9 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName }:
 
         {/* Дууссан → буцах */}
         {done ? (
-          <Link href="/play" className={cn(buttonVariants({ variant: "outline" }), "w-full")}>Тоглох хуудас руу</Link>
+          <Link href={tournamentId ? `/tournaments/${tournamentId}` : "/play"} className={cn(buttonVariants({ variant: "outline" }), "w-full")}>
+            {tournamentId ? "Тэмцээн рүү буцах" : "Тоглох хуудас руу"}
+          </Link>
         ) : game.legAtLimit ? (
           <div className="space-y-2">
             <div className="flex items-center justify-center gap-2 bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-1.5">

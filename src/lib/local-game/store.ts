@@ -382,9 +382,7 @@ export const useLocalGame = create<LocalGameStore>()(
             const playerThrows = leg.throws[playerId] ?? []
             // bust-ийн оноо тоологдохгүй — өмнөх bust бус онооноос л үлдэгдлийг бодно
             const preTurn = session.startScore - playerThrows.reduce((a, t) => a + (t.bust ? 0 : t.score), 0)
-            const remaining = (session.format === "cricket" || session.format === "cutthroat")
-              ? 0
-              : bust ? preTurn : preTurn - score
+            const remaining = bust ? preTurn : preTurn - score
             const newThrow = { score, remaining, darts: dartsUsed, bust }
             leg.throws = { ...leg.throws, [playerId]: [...playerThrows, newThrow] }
             legs[legIndex] = leg

@@ -51,7 +51,9 @@ export async function applyMatchResult(admin: any, players: MatchPlayer[], reaso
     ? (id: string) => players.find((q) => q.profileId !== id)!.profileId : null
   const history: { player_id: string; rating_before: number; rating_after: number; change: number; reason: string; opponent_id: string | null; won: boolean; room_id: string | null }[] = []
 
-  await Promise.all(players.map(async (pl, i) => {
+  // Тоглогч бүрийн эцсийн утгыг (ELO + статистик) JS дээр тооцоолоод, бичилтийг
+  // нэг атомик RPC-д шилжүүлнэ — дунд нь унавал "хагас sync" гарахгүй.
+  const updates = players.map((pl, i) => {
     const cur = byId[pl.profileId]
     const myTeam = teamOf(pl, i)
     // Өрсөлдөгч багуудын бүх тоглогчийн rating-ийн дундаж
@@ -62,7 +64,12 @@ export async function applyMatchResult(admin: any, players: MatchPlayer[], reaso
     const ds = dartStats(pl.throws)
     const newCareerPoints = cur.career_points + ds.points
     const newCareerDarts = cur.career_darts + ds.darts
-    await admin.from("profiles").update({
+    history.push({
+      player_id: pl.profileId, rating_before: cur.rating_points, rating_after: newRating, change, reason,
+      opponent_id: soloOpponentId ? soloOpponentId(pl.profileId) : null, won: pl.isWinner, room_id: roomId,
+    })
+    return {
+      id: pl.profileId,
       rating_points: newRating,
       matches_played: cur.matches_played + 1,
       matches_won: cur.matches_won + (pl.isWinner ? 1 : 0),
@@ -71,14 +78,10 @@ export async function applyMatchResult(admin: any, players: MatchPlayer[], reaso
       average_score: newCareerDarts > 0 ? (newCareerPoints / newCareerDarts) * 3 : cur.average_score,
       career_points: newCareerPoints,
       career_darts: newCareerDarts,
-    }).eq("id", pl.profileId)
-    history.push({
-      player_id: pl.profileId, rating_before: cur.rating_points, rating_after: newRating, change, reason,
-      opponent_id: soloOpponentId ? soloOpponentId(pl.profileId) : null, won: pl.isWinner, room_id: roomId,
-    })
-    await admin.rpc("check_achievements", { p_player_id: pl.profileId })
-  }))
+    }
+  })
 
-  if (history.length) await admin.from("rating_history").insert(history)
-  return true
+  // Профайл + rating_history + achievements бүгд нэг транзакцид (атомик)
+  const { error } = await admin.rpc("apply_match_result", { p_updates: updates, p_history: history })
+  return !error
 }

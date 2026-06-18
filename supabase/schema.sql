@@ -162,7 +162,7 @@ CREATE TABLE public.tournaments (
   description TEXT,
   club_id UUID REFERENCES public.clubs(id) ON DELETE SET NULL,
   organizer_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  format TEXT NOT NULL CHECK (format IN ('501', '301', 'cricket', 'cutthroat')),
+  format TEXT NOT NULL CHECK (format IN ('501', '301')),
   type TEXT NOT NULL DEFAULT 'singles' CHECK (type IN ('singles', 'doubles', 'team')),
   bracket_type TEXT NOT NULL DEFAULT 'single_elimination'
     CHECK (bracket_type IN ('single_elimination', 'double_elimination', 'round_robin', 'swiss')),
@@ -237,6 +237,79 @@ CREATE INDEX registrations_tournament_idx ON public.tournament_registrations USI
 CREATE INDEX registrations_player_idx ON public.tournament_registrations USING btree (player_id);
 
 -- ============================================================
+-- ONLINE TOURNAMENT BRACKET (entrants + matches)
+-- entrant = bracket-ийн нэгж (singles → 1 тоглогч, doubles/team → N тоглогч).
+-- Бичилт зөвхөн service-role (RPC); SELECT нийтэд нээлттэй. Realtime-д орсон.
+-- ============================================================
+CREATE TABLE public.tournament_entrants (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  tournament_id UUID NOT NULL REFERENCES public.tournaments(id) ON DELETE CASCADE,
+  display_name TEXT NOT NULL,
+  seed INTEGER NOT NULL,
+  group_no INTEGER,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX tournament_entrants_tournament_idx ON public.tournament_entrants (tournament_id);
+ALTER TABLE public.tournament_entrants ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Entrants viewable by everyone" ON public.tournament_entrants FOR SELECT USING (true);
+
+CREATE TABLE public.tournament_entrant_players (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  entrant_id UUID NOT NULL REFERENCES public.tournament_entrants(id) ON DELETE CASCADE,
+  player_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  slot SMALLINT NOT NULL DEFAULT 0,
+  UNIQUE (entrant_id, slot),
+  UNIQUE (entrant_id, player_id)
+);
+CREATE INDEX tournament_entrant_players_entrant_idx ON public.tournament_entrant_players (entrant_id);
+CREATE INDEX tournament_entrant_players_player_idx ON public.tournament_entrant_players (player_id);
+ALTER TABLE public.tournament_entrant_players ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Entrant players viewable by everyone" ON public.tournament_entrant_players FOR SELECT USING (true);
+
+-- bracket-ийн match (LocalMatch-ийн DB хувилбар, src/lib/local-game/bracket.ts)
+CREATE TABLE public.tournament_matches (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  tournament_id UUID NOT NULL REFERENCES public.tournaments(id) ON DELETE CASCADE,
+  round INTEGER NOT NULL,
+  match_number INTEGER NOT NULL,
+  is_losers_bracket BOOLEAN NOT NULL DEFAULT false,
+  group_no INTEGER,
+  side1_entrant_id UUID REFERENCES public.tournament_entrants(id) ON DELETE SET NULL,
+  side2_entrant_id UUID REFERENCES public.tournament_entrants(id) ON DELETE SET NULL,
+  side1_legs INTEGER NOT NULL DEFAULT 0,
+  side2_legs INTEGER NOT NULL DEFAULT 0,
+  winner_entrant_id UUID REFERENCES public.tournament_entrants(id) ON DELETE SET NULL,
+  loser_entrant_id UUID REFERENCES public.tournament_entrants(id) ON DELETE SET NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'ongoing', 'completed')),
+  next_match_id UUID REFERENCES public.tournament_matches(id) ON DELETE SET NULL,
+  next_loser_match_id UUID REFERENCES public.tournament_matches(id) ON DELETE SET NULL,
+  room_id UUID REFERENCES public.online_rooms(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX tournament_matches_tournament_idx ON public.tournament_matches (tournament_id, round, match_number);
+ALTER TABLE public.tournament_matches ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Tournament matches viewable by everyone" ON public.tournament_matches FOR SELECT USING (true);
+-- online_rooms.tournament_match_id багана нь online_rooms_teams.sql-д ALTER-аар нэмэгдэнэ.
+
+-- self-FK-ууд (next_match_id/next_loser_match_id) нэг INSERT дотор хожуу round заадаг
+-- тул DEFERRABLE — шалгалт транзакцийн төгсгөлд.
+ALTER TABLE public.tournament_matches
+  DROP CONSTRAINT IF EXISTS tournament_matches_next_match_id_fkey,
+  DROP CONSTRAINT IF EXISTS tournament_matches_next_loser_match_id_fkey;
+ALTER TABLE public.tournament_matches
+  ADD CONSTRAINT tournament_matches_next_match_id_fkey
+    FOREIGN KEY (next_match_id) REFERENCES public.tournament_matches(id)
+    ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
+  ADD CONSTRAINT tournament_matches_next_loser_match_id_fkey
+    FOREIGN KEY (next_loser_match_id) REFERENCES public.tournament_matches(id)
+    ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
+
+-- start_tournament: TS (bracket-server.ts)-д бэлдсэн entrant/match-уудыг нэг
+-- транзакцид хийж status → ongoing. advance_tournament_match: match дуусгаж
+-- ялагчийг дараагийн match руу дэвшүүлнэ (claim-first). Тодорхойлолт:
+-- supabase migration-уудад (tournament_start_advance_rpcs).
+
+-- ============================================================
 -- MATCHES
 -- ============================================================
 CREATE TABLE public.matches (
@@ -247,7 +320,7 @@ CREATE TABLE public.matches (
   match_number INTEGER,
   player1_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   player2_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
-  format TEXT NOT NULL CHECK (format IN ('501', '301', 'cricket', 'cutthroat')),
+  format TEXT NOT NULL CHECK (format IN ('501', '301')),
   best_of INTEGER NOT NULL DEFAULT 3,
   player1_legs INTEGER NOT NULL DEFAULT 0,
   player2_legs INTEGER NOT NULL DEFAULT 0,
@@ -328,7 +401,7 @@ CREATE TABLE public.leagues (
   name TEXT NOT NULL,
   description TEXT,
   season TEXT NOT NULL,
-  format TEXT NOT NULL CHECK (format IN ('501', '301', 'cricket')),
+  format TEXT NOT NULL CHECK (format IN ('501', '301')),
   status TEXT NOT NULL DEFAULT 'upcoming' CHECK (status IN ('upcoming', 'ongoing', 'completed')),
   max_teams INTEGER NOT NULL DEFAULT 16,
   start_date TIMESTAMPTZ NOT NULL,
@@ -389,6 +462,46 @@ CREATE POLICY "Rating history viewable by everyone" ON public.rating_history FOR
 
 CREATE INDEX rating_history_player_idx ON public.rating_history USING btree (player_id, created_at DESC);
 
+-- Тоглолтын үр дүнг нэг транзакцид хэрэглэнэ: бүх тоглогчийн профайл + rating_history +
+-- achievements. Дунд нь унавал бүгд rollback (хагас sync гарахгүй). ELO/статистикийг
+-- дуудагч (src/lib/local-game/match-stats.ts) урьдчилан тооцоолж дамжуулна.
+CREATE OR REPLACE FUNCTION public.apply_match_result(p_updates jsonb, p_history jsonb)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  u jsonb;
+BEGIN
+  FOR u IN SELECT value FROM jsonb_array_elements(COALESCE(p_updates, '[]'::jsonb)) LOOP
+    UPDATE public.profiles SET
+      rating_points    = (u->>'rating_points')::int,
+      matches_played   = (u->>'matches_played')::int,
+      matches_won      = (u->>'matches_won')::int,
+      count_180        = (u->>'count_180')::int,
+      highest_checkout = (u->>'highest_checkout')::int,
+      average_score    = (u->>'average_score')::numeric,
+      career_points    = (u->>'career_points')::int,
+      career_darts     = (u->>'career_darts')::int
+    WHERE id = (u->>'id')::uuid;
+  END LOOP;
+
+  IF COALESCE(jsonb_array_length(p_history), 0) > 0 THEN
+    INSERT INTO public.rating_history
+      (player_id, rating_before, rating_after, change, reason, opponent_id, won, room_id)
+    SELECT (h->>'player_id')::uuid, (h->>'rating_before')::int, (h->>'rating_after')::int,
+           (h->>'change')::int, h->>'reason', NULLIF(h->>'opponent_id','')::uuid,
+           (h->>'won')::boolean, NULLIF(h->>'room_id','')::uuid
+    FROM jsonb_array_elements(p_history) h;
+  END IF;
+
+  FOR u IN SELECT value FROM jsonb_array_elements(COALESCE(p_updates, '[]'::jsonb)) LOOP
+    PERFORM public.check_achievements((u->>'id')::uuid);
+  END LOOP;
+END;
+$$;
+
 -- ============================================================
 -- PAYMENT TRANSACTIONS
 -- ============================================================
@@ -426,7 +539,7 @@ CREATE TABLE public.online_rooms (
   room_code TEXT UNIQUE NOT NULL,
   host_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   guest_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
-  format TEXT NOT NULL CHECK (format IN ('501', '301', '170', 'cricket')),
+  format TEXT NOT NULL CHECK (format IN ('501', '301', '170')),
   best_of INTEGER NOT NULL DEFAULT 3,
   status TEXT NOT NULL DEFAULT 'waiting' CHECK (status IN ('waiting', 'bulloff', 'ongoing', 'completed')),
   mode TEXT NOT NULL DEFAULT '1v1' CHECK (mode IN ('1v1', '2v2', '3v3')),

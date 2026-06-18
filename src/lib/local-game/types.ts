@@ -1,4 +1,4 @@
-export type GameFormat = "501" | "301" | "170" | "121" | "cricket" | "cutthroat"
+export type GameFormat = "501" | "301" | "170" | "121"
 export type BracketType = "single_elimination" | "double_elimination" | "round_robin" | "groups_knockout" | "swiss"
 export type MatchStatus = "pending" | "ongoing" | "completed"
 

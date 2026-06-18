@@ -39,6 +39,14 @@ export default async function RoomPage({ params }: { params: Promise<{ roomId: s
     profile: byId[p.player_id] ?? null,
   }))
 
+  // Тэмцээний match бол буцах холбоосыг тогтооно
+  let tournamentId: string | null = null
+  if (room.tournament_match_id) {
+    const { data: tm } = await supabase
+      .from("tournament_matches").select("tournament_id").eq("id", room.tournament_match_id).single()
+    tournamentId = tm?.tournament_id ?? null
+  }
+
   return (
     <OnlineRoom
       room={room}
@@ -46,6 +54,7 @@ export default async function RoomPage({ params }: { params: Promise<{ roomId: s
       myInvite={invite ?? null}
       currentUserId={user.id}
       hostName={byId[room.host_id]?.display_name || byId[room.host_id]?.username || "Host"}
+      tournamentId={tournamentId}
     />
   )
 }

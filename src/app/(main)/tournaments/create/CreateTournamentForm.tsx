@@ -122,7 +122,7 @@ export function CreateTournamentForm({ userId, userProfile }: Props) {
   const [imagePreview, setImagePreview] = useState("")
 
   // Format
-  const [format, setFormat] = useState<"501" | "301" | "cricket" | "cutthroat">("501")
+  const [format, setFormat] = useState<"501" | "301">("501")
   const [startScore, setStartScore] = useState(501)
   // KO тохиргоо
   const [firstTo, setFirstTo] = useState(2)
@@ -182,8 +182,6 @@ export function CreateTournamentForm({ userId, userProfile }: Props) {
     { value: "501", label: "501", score: 501 },
     { value: "301", label: "301", score: 301 },
     { value: "170", label: "170", score: 170 },
-    { value: "cricket", label: "Cricket", score: 0 },
-    { value: "cutthroat", label: "Cutthroat", score: 0 },
   ]
 
   // Клуб хайлт
