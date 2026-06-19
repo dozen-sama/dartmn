@@ -345,6 +345,7 @@ CREATE TABLE public.organizer_ratings (
   organizer_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   rater_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   rating SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  payout_status TEXT CHECK (payout_status IN ('paid', 'unpaid')), -- шагнал төлсөн эсэх (NULL = хожоогүй/хамаарахгүй)
   comment TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (tournament_id, rater_id),
@@ -353,7 +354,11 @@ CREATE TABLE public.organizer_ratings (
 CREATE INDEX organizer_ratings_organizer_idx ON public.organizer_ratings (organizer_id);
 ALTER TABLE public.organizer_ratings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Ratings viewable by everyone" ON public.organizer_ratings FOR SELECT USING (true);
-CREATE POLICY "Rater inserts own rating" ON public.organizer_ratings FOR INSERT WITH CHECK (auth.uid() = rater_id);
+-- Зөвхөн тухайн тэмцээнд бүртгэгдсэн оролцогч үнэлгээ өгнө (хуурамч хаягнаас хамгаална)
+CREATE POLICY "Rater inserts own rating" ON public.organizer_ratings FOR INSERT WITH CHECK (
+  auth.uid() = rater_id AND EXISTS (
+    SELECT 1 FROM public.tournament_registrations r
+    WHERE r.tournament_id = organizer_ratings.tournament_id AND r.player_id = auth.uid()));
 CREATE POLICY "Rater updates own rating" ON public.organizer_ratings FOR UPDATE USING (auth.uid() = rater_id);
 
 -- ============================================================

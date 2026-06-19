@@ -67,12 +67,14 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
     ? await resolveUnlockedFrames(profile.id, { rating: profile.rating_points, isPremium: profile.is_premium })
     : []
 
-  // Зохион байгуулагчийн үнэлгээ (тэмцээн зохиогчийн профайлд)
-  const { data: orgRatings } = await supabase.from("organizer_ratings").select("rating").eq("organizer_id", profile.id)
+  // Зохион байгуулагчийн үнэлгээ + шагнал төлөлтийн баталгаа (тэмцээн зохиогчийн профайлд)
+  const { data: orgRatings } = await supabase.from("organizer_ratings").select("rating, payout_status").eq("organizer_id", profile.id)
   const orgRatingCount = orgRatings?.length ?? 0
   const organizerRating = {
     count: orgRatingCount,
     avg: orgRatingCount ? orgRatings!.reduce((s, r) => s + r.rating, 0) / orgRatingCount : 0,
+    paid: (orgRatings ?? []).filter((r) => r.payout_status === "paid").length,
+    unpaid: (orgRatings ?? []).filter((r) => r.payout_status === "unpaid").length,
   }
 
   return (

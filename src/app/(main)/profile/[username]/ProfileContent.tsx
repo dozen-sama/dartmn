@@ -24,7 +24,7 @@ import { computeXp, type EffectRow } from "@/lib/cosmetics"
 interface Props {
   profile: Profile
   isOwner: boolean
-  organizerRating?: { avg: number; count: number }
+  organizerRating?: { avg: number; count: number; paid: number; unpaid: number }
   clubName: string | null
   history: {
     id: string
@@ -143,6 +143,12 @@ export function ProfileContent({ profile: p, isOwner, organizerRating, clubName,
                   <span>⭐</span>
                   <span className="font-semibold text-foreground">{organizerRating.avg.toFixed(1)}</span>
                   <span className="text-muted-foreground">({organizerRating.count})</span>
+                </span>
+              )}
+              {organizerRating && (organizerRating.paid > 0 || organizerRating.unpaid > 0) && (
+                <span className="flex items-center gap-1.5" title="Шагнал төлөлтийн баталгаа">
+                  <span className="text-green-400 font-medium">💰{organizerRating.paid}</span>
+                  {organizerRating.unpaid > 0 && <span className="text-destructive font-medium">✗{organizerRating.unpaid}</span>}
                 </span>
               )}
             </div>

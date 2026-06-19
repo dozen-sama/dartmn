@@ -28,20 +28,25 @@ export function OrganizerRating({ tournamentId, organizerId, currentUserId, canR
   const [loading, setLoading] = useState(false)
   const [myRating, setMyRating] = useState<number | null>(null)
   const [pick, setPick] = useState<number | null>(null)
+  const [payoutPick, setPayoutPick] = useState<"paid" | "unpaid" | null>(null)
   const [comment, setComment] = useState("")
-  const [stats, setStats] = useState<{ count: number; avg: number; dist: Record<number, number> }>({ count: 0, avg: 0, dist: {} })
+  const [stats, setStats] = useState<{ count: number; avg: number; dist: Record<number, number>; paid: number; unpaid: number }>({ count: 0, avg: 0, dist: {}, paid: 0, unpaid: 0 })
 
   async function load() {
     const supabase = createClient()
     const { data } = await supabase.from("organizer_ratings")
-      .select("rating, rater_id, comment").eq("organizer_id", organizerId)
+      .select("rating, rater_id, comment, payout_status").eq("organizer_id", organizerId)
     const rows = data ?? []
     const dist: Record<number, number> = {}
-    let sum = 0
-    for (const r of rows) { dist[r.rating] = (dist[r.rating] ?? 0) + 1; sum += r.rating }
-    setStats({ count: rows.length, avg: rows.length ? sum / rows.length : 0, dist })
+    let sum = 0, paid = 0, unpaid = 0
+    for (const r of rows) {
+      dist[r.rating] = (dist[r.rating] ?? 0) + 1; sum += r.rating
+      if (r.payout_status === "paid") paid++
+      else if (r.payout_status === "unpaid") unpaid++
+    }
+    setStats({ count: rows.length, avg: rows.length ? sum / rows.length : 0, dist, paid, unpaid })
     const mine = rows.find((r) => r.rater_id === currentUserId)
-    if (mine) { setMyRating(mine.rating); setPick(mine.rating); setComment(mine.comment ?? "") }
+    if (mine) { setMyRating(mine.rating); setPick(mine.rating); setComment(mine.comment ?? ""); setPayoutPick(mine.payout_status ?? null) }
   }
 
   useEffect(() => {
@@ -56,7 +61,7 @@ export function OrganizerRating({ tournamentId, organizerId, currentUserId, canR
     const supabase = createClient()
     const { error } = await supabase.from("organizer_ratings").upsert({
       tournament_id: tournamentId, organizer_id: organizerId, rater_id: currentUserId,
-      rating: pick, comment: comment.trim() || null,
+      rating: pick, payout_status: payoutPick, comment: comment.trim() || null,
     }, { onConflict: "tournament_id,rater_id" })
     setLoading(false)
     if (error) return toast.error("Үнэлгээ илгээхэд алдаа гарлаа")
@@ -91,6 +96,14 @@ export function OrganizerRating({ tournamentId, organizerId, currentUserId, canR
               })}
             </div>
           </div>
+          {/* Шагнал төлөлтийн баталгаа */}
+          {(stats.paid > 0 || stats.unpaid > 0) && (
+            <div className="mt-3 pt-3 border-t border-border/40 flex items-center gap-4 text-xs">
+              <span className="text-muted-foreground">💰 Шагнал төлөлт:</span>
+              <span className="flex items-center gap-1 text-green-400 font-medium">✓ Төлсөн {stats.paid}</span>
+              <span className="flex items-center gap-1 text-destructive font-medium">✗ Төлөөгүй {stats.unpaid}</span>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -113,6 +126,28 @@ export function OrganizerRating({ tournamentId, organizerId, currentUserId, canR
                   <span className="text-[9px] text-muted-foreground leading-tight text-center">{o.label}</span>
                 </button>
               ))}
+            </div>
+            {/* Шагнал авсан эсэх (winner-ийн баталгаа; хожоогүй бол хамаарахгүй) */}
+            <div className="space-y-1.5">
+              <p className="text-xs text-muted-foreground">Шагналаа авсан уу?</p>
+              <div className="grid grid-cols-3 gap-2">
+                {([
+                  { v: "paid" as const, label: "✓ Авсан", active: "border-green-500 bg-green-500/15 text-green-400" },
+                  { v: "unpaid" as const, label: "✗ Аваагүй", active: "border-destructive bg-destructive/15 text-destructive" },
+                  { v: null, label: "Хамаарахгүй", active: "border-primary bg-primary/15" },
+                ]).map((o) => (
+                  <button
+                    key={o.label}
+                    onClick={() => setPayoutPick(o.v)}
+                    className={cn(
+                      "rounded-lg border-2 py-1.5 text-xs font-medium transition-all",
+                      payoutPick === o.v ? o.active : "border-border/50 hover:border-border bg-secondary/30 text-muted-foreground"
+                    )}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
             </div>
             <textarea
               value={comment} onChange={(e) => setComment(e.target.value)}

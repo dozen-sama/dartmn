@@ -653,6 +653,7 @@ export interface Database {
           organizer_id: string
           rater_id: string
           rating: number
+          payout_status: "paid" | "unpaid" | null
           comment: string | null
           created_at: string
         }
@@ -662,10 +663,12 @@ export interface Database {
           organizer_id: string
           rater_id: string
           rating: number
+          payout_status?: "paid" | "unpaid" | null
           comment?: string | null
         }
         Update: {
           rating?: number
+          payout_status?: "paid" | "unpaid" | null
           comment?: string | null
         }
         Relationships: []
