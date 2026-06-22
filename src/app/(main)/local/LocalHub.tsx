@@ -132,8 +132,11 @@ function PublicSessionCard({ session }: { session: LocalSession }) {
 export function LocalHub() {
   const getSummaries = useLocalGame((s) => s.getSummaries)
   const deleteSession = useLocalGame((s) => s.deleteSession)
-  // sessions-д subscribe хийснээр delete/add хийх үед автоматаар re-render болно
-  useLocalGame((s) => Object.keys(s.sessions))
+  // sessions-д subscribe хийснээр delete/add/update үед автоматаар re-render болно.
+  // ⚠️ Object.keys(s.sessions) нь render бүрт ШИНЭ массив буцааж zustand snapshot-ийг
+  // байнга өөрчилснөөс хязгааргүй re-render (React #185) үүсгэдэг байв. s.sessions нь
+  // тогтвортой reference (store immutable шинэчилдэг тул mutation үед л солигдоно).
+  useLocalGame((s) => s.sessions)
   const [mounted, setMounted] = useState(false)
   const [publicSessions, setPublicSessions] = useState<LocalSession[]>([])
   const [loadingPublic, setLoadingPublic] = useState(false)
