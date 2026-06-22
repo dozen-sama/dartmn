@@ -689,6 +689,20 @@ CREATE POLICY "Visits viewable by everyone" ON public.room_visits FOR SELECT USI
 CREATE POLICY "Players insert own visit" ON public.room_visits FOR INSERT WITH CHECK (auth.uid() = created_by);
 
 -- ============================================================
+-- ДУУТ ЗАРЛАГЧ (caller) — админ дуу бичлэг
+-- key = тоо ("1".."180") эсвэл фраз ("p_taniy_onoo","p_aas","p_maximum",
+-- "p_checkout","p_bust"). Файл нь caller-voice (public) bucket-д <key>.<ext>.
+-- Бичих зөвхөн service role (admin API), унших нийтэд нээлттэй.
+-- ============================================================
+CREATE TABLE public.caller_clips (
+  key TEXT PRIMARY KEY,
+  ext TEXT NOT NULL DEFAULT 'webm',
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+ALTER TABLE public.caller_clips ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "caller_clips public read" ON public.caller_clips FOR SELECT USING (true);
+
+-- ============================================================
 -- Enable Realtime for online rooms and throws
 -- ============================================================
 ALTER PUBLICATION supabase_realtime ADD TABLE public.online_rooms;

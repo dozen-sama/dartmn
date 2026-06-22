@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import {
-  announceTurn, initCallerVoices, callerSupported,
+  announceTurn, initCallerVoices, callerSupported, loadCallerClips,
   getCallerEnabled, setCallerEnabled, type CallArgs,
 } from "@/lib/caller"
 
@@ -15,6 +15,7 @@ export function useCaller() {
   useEffect(() => {
     setSupported(callerSupported())
     initCallerVoices()
+    loadCallerClips()           // хүний бичлэгийн manifest (байвал)
     setEnabled(getCallerEnabled())
   }, [])
 

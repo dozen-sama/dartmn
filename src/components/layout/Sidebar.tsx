@@ -18,6 +18,7 @@ import {
   Target,
   Trophy,
   Users,
+  Volume2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { mn } from "@/locales/mn"
@@ -46,6 +47,7 @@ const adminItems = [
   { href: "/admin/clubs", label: mn.admin.clubs, icon: Building2 },
   { href: "/admin/payments", label: mn.admin.payments, icon: CreditCard },
   { href: "/admin/cosmetics", label: "Cosmetics", icon: Sparkles },
+  { href: "/admin/caller", label: "Дуут зарлагч", icon: Volume2 },
 ]
 
 interface NavItemProps {
