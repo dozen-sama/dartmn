@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Check, Delete, Trophy } from "lucide-react"
+import { ArrowLeft, Check, Delete, Trophy, Volume2, VolumeX } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -11,6 +11,7 @@ import { useLocalGame } from "@/lib/local-game/store"
 import type { LegThrow, LocalLeg } from "@/lib/local-game/types"
 import { getCheckout, IMPOSSIBLE_CHECKOUTS, VALID_DOUBLES, classifyTurn, isPossibleVisitScore } from "@/lib/local-game/checkouts"
 import { useScoreboardKeyboard } from "@/hooks/useScoreboardKeyboard"
+import { useCaller } from "@/hooks/useCaller"
 import { BullOff } from "@/components/game/BullOff"
 import { DartSelector } from "@/components/game/DartSelector"
 import { toast } from "sonner"
@@ -22,6 +23,7 @@ export function Scoreboard() {
   const { sessionId, matchId } = useParams<{ sessionId: string; matchId: string }>()
   const router = useRouter()
   const tableRef = useRef<HTMLDivElement>(null)
+  const { enabled: callerOn, supported: callerSupported, toggle: toggleCaller, announce } = useCaller()
 
   const session   = useLocalGame((s) => s.sessions[sessionId])
   const startMatch  = useLocalGame((s) => s.startMatch)
@@ -120,6 +122,13 @@ export function Scoreboard() {
     // bust/checkout/энгийн оноо — бүгдийг classifyTurn (isBust/isCheckoutScore) шийднэ.
     // Bust ч бүртгэгдэж, ээлж дамжина (оноо нь revert).
     recordThrow(sessionId, matchId, currentLegIndex, activePlayerId, score, dartsUsed, isBust)
+
+    // Дуут caller — оноо / checkout үлдэгдэл / 180 / хожлыг хэлнэ
+    announce({
+      points: score,
+      outcome: isCheckoutScore ? "checkout" : isBust ? "bust" : "score",
+      remaining: outcome?.remaining ?? remaining,
+    })
 
     if (isCheckoutScore) {
       completeLeg(sessionId, matchId, currentLegIndex, activePlayerId)
@@ -267,6 +276,11 @@ export function Scoreboard() {
           {session.format.toUpperCase()} · {legsToWin} leg хожно · Leg {currentLegIndex + 1}
           {limitRounds && <span className={cn("ml-1", visitRound >= limitRounds ? "text-destructive" : "")}>· R{visitRound}/{limitRounds}</span>}
         </p>
+        {callerSupported && (
+          <button onClick={toggleCaller} title={callerOn ? "Дуут зарлагч унтраах" : "Дуут зарлагч асаах"} className="text-muted-foreground hover:text-foreground shrink-0">
+            {callerOn ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+          </button>
+        )}
         <Badge className="bg-primary/15 text-primary border-primary/30 pulse-live text-xs shrink-0">LIVE</Badge>
       </div>
 
