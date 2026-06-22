@@ -13,7 +13,7 @@ import { fetchPublicSessions, subscribeToPublicSessions } from "@/lib/local-game
 import { Monitor, Plus, Radio, Target, Trash2, Trophy, Users, Wifi, Zap } from "lucide-react"
 import { formatDate } from "@/lib/utils/format"
 import { toast } from "sonner"
-import type { LocalSession, LocalMatch } from "@/lib/local-game/types"
+import type { LocalSession, LocalMatch, LocalLeg, LegThrow } from "@/lib/local-game/types"
 
 const BRACKET_LABELS: Record<string, string> = {
   single_elimination: "Шуурхай хаалт",
@@ -32,11 +32,11 @@ function MatchPreview({ match, session }: { match: LocalMatch; session: LocalSes
 
   const startScore = session.startScore || 501
   const currentLeg = match.legs.filter((l) => l.winnerId !== null).length
-  const leg = match.legs[currentLeg] ?? { throws: {} }
+  const leg: Pick<LocalLeg, "throws"> = match.legs[currentLeg] ?? { throws: {} }
 
   function rem(pid: string) {
-    const throws = (leg as any).throws?.[pid] ?? []
-    return startScore - throws.reduce((a: number, t: any) => a + (t.bust ? 0 : (t.score ?? 0)), 0)
+    const throws: LegThrow[] = leg.throws?.[pid] ?? []
+    return startScore - throws.reduce((a, t) => a + (t.bust ? 0 : (t.score ?? 0)), 0)
   }
 
   return (

@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { useLocalGame } from "@/lib/local-game/store"
-import type { LegThrow } from "@/lib/local-game/types"
+import type { LegThrow, LocalLeg } from "@/lib/local-game/types"
 import { getCheckout, IMPOSSIBLE_CHECKOUTS, VALID_DOUBLES, classifyTurn, isPossibleVisitScore } from "@/lib/local-game/checkouts"
 import { useScoreboardKeyboard } from "@/hooks/useScoreboardKeyboard"
 import { BullOff } from "@/components/game/BullOff"
@@ -49,15 +49,15 @@ export function Scoreboard() {
   const startScore  = session?.startScore ?? 501
 
   const currentLegIndex = match ? match.legs.filter((l) => l.winnerId !== null).length : 0
-  const currentLeg = match?.legs[currentLegIndex] ?? { throws: {}, winnerId: null }
+  const currentLeg: Pick<LocalLeg, "throws" | "winnerId"> = match?.legs[currentLegIndex] ?? { throws: {}, winnerId: null }
 
-  const p1Throws: any[] = (currentLeg as any).throws?.[p1Id] ?? []
-  const p2Throws: any[] = (currentLeg as any).throws?.[p2Id] ?? []
+  const p1Throws: LegThrow[] = currentLeg.throws?.[p1Id] ?? []
+  const p2Throws: LegThrow[] = currentLeg.throws?.[p2Id] ?? []
 
   function getRemaining(playerId: string): number {
     if (!session) return 0
-    const throws = (currentLeg as any).throws?.[playerId] ?? []
-    return session.startScore - throws.reduce((a: number, t: any) => a + (t.bust ? 0 : t.score), 0)
+    const throws: LegThrow[] = currentLeg.throws?.[playerId] ?? []
+    return session.startScore - throws.reduce((a, t) => a + (t.bust ? 0 : t.score), 0)
   }
 
   const activePlayerId = activePlayer === 0 ? p1Id : p2Id

@@ -49,7 +49,7 @@ export function QPay({ tournamentId, playerId, amount, onSuccess }: QPayProps) {
 
   async function checkPayment() {
     if (!invoice) return
-    setStep("invoice" as any)
+    setStep("invoice")
     const supabase = createClient()
     const { data } = await supabase
       .from("payment_transactions")

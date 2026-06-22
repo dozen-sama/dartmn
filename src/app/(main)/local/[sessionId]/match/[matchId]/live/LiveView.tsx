@@ -9,7 +9,7 @@ import { fetchRemoteSession, subscribeToSession } from "@/lib/local-game/sync"
 import { getCheckout } from "@/lib/local-game/checkouts"
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
-import type { LocalSession } from "@/lib/local-game/types"
+import type { LocalSession, LocalLeg, LegThrow } from "@/lib/local-game/types"
 
 export function LiveView() {
   const { sessionId, matchId } = useParams<{ sessionId: string; matchId: string }>()
@@ -78,28 +78,28 @@ export function LiveView() {
   const limitRounds = session.limitRounds ?? null
 
   const completedLegs = match.legs.filter((l) => l.winnerId !== null).length
-  const currentLeg    = match.legs[completedLegs] ?? { throws: {}, winnerId: null }
+  const currentLeg: Pick<LocalLeg, "throws" | "winnerId"> = match.legs[completedLegs] ?? { throws: {}, winnerId: null }
 
-  const p1Throws: any[] = (currentLeg as any).throws?.[p1Id] ?? []
-  const p2Throws: any[] = (currentLeg as any).throws?.[p2Id] ?? []
+  const p1Throws: LegThrow[] = currentLeg.throws?.[p1Id] ?? []
+  const p2Throws: LegThrow[] = currentLeg.throws?.[p2Id] ?? []
   const maxVisits = Math.max(p1Throws.length, p2Throws.length)
 
   // bust онооны тоологдохгүй
-  function getRemaining(throws: any[]): number {
-    return startScore - throws.reduce((a: number, t: any) => a + (t.bust ? 0 : (t.score ?? 0)), 0)
+  function getRemaining(throws: LegThrow[]): number {
+    return startScore - throws.reduce((a, t) => a + (t.bust ? 0 : (t.score ?? 0)), 0)
   }
 
   function getAverage(playerId: string): string {
     const all: number[] = match!.legs.flatMap((leg) =>
-      ((leg as any)?.throws?.[playerId] ?? []).map((t: any) => t.bust ? 0 : (t.score ?? 0))
+      (leg.throws?.[playerId] ?? []).map((t) => t.bust ? 0 : (t.score ?? 0))
     )
     if (!all.length) return "—"
     return (all.reduce((a, s) => a + s, 0) / all.length * 3).toFixed(1)
   }
 
-  function getCurrentAvg(throws: any[]): string {
+  function getCurrentAvg(throws: LegThrow[]): string {
     if (!throws.length) return "—"
-    const sum = throws.reduce((a: number, t: any) => a + (t.bust ? 0 : (t.score ?? 0)), 0)
+    const sum = throws.reduce((a, t) => a + (t.bust ? 0 : (t.score ?? 0)), 0)
     return (sum / throws.length * 3).toFixed(1)
   }
 
@@ -120,14 +120,14 @@ export function LiveView() {
   const p2LegWins = match.legs.filter(l => l.winnerId === p2Id).length
 
   // Last 3 throws per player in current leg
-  const last1 = p1Throws.slice(-3).map((t: any) => ({ score: t.score ?? 0, bust: !!t.bust }))
-  const last2 = p2Throws.slice(-3).map((t: any) => ({ score: t.score ?? 0, bust: !!t.bust }))
+  const last1 = p1Throws.slice(-3).map((t) => ({ score: t.score ?? 0, bust: !!t.bust }))
+  const last2 = p2Throws.slice(-3).map((t) => ({ score: t.score ?? 0, bust: !!t.bust }))
 
   const isOngoing   = match.status === "ongoing"
   const isCompleted = match.status === "completed"
 
   // History cell — оноо (bust зураастай, checkout ногоон)
-  const histCell = (t: any, side: 0 | 1) => {
+  const histCell = (t: LegThrow | undefined, side: 0 | 1) => {
     if (!t) return <div className="h-8" />
     const checkout = !t.bust && t.remaining === 0
     return (
