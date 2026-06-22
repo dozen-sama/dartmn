@@ -214,7 +214,7 @@ export function SearchModal({ open, onClose }: SearchModalProps) {
         ) : query.length >= 2 && !loading ? (
           <div className="py-12 text-center text-muted-foreground">
             <Search className="h-8 w-8 mx-auto mb-3 opacity-30" />
-            <p className="text-sm">"{query}" — олдсонгүй</p>
+            <p className="text-sm">«{query}» — олдсонгүй</p>
           </div>
         ) : query.length === 0 ? (
           <div className="py-8 px-4">

@@ -417,7 +417,7 @@ export function SetupWizard() {
                 Team game
               </button>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Doubles тэмцээнд 'Ганцаарчилсан' сонгоод нэр дор хоёр нэр бичнэ.</p>
+            <p className="text-xs text-muted-foreground mt-1">Doubles тэмцээнд «Ганцаарчилсан» сонгоод нэр дор хоёр нэр бичнэ.</p>
           </div>
 
           <button onClick={() => setStep("settings")}

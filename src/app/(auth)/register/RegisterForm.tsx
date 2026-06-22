@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
 import { Eye, EyeOff, Loader2, Mail, ArrowLeft, Check, X } from "lucide-react"
@@ -19,7 +19,7 @@ export function RegisterForm() {
   const [existingUnconfirmed, setExistingUnconfirmed] = useState(false)
   const [resendLoading, setResendLoading] = useState(false)
   const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "taken" | "available">("idle")
-  const usernameTimer = useState<ReturnType<typeof setTimeout> | null>(null)
+  const usernameTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -35,10 +35,10 @@ export function RegisterForm() {
   function handleUsernameChange(value: string) {
     update("username", value)
     setUsernameStatus("idle")
-    if (usernameTimer[0]) clearTimeout(usernameTimer[0])
+    if (usernameTimer.current) clearTimeout(usernameTimer.current)
     if (value.length < 3) return
     setUsernameStatus("checking")
-    usernameTimer[0] = setTimeout(async () => {
+    usernameTimer.current = setTimeout(async () => {
       const supabase = createClient()
       const { data } = await supabase
         .from("profiles")
