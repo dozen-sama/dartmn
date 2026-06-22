@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto"
 import { createClient, createAdminClient } from "@/lib/supabase/server"
-import { buildSingleEliminationRows, type EntrantSeed } from "@/lib/tournament/bracket-server"
+import { buildSingleEliminationRows, buildRoundRobinRows, buildGroupsKnockoutRows, buildSwissRows, buildDoubleEliminationRows, isPowerOfTwo, type EntrantSeed } from "@/lib/tournament/bracket-server"
 import { NextRequest, NextResponse } from "next/server"
 
 // Online тэмцээн эхлүүлэх (зөвхөн зохион байгуулагч). Бүртгэгдсэн (төлбөр төлсөн)
@@ -16,12 +16,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const admin: any = await createAdminClient()
 
   const { data: t } = await admin.from("tournaments")
-    .select("id, organizer_id, status, type, bracket_type")
+    .select("id, organizer_id, status, type, bracket_type, groups_count, group_advance")
     .eq("id", tournamentId).single()
   if (!t) return NextResponse.json({ error: "Тэмцээн олдсонгүй" }, { status: 404 })
   if (t.organizer_id !== user.id) return NextResponse.json({ error: "Зөвхөн зохион байгуулагч" }, { status: 403 })
   if (["completed", "cancelled"].includes(t.status)) return NextResponse.json({ error: "Тэмцээн дууссан/цуцлагдсан" }, { status: 409 })
-  if (t.bracket_type !== "single_elimination") return NextResponse.json({ error: "Одоогоор зөвхөн шигшээ (single elimination) дэмжигдэнэ" }, { status: 400 })
+  const SUPPORTED_BRACKETS = ["single_elimination", "round_robin", "groups_knockout", "swiss", "double_elimination"]
+  if (!SUPPORTED_BRACKETS.includes(t.bracket_type)) return NextResponse.json({ error: "Энэ bracket төрөл одоогоор дэмжигдэхгүй байна" }, { status: 400 })
   if (t.type !== "singles") return NextResponse.json({ error: "Одоогоор зөвхөн singles дэмжигдэнэ" }, { status: 400 })
 
   // Bracket аль хэдийн үүссэн бол давхар эхлүүлэхгүй (status ongoing-but-no-matches → сэргээнэ)
@@ -53,7 +54,33 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
   })
 
-  const matches = buildSingleEliminationRows(tournamentId, entrants.map((e: { seed: EntrantSeed }) => e.seed))
+  const seeds = entrants.map((e: { seed: EntrantSeed }) => e.seed)
+  let matches
+  if (t.bracket_type === "round_robin") {
+    matches = buildRoundRobinRows(tournamentId, seeds)
+  } else if (t.bracket_type === "swiss") {
+    matches = buildSwissRows(tournamentId, seeds)
+  } else if (t.bracket_type === "double_elimination") {
+    if (!isPowerOfTwo(seeds.length)) {
+      return NextResponse.json({ error: "Double elimination-д оролцогчийн тоо 2-ийн зэрэг байх ёстой (4, 8, 16, 32...)" }, { status: 400 })
+    }
+    matches = buildDoubleEliminationRows(tournamentId, seeds)
+  } else if (t.bracket_type === "groups_knockout") {
+    const groupsCount = Math.max(1, t.groups_count ?? 1)
+    const advanceCount = Math.max(1, t.group_advance ?? 1)
+    if (seeds.length < groupsCount * 2) {
+      return NextResponse.json({ error: `${groupsCount} бүлэгт хамгийн багадаа ${groupsCount * 2} оролцогч хэрэгтэй` }, { status: 400 })
+    }
+    const built = buildGroupsKnockoutRows(tournamentId, seeds, groupsCount, advanceCount)
+    matches = built.rows
+    // entrant бүрт бүлгийн дугаар онооно (хүснэгтийг бүлгээр харуулахад)
+    for (const e of entrants) {
+      const gno = built.groupByEntrant[e.row.id]
+      if (gno) e.row.group_no = gno
+    }
+  } else {
+    matches = buildSingleEliminationRows(tournamentId, seeds)
+  }
 
   const { error } = await admin.rpc("start_tournament", {
     p_tournament_id: tournamentId,

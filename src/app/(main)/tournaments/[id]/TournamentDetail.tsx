@@ -52,6 +52,7 @@ const bracketLabels: Record<string, string> = {
   single_elimination: "Single Elimination",
   double_elimination: "Double Elimination",
   round_robin: "Round Robin",
+  groups_knockout: "Бүлэг + Шигшээ",
   swiss: "Swiss",
 }
 

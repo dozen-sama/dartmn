@@ -165,7 +165,10 @@ CREATE TABLE public.tournaments (
   format TEXT NOT NULL CHECK (format IN ('501', '301')),
   type TEXT NOT NULL DEFAULT 'singles' CHECK (type IN ('singles', 'doubles', 'team')),
   bracket_type TEXT NOT NULL DEFAULT 'single_elimination'
-    CHECK (bracket_type IN ('single_elimination', 'double_elimination', 'round_robin', 'swiss')),
+    CHECK (bracket_type IN ('single_elimination', 'double_elimination', 'round_robin', 'groups_knockout', 'swiss')),
+  -- groups_knockout: бүлгийн тоо ба бүлэг бүрээс шигшээ (KO)-д дэвших байр
+  groups_count INTEGER NOT NULL DEFAULT 1,
+  group_advance INTEGER NOT NULL DEFAULT 1,
   status TEXT NOT NULL DEFAULT 'draft'
     CHECK (status IN ('draft', 'registration', 'ongoing', 'completed', 'cancelled')),
   max_players INTEGER NOT NULL DEFAULT 16,
@@ -306,8 +309,18 @@ ALTER TABLE public.tournament_matches
 
 -- start_tournament: TS (bracket-server.ts)-д бэлдсэн entrant/match-уудыг нэг
 -- транзакцид хийж status → ongoing. advance_tournament_match: match дуусгаж
--- ялагчийг дараагийн match руу дэвшүүлнэ (claim-first). Тодорхойлолт:
--- supabase migration-уудад (tournament_start_advance_rpcs).
+-- ялагчийг дараагийн match руу (DE-д ялагдагчийг next_loser_match_id руу) дэвшүүлнэ
+-- (claim-first). Дуусгах нөхцөл bracket-аас хамаарна: round_robin → бүх match
+-- дуусахад; swiss → авто-дуусахгүй (зохион байгуулагч /finish-ээр дуусгана);
+-- SE/DE/groups → winners/их финал (next_match_id null, losers бус, group_no null) дуусахад.
+-- Тодорхойлолт: supabase migration-уудад (tournament_start_advance_rpcs,
+-- advance_tournament_match_rr_completion, advance_tournament_match_groups_completion,
+-- advance_tournament_match_swiss_no_autocomplete).
+-- seed_knockout(p_tournament_id, p_assignments): groups_knockout-д бүлгийн шат
+-- дуусахад /advance-knockout route нь хүснэгтээс дээгүүр N-ийг (TS cross-seed)
+-- KO round-1-ийн хоосон талуудад атомикоор суулгана (migration: seed_knockout_rpc).
+-- Swiss дараагийн тойрог (/next-round) ба DE bracket-ийг тус тус /next-round route +
+-- buildDoubleEliminationRows (bracket-server.ts) дотор боддог (RPC бус, admin insert).
 
 -- ============================================================
 -- OFF-PLATFORM САНХҮҮ + ЗОХИОН БАЙГУУЛАГЧИЙН ҮНЭЛГЭЭ (Phase 3)

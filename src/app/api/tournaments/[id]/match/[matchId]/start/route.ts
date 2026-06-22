@@ -16,12 +16,12 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   const admin: any = await createAdminClient()
 
   const { data: t } = await admin.from("tournaments")
-    .select("id, organizer_id, format, first_to, double_out, limit_rounds, bull_finish_at_limit, type")
+    .select("id, organizer_id, format, first_to, rr_first_to, bracket_type, double_out, limit_rounds, bull_finish_at_limit, type")
     .eq("id", tournamentId).single()
   if (!t) return NextResponse.json({ error: "Тэмцээн олдсонгүй" }, { status: 404 })
 
   const { data: m } = await admin.from("tournament_matches")
-    .select("id, tournament_id, status, room_id, side1_entrant_id, side2_entrant_id")
+    .select("id, tournament_id, status, room_id, side1_entrant_id, side2_entrant_id, group_no")
     .eq("id", matchId).single()
   if (!m || m.tournament_id !== tournamentId) return NextResponse.json({ error: "Match олдсонгүй" }, { status: 404 })
   if (!m.side1_entrant_id || !m.side2_entrant_id) return NextResponse.json({ error: "Хоёр тал бүрэн тодороогүй байна" }, { status: 409 })
@@ -46,7 +46,11 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     eps.filter((e: { entrant_id: string }) => e.entrant_id === m.side2_entrant_id).length,
   )
   const mode = perSide >= 3 ? "3v3" : perSide === 2 ? "2v2" : "1v1"
-  const bestOf = Math.max(1, (t.first_to ?? 2) * 2 - 1)
+  // Round Robin ба бүлэг+шигшээний бүлгийн RR матч (group_no != null) нь өөрийн
+  // rr_first_to тохиргоотой; шигшээ (KO) матч энгийн first_to ашиглана.
+  const usesRrFirstTo = t.bracket_type === "round_robin" || (t.bracket_type === "groups_knockout" && m.group_no != null)
+  const firstTo = usesRrFirstTo ? (t.rr_first_to ?? t.first_to ?? 2) : (t.first_to ?? 2)
+  const bestOf = Math.max(1, firstTo * 2 - 1)
 
   // Room үүсгэх (давхцахгүй код)
   let roomId: string | null = null

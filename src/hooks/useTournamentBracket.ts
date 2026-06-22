@@ -24,6 +24,7 @@ export interface BracketEntrant {
   id: string
   display_name: string
   seed: number
+  group_no: number | null
 }
 
 // Online тэмцээний bracket-г татаж, tournament_matches-д realtime subscribe хийнэ.
@@ -43,7 +44,7 @@ export function useTournamentBracket(tournamentId: string) {
         .eq("tournament_id", tournamentId)
         .order("round").order("match_number"),
       supabase.from("tournament_entrants")
-        .select("id,display_name,seed")
+        .select("id,display_name,seed,group_no")
         .eq("tournament_id", tournamentId),
     ])
     if (mRes.data) setMatches(mRes.data as BracketMatch[])
