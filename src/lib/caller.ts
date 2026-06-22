@@ -66,21 +66,24 @@ export function speak(text: string) {
 export type CallOutcome = "score" | "bust" | "checkout"
 
 export interface CallArgs {
-  points: number       // тухайн visit-д авсан нийт оноо
+  points: number          // шидсэн тоглогчийн тухайн visit-д авсан нийт оноо
   outcome: CallOutcome
-  remaining: number    // visit-ийн дараах үлдэгдэл (checkout үед 0)
+  nextRemaining: number   // ДАРААГИЙН (одоо ээлж нь болсон) тоглогчийн үлдэгдэл
 }
 
-// Turn-ийг дуудах: оноо → (checkout хүрээнд бол) "Таны оноо N-аас".
+// Turn-ийг дуудах: эхлээд шидсэн (өрсөлдөгч) хүний авсан оноог хэлж, дараа нь
+// ээлж нь болсон тоглогчийн үлдэгдлийг (checkout хүрээнд) "Таны оноо N-аас" гэнэ.
 // 180 ба хожлыг тусгай зарлана.
-export function announceTurn({ points, outcome, remaining }: CallArgs) {
+export function announceTurn({ points, outcome, nextRemaining }: CallArgs) {
   if (outcome === "checkout") { speak("Чек аут. Хожлоо!"); return }
-  if (outcome === "bust") { speak("Хэтэрлээ"); return }
 
-  let text = points === 180 ? "Зуун ная, максимум!" : mnNumber(points)
-  // Checkout хүрээнд (≤170) орвол үлдэгдлийг сануулна
-  if (remaining > 1 && remaining <= 170) {
-    text += `. Таны оноо ${mnNumber(remaining)} аас`
+  let text = outcome === "bust"
+    ? "Хэтэрлээ"
+    : (points === 180 ? "Зуун ная, максимум!" : mnNumber(points))
+
+  // Дараагийн тоглогч checkout хүрээнд (≤170) бол түүний үлдэгдлийг сануулна
+  if (nextRemaining > 1 && nextRemaining <= 170) {
+    text += `. Таны оноо ${mnNumber(nextRemaining)} аас`
   }
   speak(text)
 }

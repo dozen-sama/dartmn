@@ -123,11 +123,12 @@ export function Scoreboard() {
     // Bust ч бүртгэгдэж, ээлж дамжина (оноо нь revert).
     recordThrow(sessionId, matchId, currentLegIndex, activePlayerId, score, dartsUsed, isBust)
 
-    // Дуут caller — оноо / checkout үлдэгдэл / 180 / хожлыг хэлнэ
+    // Дуут caller — шидсэн хүний оноо, дараа нь ээлж нь болсон тоглогчийн үлдэгдэл
+    const otherId = activePlayerId === p1Id ? p2Id : p1Id
     announce({
       points: score,
       outcome: isCheckoutScore ? "checkout" : isBust ? "bust" : "score",
-      remaining: outcome?.remaining ?? remaining,
+      nextRemaining: getRemaining(otherId),
     })
 
     if (isCheckoutScore) {
