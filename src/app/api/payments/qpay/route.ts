@@ -16,7 +16,7 @@ async function getQPayToken(): Promise<string> {
 }
 
 export async function POST(req: NextRequest) {
-  const { tournament_id, player_id, amount } = await req.json()
+  const { tournament_id, player_id, amount, purpose } = await req.json()
   if (!tournament_id || !player_id || !amount) {
     return NextResponse.json({ error: "Missing params" }, { status: 400 })
   }
@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
       currency: "MNT",
       provider: "qpay",
       status: "pending",
+      metadata: purpose ? { purpose } : {},
     })
     .select("id")
     .single()
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
         invoice_code: process.env.QPAY_INVOICE_CODE,
         sender_invoice_no: txn.id,
         invoice_receiver_code: player_id,
-        invoice_description: `DartMN тэмцээний хураамж`,
+        invoice_description: purpose === "platform_fee" ? `DartMN платформ шимтгэл` : `DartMN тэмцээний хураамж`,
         amount,
         callback_url: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/qpay-callback?txn_id=${txn.id}`,
       }),

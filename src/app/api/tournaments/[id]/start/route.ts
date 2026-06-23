@@ -16,11 +16,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const admin: any = await createAdminClient()
 
   const { data: t } = await admin.from("tournaments")
-    .select("id, organizer_id, status, type, bracket_type, groups_count, group_advance")
+    .select("id, organizer_id, status, type, bracket_type, groups_count, group_advance, platform_fee, platform_fee_paid")
     .eq("id", tournamentId).single()
   if (!t) return NextResponse.json({ error: "Тэмцээн олдсонгүй" }, { status: 404 })
   if (t.organizer_id !== user.id) return NextResponse.json({ error: "Зөвхөн зохион байгуулагч" }, { status: 403 })
   if (["completed", "cancelled"].includes(t.status)) return NextResponse.json({ error: "Тэмцээн дууссан/цуцлагдсан" }, { status: 409 })
+  if (t.platform_fee > 0 && !t.platform_fee_paid) {
+    return NextResponse.json({ error: "Платформ шимтгэл төлөгдөөгүй байна" }, { status: 402 })
+  }
   const SUPPORTED_BRACKETS = ["single_elimination", "round_robin", "groups_knockout", "swiss", "double_elimination"]
   if (!SUPPORTED_BRACKETS.includes(t.bracket_type)) return NextResponse.json({ error: "Энэ bracket төрөл одоогоор дэмжигдэхгүй байна" }, { status: 400 })
   if (t.type !== "singles") return NextResponse.json({ error: "Одоогоор зөвхөн singles дэмжигдэнэ" }, { status: 400 })

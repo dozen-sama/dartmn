@@ -403,6 +403,7 @@ export interface Database {
           rr_legs_per_set: number
           tournament_type: "open" | "league" | "national" | "club" | "friendly"
           platform_fee: number
+          platform_fee_paid: boolean
           organizer_bank_name: string | null
           organizer_iban: string | null
           organizer_account_number: string | null
@@ -457,6 +458,7 @@ export interface Database {
           rr_first_to?: number
           rr_sets_enabled?: boolean
           rr_legs_per_set?: number
+          platform_fee?: number
           organizer_bank_name?: string | null
           organizer_iban?: string | null
           organizer_account_number?: string | null
@@ -495,6 +497,7 @@ export interface Database {
           point_draw?: number
           point_lost?: number
           win_points_are_legs?: boolean
+          platform_fee_paid?: boolean
           organizer_bank_name?: string | null
           organizer_iban?: string | null
           organizer_account_number?: string | null

@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
+import { computePlatformFee } from "@/lib/tournament/platform-fee"
 import Link from "next/link"
 
 interface Props {
@@ -175,6 +176,7 @@ export function CreateTournamentForm({ userId, userProfile }: Props) {
   const [accountHolder, setAccountHolder] = useState("")
 
   const isRR = bracketType === "round_robin" || bracketType === "swiss" || bracketType === "groups_knockout"
+  const platformFee = computePlatformFee(bracketType, maxPlayers)
 
   const BRACKET_OPTIONS = [
     { value: "single_elimination", label: "Single Elimination", desc: "Нэг алдлаар унана" },
@@ -255,6 +257,7 @@ export function CreateTournamentForm({ userId, userProfile }: Props) {
         max_players: maxPlayers,
         entry_fee: entryFee,
         prize_pool: prizePool,
+        platform_fee: platformFee,
         organizer_bank_name: entryFee > 0 ? bankName.trim() : null,
         organizer_iban: entryFee > 0 ? (iban.trim() || null) : null,
         organizer_account_number: entryFee > 0 ? accountNumber.trim() : null,
@@ -649,20 +652,7 @@ export function CreateTournamentForm({ userId, userProfile }: Props) {
                 onChange={(e) => setEntryFee(parseInt(e.target.value) || 0)}
                 className="bg-secondary/50 border-border/60" />
               {entryFee > 0 && (
-                <div className="text-xs text-muted-foreground bg-secondary/30 rounded-md px-2.5 py-1.5 space-y-0.5">
-                  <div className="flex justify-between">
-                    <span>Тоглогч төлөх дүн</span>
-                    <span className="font-medium">{entryFee.toLocaleString()}₮</span>
-                  </div>
-                  <div className="flex justify-between text-primary/70">
-                    <span>+ Платформын шимтгэл</span>
-                    <span>1,000₮</span>
-                  </div>
-                  <div className="flex justify-between font-semibold border-t border-border/40 pt-1 mt-1">
-                    <span>Нийт</span>
-                    <span className="text-primary">{(entryFee + 1000).toLocaleString()}₮</span>
-                  </div>
-                </div>
+                <p className="text-xs text-muted-foreground">Тоглогч тус бүр зохион байгуулагчид шилжүүлнэ.</p>
               )}
             </div>
           </div>
@@ -673,6 +663,24 @@ export function CreateTournamentForm({ userId, userProfile }: Props) {
               onChange={(e) => setPrizePool(parseInt(e.target.value) || 0)}
               className="bg-secondary/50 border-border/60" />
           </div>
+
+          {/* Platform fee мэдэгдэл */}
+          {platformFee > 0 ? (
+            <div className="rounded-lg border border-[oklch(0.78_0.16_85)]/30 bg-[oklch(0.78_0.16_85)]/5 p-3 space-y-1">
+              <p className="text-xs font-semibold text-[oklch(0.78_0.16_85)] flex items-center gap-1.5">
+                ⭐ Premium тэмцааны — платформ шимтгэл
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                Тэмцааныг эхлүүлэхэд зохион байгуулагч QPay-р нэг удаа <strong className="text-foreground">{platformFee.toLocaleString()}₮</strong> төлнө.
+                Тоглогчид нэмэлт хураамж байхгүй.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-green-500/20 bg-green-500/5 p-3">
+              <p className="text-xs text-green-400 font-medium">✓ Үнэгүй тэмцааны — платформ шимтгэлгүй</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">≤8 тоглогч + Single Elimination → платформ хураамж авахгүй.</p>
+            </div>
+          )}
 
           {/* Бооцоо хүлээн авах данс — entry_fee > 0 үед заавал */}
           {entryFee > 0 && (
