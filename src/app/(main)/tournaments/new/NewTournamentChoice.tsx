@@ -20,7 +20,7 @@ const TYPES = [
     border: "border-primary/30 hover:border-primary/60",
     title: "Online тэмцээн",
     badge: { label: "Интернэт шаардлагатай", color: "bg-primary/10 text-primary border-primary/30" },
-    desc: "Тоглогчид бүртгэлтэй акаунтаараа нэгдэнэ. QPay хураамж, рейтинг, статистик бүгд Supabase-д хадгалагдана.",
+    desc: "Тоглогчид бүртгэлтэй акаунтаараа нэгдэнэ. QPay хураамж, рейтинг, статистик бүгд платформд хадгалагдана.",
     features: [
       { icon: Users, text: "Бүртгэлтэй тоглогчид" },
       { icon: Zap, text: "QPay хураамж" },
