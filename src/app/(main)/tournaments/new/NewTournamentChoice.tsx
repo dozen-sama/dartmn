@@ -20,10 +20,10 @@ const TYPES = [
     border: "border-primary/30 hover:border-primary/60",
     title: "Online тэмцээн",
     badge: { label: "Интернэт шаардлагатай", color: "bg-primary/10 text-primary border-primary/30" },
-    desc: "Тоглогчид бүртгэлтэй акаунтаараа нэгдэнэ. QPay хураамж, рейтинг, статистик бүгд платформд хадгалагдана.",
+    desc: "Тоглогчид бүртгэлтэй акаунтаараа нэгдэнэ. byl.mn хураамж, рейтинг, статистик бүгд платформд хадгалагдана.",
     features: [
       { icon: Users, text: "Бүртгэлтэй тоглогчид" },
-      { icon: Zap, text: "QPay хураамж" },
+      { icon: Zap, text: "byl.mn хураамж" },
       { icon: Target, text: "ELO рейтинг шинэчлэгдэнэ" },
       { icon: Wifi, text: "Realtime bracket" },
     ],
@@ -132,7 +132,7 @@ export function NewTournamentChoice() {
                 { label: "Тоглогч бүртгэл", online: "Акаунт шаардлагатай", local: "Дурын нэр" },
                 { label: "Рейтинг", online: "✓ ELO шинэчлэгдэнэ", local: "✗ Нөлөөлөхгүй" },
                 { label: "Хуваалцах", online: "✓ URL-р нэгдэнэ", local: "✗ Зөвхөн нэг төхөөрөмж" },
-                { label: "QPay хураамж", online: "✓ Боломжтой", local: "✗ Байхгүй" },
+                { label: "byl.mn хураамж", online: "✓ Боломжтой", local: "✗ Байхгүй" },
                 { label: "Offline ажиллах", online: "✗", local: "✓ Бүрэн offline" },
               ].map(({ label, online, local }) => (
                 <tr key={label} className="border-b border-border/20 last:border-0">

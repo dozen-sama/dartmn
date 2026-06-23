@@ -3,8 +3,7 @@
 import { useSearchParams } from "next/navigation"
 import { Suspense } from "react"
 import { useEffect, useState } from "react"
-import { ArrowLeft, Check, Crown, CreditCard, Loader2, QrCode } from "lucide-react"
-import { QRCodeSVG } from "qrcode.react"
+import { ArrowLeft, Check, Crown, CreditCard, ExternalLink, Loader2, RefreshCw } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -30,8 +29,8 @@ function CheckoutForm() {
   const amount = parseInt(params.get("amount") ?? "0")
   const type = params.get("type") ?? "player"
 
-  const [step, setStep] = useState<"idle" | "loading" | "invoice" | "paid">("idle")
-  const [qrData, setQRData] = useState<{ qr_text: string; transaction_id: string; urls?: any[] } | null>(null)
+  const [step, setStep] = useState<"idle" | "loading" | "waiting" | "paid">("idle")
+  const [txnId, setTxnId] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -48,22 +47,23 @@ function CheckoutForm() {
     if (!userId) return
     setStep("loading")
     try {
-      const res = await fetch("/api/payments/qpay", {
+      const res = await fetch("/api/payments/byl", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           player_id: userId,
-          tournament_id: null,
+          tournament_id: "00000000-0000-0000-0000-000000000000",
           amount: total,
-          description: `DartMN ${PLAN_LABELS[plan] ?? plan} subscription`,
+          purpose: `subscription_${plan}`,
         }),
       })
       const data = await res.json()
-      if (data.qr_text) {
-        setQRData(data)
-        setStep("invoice")
+      if (data.payment_url) {
+        setTxnId(data.transaction_id)
+        setStep("waiting")
+        window.open(data.payment_url, "_blank", "noopener,noreferrer")
       } else {
-        toast.error("QPay холболт амжилтгүй")
+        toast.error(data.error ?? "byl.mn холболт амжилтгүй")
         setStep("idle")
       }
     } catch {
@@ -73,27 +73,24 @@ function CheckoutForm() {
   }
 
   async function checkPayment() {
-    if (!qrData) return
+    if (!txnId) return
     const supabase = createClient()
     const { data } = await supabase
       .from("payment_transactions")
       .select("status")
-      .eq("id", qrData.transaction_id)
+      .eq("id", txnId)
       .single()
 
     if (data?.status === "paid") {
       setStep("paid")
       toast.success("Төлбөр амжилттай!")
-
-      // Activate subscription — call server action via API
       if (type === "player" && userId) {
         await fetch("/api/subscriptions/activate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ player_id: userId, transaction_id: qrData.transaction_id }),
+          body: JSON.stringify({ player_id: userId, transaction_id: txnId }),
         })
       }
-
       setTimeout(() => router.push("/profile"), 2000)
     } else {
       toast.info("Төлбөр хүлээгдэж байна...")
@@ -165,8 +162,8 @@ function CheckoutForm() {
 
           {step === "idle" && (
             <Button onClick={createInvoice} className="w-full glow-primary" size="lg">
-              <QrCode className="h-4 w-4 mr-2" />
-              QPay-р {formatCurrency(total)} төлөх
+              <CreditCard className="h-4 w-4 mr-2" />
+              byl.mn-ээр {formatCurrency(total)} төлөх
             </Button>
           )}
 
@@ -177,31 +174,21 @@ function CheckoutForm() {
             </Button>
           )}
 
-          {step === "invoice" && qrData && (
-            <div className="space-y-4">
-              <div className="flex justify-center">
-                <div className="bg-white p-4 rounded-xl">
-                  <QRCodeSVG value={qrData.qr_text} size={180} level="M" />
-                </div>
-              </div>
-              <p className="text-xs text-center text-muted-foreground">
-                QPay апп-аараа уншуулж <strong className="text-foreground">{formatCurrency(total)}</strong> төлнө үү
+          {step === "waiting" && (
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground text-center">
+                Төлбөрийн хуудас шинэ цонхонд нээгдлээ.<br />
+                QPay, SocialPay, Golomt-аар <strong className="text-foreground">{formatCurrency(total)}</strong> төлж буцаарай.
               </p>
-
-              {qrData.urls && qrData.urls.length > 0 && (
-                <div className="grid grid-cols-2 gap-2">
-                  {qrData.urls.slice(0, 4).map((url: any) => (
-                    <a key={url.name} href={url.link}
-                      className="flex items-center justify-center py-2 rounded-lg border border-border/50 text-xs text-muted-foreground hover:bg-secondary transition-colors">
-                      {url.name}
-                    </a>
-                  ))}
-                </div>
-              )}
-
-              <Button onClick={checkPayment} variant="outline" className="w-full border-primary/30 text-primary hover:bg-primary/10">
-                Төлбөр шалгах
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={checkPayment} className="flex-1 glow-primary">
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Төлбөр шалгах
+                </Button>
+                <Button onClick={createInvoice} variant="outline" size="sm" className="border-border/60">
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>

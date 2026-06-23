@@ -5,9 +5,8 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import {
   CheckCircle2, Edit2, GripVertical, Loader2,
-  Play, RefreshCw, Settings2, Smartphone, Trophy, UserMinus, Users, XCircle,
+  Play, RefreshCw, Settings2, Trophy, UserMinus, Users, XCircle,
 } from "lucide-react"
-import { QRCodeSVG } from "qrcode.react"
 import Link from "next/link"
 import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -40,8 +39,8 @@ export function OrganizerPanel({ tournament, registrations }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState<string | null>(null)
   const [regs, setRegs] = useState(registrations)
-  const [qpayStep, setQpayStep] = useState<"idle" | "loading" | "invoice" | "checking">("idle")
-  const [qpayInvoice, setQpayInvoice] = useState<{ qr_text: string; transaction_id: string; urls?: { name: string; link: string }[] } | null>(null)
+  const [bylStep, setBylStep] = useState<"idle" | "loading" | "waiting" | "checking">("idle")
+  const [bylTxnId, setBylTxnId] = useState<string | null>(null)
   const [feePaid, setFeePaid] = useState(tournament.platform_fee_paid)
   const [seeds, setSeeds] = useState<Record<string, number>>(
     Object.fromEntries(registrations.map((r) => [r.player_id, r.seed ?? 0]))
@@ -66,10 +65,10 @@ export function OrganizerPanel({ tournament, registrations }: Props) {
     })()
   }, [tournament.id, tournament.entry_fee])
 
-  async function createQPayInvoice() {
-    setQpayStep("loading")
+  async function createBylInvoice() {
+    setBylStep("loading")
     try {
-      const res = await fetch("/api/payments/qpay", {
+      const res = await fetch("/api/payments/byl", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -80,37 +79,37 @@ export function OrganizerPanel({ tournament, registrations }: Props) {
         }),
       })
       const data = await res.json()
-      if (data.qr_text) {
-        setQpayInvoice({ qr_text: data.qr_text, transaction_id: data.transaction_id, urls: data.urls })
-        setQpayStep("invoice")
+      if (data.payment_url) {
+        setBylTxnId(data.transaction_id)
+        setBylStep("waiting")
+        window.open(data.payment_url, "_blank", "noopener,noreferrer")
       } else {
-        toast.error(data.error ?? "QPay холболт амжилтгүй болоо")
-        setQpayStep("idle")
+        toast.error(data.error ?? "byl.mn холболт амжилтгүй болоо")
+        setBylStep("idle")
       }
     } catch {
-      toast.error("QPay холболт амжилтгүй болоо")
-      setQpayStep("idle")
+      toast.error("byl.mn холболт амжилтгүй болоо")
+      setBylStep("idle")
     }
   }
 
-  async function checkQPayAndStart() {
-    if (!qpayInvoice) return
-    setQpayStep("checking")
+  async function checkBylAndStart() {
+    if (!bylTxnId) return
+    setBylStep("checking")
     const supabase = createClient()
     const { data } = await supabase
       .from("payment_transactions")
       .select("status")
-      .eq("id", qpayInvoice.transaction_id)
+      .eq("id", bylTxnId)
       .single()
     if (data?.status === "paid") {
-      await supabase.from("tournaments").update({ platform_fee_paid: true }).eq("id", tournament.id)
       setFeePaid(true)
-      setQpayStep("idle")
+      setBylStep("idle")
       toast.success("Шимтгэл төлөгдлөө — тэмцааныг эхлүүлж байна...")
       await doStart()
     } else {
       toast.info("Төлбөр хүлээгдэж байна...")
-      setQpayStep("invoice")
+      setBylStep("waiting")
     }
   }
 
@@ -129,8 +128,7 @@ export function OrganizerPanel({ tournament, registrations }: Props) {
     if (newStatus === "ongoing") {
       if (tournament.platform_fee > 0 && !feePaid) {
         setLoading(null)
-        setQpayStep("loading")
-        await createQPayInvoice()
+        await createBylInvoice()
         return
       }
       await doStart()
@@ -236,53 +234,39 @@ export function OrganizerPanel({ tournament, registrations }: Props) {
             )}
           </div>
 
-          {/* Platform fee QPay modal — зөвхөн start дарахад гарна */}
-          {qpayStep !== "idle" && tournament.platform_fee > 0 && !feePaid && (
+          {/* Платформ шимтгэл — byl.mn redirect flow */}
+          {bylStep !== "idle" && tournament.platform_fee > 0 && !feePaid && (
             <div className="space-y-3 p-3 border border-[oklch(0.78_0.16_85)]/30 bg-[oklch(0.78_0.16_85)]/5 rounded-xl">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold">Платформ шимтгэл</p>
                   <p className="text-xs text-muted-foreground">{formatCurrency(tournament.platform_fee)}</p>
                 </div>
-                {qpayStep === "invoice" && (
+                {bylStep === "waiting" && (
                   <span className="text-[10px] bg-yellow-500/15 text-yellow-400 border border-yellow-500/30 rounded-full px-2 py-0.5">Хүлээгдэж байна</span>
                 )}
               </div>
 
-              {qpayStep === "loading" && (
+              {bylStep === "loading" && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  QPay нэхэмжлэл үүсгэж байна...
+                  byl.mn нэхэмжлэл үүсгэж байна...
                 </div>
               )}
 
-              {qpayStep === "invoice" && qpayInvoice && (
+              {bylStep === "waiting" && (
                 <>
-                  <div className="flex justify-center">
-                    <div className="bg-white p-3 rounded-xl">
-                      <QRCodeSVG value={qpayInvoice.qr_text} size={150} level="M" />
-                    </div>
-                  </div>
-                  <p className="text-xs text-center text-muted-foreground">QPay апп-аараа QR уншуулж төлбөр төлнө үү</p>
-                  {qpayInvoice.urls && qpayInvoice.urls.length > 0 && (
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {qpayInvoice.urls.slice(0, 4).map((u) => (
-                        <a key={u.name} href={u.link}
-                          className="flex items-center justify-center gap-1 py-1.5 rounded-lg border border-blue-500/30 text-[11px] text-blue-400 hover:bg-blue-500/10">
-                          <Smartphone className="h-3 w-3" />{u.name}
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                  <Button size="sm" variant="outline" className="w-full border-[oklch(0.78_0.16_85)]/30 text-[oklch(0.78_0.16_85)]"
-                    onClick={checkQPayAndStart}>
+                  <p className="text-xs text-muted-foreground">
+                    Нэхэмжлэл шинэ цонхонд нээгдлээ. QPay, SocialPay, Golomt-аар төлж буцаарай.
+                  </p>
+                  <Button size="sm" className="w-full glow-primary" onClick={checkBylAndStart}>
                     <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
                     Төлбөр шалгаж эхлүүлэх
                   </Button>
                 </>
               )}
 
-              {qpayStep === "checking" && (
+              {bylStep === "checking" && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Шалгаж байна...
@@ -290,7 +274,7 @@ export function OrganizerPanel({ tournament, registrations }: Props) {
               )}
 
               <Button size="sm" variant="ghost" className="w-full text-muted-foreground text-xs"
-                onClick={() => { setQpayStep("idle"); setQpayInvoice(null) }}>
+                onClick={() => { setBylStep("idle"); setBylTxnId(null) }}>
                 Болих
               </Button>
             </div>
