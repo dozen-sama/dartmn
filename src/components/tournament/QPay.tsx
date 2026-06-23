@@ -38,7 +38,7 @@ export function QPay({ tournamentId, playerId, amount, onSuccess }: QPayProps) {
         setInvoice(data)
         setStep("invoice")
       } else {
-        toast.error("QPay холболт амжилтгүй болоо")
+        toast.error(data.error ?? "QPay холболт амжилтгүй болоо")
         setStep("idle")
       }
     } catch {

@@ -84,7 +84,7 @@ export function OrganizerPanel({ tournament, registrations }: Props) {
         setQpayInvoice({ qr_text: data.qr_text, transaction_id: data.transaction_id, urls: data.urls })
         setQpayStep("invoice")
       } else {
-        toast.error("QPay холболт амжилтгүй болоо")
+        toast.error(data.error ?? "QPay холболт амжилтгүй болоо")
         setQpayStep("idle")
       }
     } catch {

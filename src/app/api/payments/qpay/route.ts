@@ -16,6 +16,10 @@ async function getQPayToken(): Promise<string> {
 }
 
 export async function POST(req: NextRequest) {
+  if (!process.env.QPAY_CLIENT_ID || process.env.QPAY_CLIENT_ID === "your_qpay_client_id") {
+    return NextResponse.json({ error: "QPay гэрээ хийгдээгүй байна" }, { status: 503 })
+  }
+
   const { tournament_id, player_id, amount, purpose } = await req.json()
   if (!tournament_id || !player_id || !amount) {
     return NextResponse.json({ error: "Missing params" }, { status: 400 })
