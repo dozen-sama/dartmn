@@ -53,10 +53,10 @@ export interface BoardCalibration {
   cy_pct: number
   r_pct: number
 
-  // 2-point calibration result (computed from bullseye + T20 taps)
-  // Stored as fractions of video width/height so they're resolution-independent.
-  bullseye_pct?: { x: number; y: number }  // user-tapped bullseye
-  t20_pct?:      { x: number; y: number }  // user-tapped T20
+  // Calibration taps stored as fractions of video width/height (resolution-independent)
+  bullseye_pct?: { x: number; y: number }  // center
+  t20_pct?:      { x: number; y: number }  // 12 o'clock
+  t6_pct?:       { x: number; y: number }  // 3 o'clock (segment 6 treble) — enables affine transform
 }
 
 const CAL_KEY = "dart-board-cal"
@@ -74,17 +74,29 @@ export function loadCalibration(): BoardCalibration {
 }
 
 /**
- * Derived parameters from 2-point calibration, computed at runtime per frame size.
+ * Derived parameters from calibration, computed at runtime per frame size.
+ * With 3-point calibration, `affine` is set and positionToScoreCal uses it
+ * instead of rotation-only correction — fixes shear from angled cameras.
  */
 export interface DerivedCal {
   cx: number       // bullseye pixel x
   cy: number       // bullseye pixel y
-  scale: number    // pixels per board-radius unit
-  rotation: number // radians: camera tilt correction (clockwise)
+  scale: number    // pixels per board-radius unit (outer double ring)
+  rotation: number // radians: camera tilt (used only in 2-point fallback)
+  // 3-point affine matrix [a,b,c; d,e,f] mapping pixel→board space (board radius = 1.0)
+  affine?: { a: number; b: number; c: number; d: number; e: number; f: number }
 }
 
 /**
  * Compute runtime calibration from stored percentages and actual frame dimensions.
+ *
+ * With 3 taps (bullseye + T20 + T6):
+ *   Solves a 2×3 affine matrix that maps pixel coords → normalized board coords
+ *   (where board center = 0,0 and outer double ring = radius 1.0).
+ *   Board reference frame: T20 at (0, -T20_NORM_DIST), T6 at (+T20_NORM_DIST, 0).
+ *
+ * With 2 taps (bullseye + T20):
+ *   Rotation + uniform scale only.
  */
 export function deriveCal(cal: BoardCalibration, W: number, H: number): DerivedCal {
   if (cal.bullseye_pct && cal.t20_pct) {
@@ -95,38 +107,64 @@ export function deriveCal(cal: BoardCalibration, W: number, H: number): DerivedC
     const dx = tx - bx
     const dy = ty - by
     const dist = Math.sqrt(dx * dx + dy * dy)
-    // rotation: angle from "up" (-Y) to the T20 vector, clockwise positive
     const rotation = Math.atan2(dx, -dy)
     const scale = dist / T20_NORM_DIST
+
+    if (cal.t6_pct) {
+      // 3-point affine: board axes are T20 (up) and T6 (right), both at T20_NORM_DIST.
+      // Affine: pixel = A * board + t  →  board = A_inv * (pixel - t)
+      // From bullseye (board origin): c = bx, f = by
+      // From T20 at board (0, -D): b = (tx-bx)/(-D), e = (ty-by)/(-D)
+      // From T6 at board (+D, 0): a = (t6x-bx)/D,    d = (t6y-by)/D
+      const D = T20_NORM_DIST
+      const t6x = cal.t6_pct.x * W
+      const t6y = cal.t6_pct.y * H
+      const a = (t6x - bx) / D
+      const b = (tx  - bx) / (-D)
+      const c = bx
+      const d = (t6y - by) / D
+      const e = (ty  - by) / (-D)
+      const f = by
+      return { cx: bx, cy: by, scale, rotation, affine: { a, b, c, d, e, f } }
+    }
+
     return { cx: bx, cy: by, scale, rotation }
   }
   // Fallback: use circle overlay (no rotation correction)
-  return {
-    cx: cal.cx_pct * W,
-    cy: cal.cy_pct * H,
-    scale: cal.r_pct * W,
-    rotation: 0,
-  }
+  return { cx: cal.cx_pct * W, cy: cal.cy_pct * H, scale: cal.r_pct * W, rotation: 0 }
 }
 
 /**
- * Convert a raw pixel position to a dart score using the 2-point calibration.
- * Corrects for camera rotation/angle.
+ * Convert a raw pixel position to a dart score using calibration data.
+ *
+ * With 3-point affine: applies full affine inverse → normalized board coords → score.
+ * With 2-point rotation: applies inverse rotation + scale → score.
  */
 export function positionToScoreCal(
   px: number, py: number,
   cal: DerivedCal,
 ): DartScore {
-  // 1. Translate to board center
+  if (cal.affine) {
+    // Invert affine: board = A^-1 * (pixel - t)
+    // A = [[a,b],[d,e]], t = [c,f]
+    const { a, b, c, d, e, f } = cal.affine
+    const det = a * e - b * d
+    if (Math.abs(det) < 1e-6) {
+      // Degenerate (T20 and T6 collinear with bullseye) — fall through to rotation
+    } else {
+      const px0 = px - c, py0 = py - f
+      const boardX = ( e * px0 - b * py0) / det
+      const boardY = (-d * px0 + a * py0) / det
+      // Board coords are normalized so outer double ring = 1.0
+      return positionToScore(boardX, boardY, 1.0)
+    }
+  }
+  // 2-point: rotation + uniform scale
   const rdx = px - cal.cx
   const rdy = py - cal.cy
-  // 2. Apply inverse rotation to align T20 with the true "up" direction
   const cos = Math.cos(-cal.rotation)
   const sin = Math.sin(-cal.rotation)
-  const corrX = rdx * cos - rdy * sin
-  const corrY = rdx * sin + rdy * cos
-  // 3. Score using board geometry
-  return positionToScore(corrX, corrY, cal.scale)
+  return positionToScore(rdx * cos - rdy * sin, rdx * sin + rdy * cos, cal.scale)
 }
 
 // ── Frame analysis ────────────────────────────────────────────────────────────

@@ -18,17 +18,21 @@ interface TapPoint { x: number; y: number }
 const CAL_STEPS = [
   {
     key: "bullseye" as const,
-    label: "1 / 2 — Bullseye",
+    label: "1 / 3 — Bullseye",
     desc: "Самбарын дунд цэгийг (Bullseye) дарна уу",
     color: "text-red-400",
-    dot: "bg-red-400",
   },
   {
     key: "t20" as const,
-    label: "2 / 2 — T20",
-    desc: "Самбарын дээд хэсэг T20-ийн дунд хэсгийг дарна уу",
+    label: "2 / 3 — T20 (12 цаг)",
+    desc: "Дээд хэсгийн T20-ийн голыг дарна уу",
     color: "text-green-400",
-    dot: "bg-green-400",
+  },
+  {
+    key: "t6" as const,
+    label: "3 / 3 — T6 (3 цаг)",
+    desc: "Баруун хэсгийн T6-ийн голыг дарна уу",
+    color: "text-blue-400",
   },
 ]
 
@@ -47,9 +51,10 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Calibration taps
-  const [calStep, setCalStep] = useState<0 | 1>(0)
+  const [calStep, setCalStep] = useState<0 | 1 | 2>(0)
   const [bullseyeTap, setBullseyeTap] = useState<TapPoint | null>(null)
   const [t20Tap, setT20Tap] = useState<TapPoint | null>(null)
+  const [t6Tap, setT6Tap] = useState<TapPoint | null>(null)
 
   const allAutoOk = lightStatus === "ok" && stabilityStatus === "ok"
 
@@ -140,20 +145,23 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
     if (calStep === 0) {
       setBullseyeTap({ x, y })
       setCalStep(1)
-    } else {
+    } else if (calStep === 1) {
       setT20Tap({ x, y })
-      // All done
-      finishCalibration({ x: bullseyeTap!.x, y: bullseyeTap!.y }, { x, y })
+      setCalStep(2)
+    } else {
+      setT6Tap({ x, y })
+      finishCalibration(bullseyeTap!, t20Tap!, { x, y })
     }
   }
 
-  function finishCalibration(bullseye: TapPoint, t20: TapPoint) {
+  function finishCalibration(bullseye: TapPoint, t20: TapPoint, t6: TapPoint) {
     saveCalibration({
       cx_pct: bullseye.x,
       cy_pct: bullseye.y,
       r_pct: 0.26,
       bullseye_pct: bullseye,
       t20_pct: t20,
+      t6_pct: t6,
     })
     sessionStorage.setItem("cam-ready", "1")
     setPhase("done")
@@ -220,23 +228,27 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
             {/* Phase: calibrate — tap markers */}
             {phase === "calibrate" && (
               <>
-                {/* Bullseye tap marker */}
-                {bullseyeTap && (
-                  <div
-                    className="absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-                    style={{ left: `${bullseyeTap.x * 100}%`, top: `${bullseyeTap.y * 100}%` }}
-                  >
-                    <div className="h-5 w-5 rounded-full bg-red-500/80 border-2 border-white/60 flex items-center justify-center">
-                      <Check className="h-2.5 w-2.5 text-white" />
+                {/* Placed tap markers */}
+                {[
+                  { tap: bullseyeTap, color: "bg-red-500/80" },
+                  { tap: t20Tap,      color: "bg-green-500/80" },
+                  { tap: t6Tap,       color: "bg-blue-500/80" },
+                ].map(({ tap, color }, i) =>
+                  tap ? (
+                    <div
+                      key={i}
+                      className="absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+                      style={{ left: `${tap.x * 100}%`, top: `${tap.y * 100}%` }}
+                    >
+                      <div className={cn("h-5 w-5 rounded-full border-2 border-white/60 flex items-center justify-center", color)}>
+                        <Check className="h-2.5 w-2.5 text-white" />
+                      </div>
                     </div>
-                  </div>
+                  ) : null
                 )}
-                {/* Tap hint crosshair */}
+                {/* Current step instruction */}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className={cn(
-                    "px-3 py-2 rounded-xl text-xs font-semibold text-center",
-                    "bg-black/70 text-white"
-                  )}>
+                  <div className="px-3 py-2 rounded-xl text-xs font-semibold text-center bg-black/70 text-white">
                     {CAL_STEPS[calStep].desc}
                   </div>
                 </div>
@@ -284,7 +296,7 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
           {phase === "calibrate" && (
             <div className="space-y-2">
               {CAL_STEPS.map((s, i) => {
-                const done = i === 0 ? !!bullseyeTap : !!t20Tap
+                const done = [!!bullseyeTap, !!t20Tap, !!t6Tap][i]
                 const active = i === calStep
                 return (
                   <div key={s.key} className={cn(
