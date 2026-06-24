@@ -2,14 +2,13 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Activity, BarChart3, LayoutDashboard, Monitor, Target, Trophy } from "lucide-react"
+import { Activity, BarChart3, LayoutDashboard, Monitor, Trophy } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { mn } from "@/locales/mn"
 
 const items = [
   { href: "/dashboard", label: mn.nav.home, icon: LayoutDashboard },
   { href: "/tournaments", label: "Тэмцээн", icon: Trophy },
-  { href: "/tournaments/new", label: "Шинэ", icon: Target },
   { href: "/play", label: mn.nav.play, icon: Monitor },
   { href: "/ratings", label: mn.nav.ratings, icon: BarChart3 },
   { href: "/stats", label: "Стат", icon: Activity },
@@ -20,7 +19,7 @@ export function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-50 md:hidden border-t border-border/50 bg-background/95 backdrop-blur-md">
-      <div className="grid grid-cols-6 h-16">
+      <div className="grid grid-cols-5 h-16">
         {items.map(({ href, label, icon: Icon }) => {
           const isActive = pathname === href || pathname.startsWith(href + "/")
           return (

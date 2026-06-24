@@ -385,7 +385,7 @@ export function PricingContent({ userId, isPremium, premiumExpires, clubPlan }: 
         {[
           {
             q: "Төлбөрийг хэрхэн төлөх вэ?",
-            a: "QPay болон SocialPay-р төлбөр хийх боломжтой. Монголын бүх банкны апп-аар хийж болно.",
+            a: "Монголын банкны апп болон e-wallet-аар төлбөр хийх боломжтой.",
           },
           {
             q: "Subscription-г цуцлах боломжтой юу?",

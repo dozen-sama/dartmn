@@ -63,7 +63,7 @@ function CheckoutForm() {
         setStep("waiting")
         window.open(data.payment_url, "_blank", "noopener,noreferrer")
       } else {
-        toast.error(data.error ?? "byl.mn холболт амжилтгүй")
+        toast.error(data.error ?? "Төлбөрийн холболт амжилтгүй")
         setStep("idle")
       }
     } catch {
@@ -163,7 +163,7 @@ function CheckoutForm() {
           {step === "idle" && (
             <Button onClick={createInvoice} className="w-full glow-primary" size="lg">
               <CreditCard className="h-4 w-4 mr-2" />
-              byl.mn-ээр {formatCurrency(total)} төлөх
+              Онлайнаар {formatCurrency(total)} төлөх
             </Button>
           )}
 
@@ -178,7 +178,7 @@ function CheckoutForm() {
             <div className="space-y-3">
               <p className="text-xs text-muted-foreground text-center">
                 Төлбөрийн хуудас шинэ цонхонд нээгдлээ.<br />
-                QPay, SocialPay, Golomt-аар <strong className="text-foreground">{formatCurrency(total)}</strong> төлж буцаарай.
+                Дэмжигдсэн аппаараа <strong className="text-foreground">{formatCurrency(total)}</strong> төлж буцаарай.
               </p>
               <div className="flex gap-2">
                 <Button onClick={checkPayment} className="flex-1 glow-primary">

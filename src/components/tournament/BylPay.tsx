@@ -33,11 +33,11 @@ export function BylPay({ tournamentId, playerId, amount, onSuccess }: BylPayProp
         setStep("waiting")
         window.open(data.payment_url, "_blank", "noopener,noreferrer")
       } else {
-        toast.error(data.error ?? "byl.mn холболт амжилтгүй болоо")
+        toast.error(data.error ?? "Төлбөрийн холболт амжилтгүй болоо")
         setStep("idle")
       }
     } catch {
-      toast.error("byl.mn холболт амжилтгүй болоо")
+      toast.error("Төлбөрийн холболт амжилтгүй болоо")
       setStep("idle")
     }
   }
@@ -76,7 +76,7 @@ export function BylPay({ tournamentId, playerId, amount, onSuccess }: BylPayProp
       {step === "idle" && (
         <Button onClick={createInvoice} className="w-full bg-blue-600 hover:bg-blue-700 text-white border-0">
           <CreditCard className="h-4 w-4 mr-2" />
-          byl.mn-ээр төлбөр төлөх — {formatCurrency(amount)}
+          Онлайн төлбөр төлөх — {formatCurrency(amount)}
         </Button>
       )}
 
@@ -91,7 +91,7 @@ export function BylPay({ tournamentId, playerId, amount, onSuccess }: BylPayProp
         <div className="space-y-3 p-4 border border-blue-500/30 bg-blue-500/5 rounded-xl">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold">byl.mn нэхэмжлэл</p>
+              <p className="text-sm font-semibold">Нэхэмжлэл</p>
               <p className="text-xs text-muted-foreground">{formatCurrency(amount)}</p>
             </div>
             <Badge className="bg-yellow-500/15 text-yellow-400 border-yellow-500/30 text-xs">
@@ -100,7 +100,7 @@ export function BylPay({ tournamentId, playerId, amount, onSuccess }: BylPayProp
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Төлбөрийн хуудас шинэ цонхонд нээгдлээ. QPay, SocialPay, Golomt-аар төлж буцаарай.
+            Төлбөрийн хуудас шинэ цонхонд нээгдлээ. Дэмжигдсэн аппаараа төлж буцаарай.
           </p>
 
           <div className="flex gap-2">

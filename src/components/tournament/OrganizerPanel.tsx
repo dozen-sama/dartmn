@@ -84,11 +84,11 @@ export function OrganizerPanel({ tournament, registrations }: Props) {
         setBylStep("waiting")
         window.open(data.payment_url, "_blank", "noopener,noreferrer")
       } else {
-        toast.error(data.error ?? "byl.mn холболт амжилтгүй болоо")
+        toast.error(data.error ?? "Төлбөрийн холболт амжилтгүй болоо")
         setBylStep("idle")
       }
     } catch {
-      toast.error("byl.mn холболт амжилтгүй болоо")
+      toast.error("Төлбөрийн холболт амжилтгүй болоо")
       setBylStep("idle")
     }
   }
@@ -234,7 +234,7 @@ export function OrganizerPanel({ tournament, registrations }: Props) {
             )}
           </div>
 
-          {/* Платформ шимтгэл — byl.mn redirect flow */}
+          {/* Платформ шимтгэл */}
           {bylStep !== "idle" && tournament.platform_fee > 0 && !feePaid && (
             <div className="space-y-3 p-3 border border-[oklch(0.78_0.16_85)]/30 bg-[oklch(0.78_0.16_85)]/5 rounded-xl">
               <div className="flex items-center justify-between">
@@ -250,14 +250,14 @@ export function OrganizerPanel({ tournament, registrations }: Props) {
               {bylStep === "loading" && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  byl.mn нэхэмжлэл үүсгэж байна...
+                  Нэхэмжлэл үүсгэж байна...
                 </div>
               )}
 
               {bylStep === "waiting" && (
                 <>
                   <p className="text-xs text-muted-foreground">
-                    Нэхэмжлэл шинэ цонхонд нээгдлээ. QPay, SocialPay, Golomt-аар төлж буцаарай.
+                    Нэхэмжлэл шинэ цонхонд нээгдлээ. Дэмжигдсэн аппаараа төлж буцаарай.
                   </p>
                   <Button size="sm" className="w-full glow-primary" onClick={checkBylAndStart}>
                     <RefreshCw className="h-3.5 w-3.5 mr-1.5" />

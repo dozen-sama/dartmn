@@ -671,7 +671,7 @@ export function CreateTournamentForm({ userId, userProfile }: Props) {
                 ⭐ Premium тэмцааны — платформ шимтгэл
               </p>
               <p className="text-[11px] text-muted-foreground">
-                Тэмцааныг эхлүүлэхэд зохион байгуулагч byl.mn-ээр нэг удаа <strong className="text-foreground">{platformFee.toLocaleString()}₮</strong> төлнө.
+                Тэмцааныг эхлүүлэхэд зохион байгуулагч нэг удаа <strong className="text-foreground">{platformFee.toLocaleString()}₮</strong> платформ шимтгэл төлнө.
                 Тоглогчид нэмэлт хураамж байхгүй.
               </p>
             </div>
