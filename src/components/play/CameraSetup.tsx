@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { AlertTriangle, Check, ChevronLeft, Loader2, Sun, Video } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { saveCalibration } from "@/lib/dartboard"
 
 type LightStatus = "checking" | "good" | "dark" | "bright"
 
@@ -73,8 +74,9 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
   }, [lightStatus, boardConfirmed, distConfirmed])
 
   function handleConfirm() {
-    // Камерын зөвшөөрөл бэлэн — session-д тэмдэглэнэ
     sessionStorage.setItem("cam-ready", "1")
+    // Save calibration: circle is centered, 26% of video width radius
+    saveCalibration({ cx_pct: 0.5, cy_pct: 0.5, r_pct: 0.26 })
     streamRef.current?.getTracks().forEach((t) => t.stop())
     onConfirmed()
   }
@@ -189,9 +191,9 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
                 {distConfirmed && <Check className="h-3 w-3 text-green-400" />}
               </div>
               <div>
-                <p className="text-xs font-semibold">📏 Зай (1.5 – 2.5 м)</p>
+                <p className="text-xs font-semibold">📏 Зай (≈ 30–60 см)</p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Самбараас ойролцоогоор 2 метр зайд байрлуулна. Бүтэн самбар харагдах ёстой.
+                  Самбараас 30–60 см зайд байрлуулна. Самбар дугуй хэлбэрт дэлгэцийн ихэнхийг эзлэх ёстой.
                 </p>
               </div>
             </button>
