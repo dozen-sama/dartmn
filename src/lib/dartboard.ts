@@ -70,28 +70,38 @@ export function loadCalibration(): BoardCalibration {
 }
 
 /**
- * Analyze two canvas frames. Returns the estimated dart tip position in pixels
- * (relative to the full frame), or null if no significant change detected.
+ * Analyze two canvas frames and find where a dart landed.
+ * Only considers changed pixels INSIDE the board circle (ignores flights/shaft outside board).
+ * Returns the centroid of changed pixels within the board area, or null if nothing found.
  */
 export function detectDartInFrames(
   refData: ImageData,
   curData: ImageData,
-  threshold = 30,
-): { px: number; py: number } | null {
+  boardCx: number,
+  boardCy: number,
+  boardRadius: number,
+  threshold = 25,
+): { px: number; py: number; pixelCount: number } | null {
   const W = refData.width
   const H = refData.height
-  const data1 = refData.data
-  const data2 = curData.data
+  const d1 = refData.data
+  const d2 = curData.data
 
   let sumX = 0, sumY = 0, count = 0
 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
+      // Only consider pixels inside the board circle + small margin
+      const dx = x - boardCx
+      const dy = y - boardCy
+      if (dx * dx + dy * dy > boardRadius * boardRadius * 1.1) continue
+
       const i = (y * W + x) * 4
       const diff =
-        Math.abs(data2[i]     - data1[i]) +
-        Math.abs(data2[i + 1] - data1[i + 1]) +
-        Math.abs(data2[i + 2] - data1[i + 2])
+        Math.abs(d2[i]     - d1[i]) +
+        Math.abs(d2[i + 1] - d1[i + 1]) +
+        Math.abs(d2[i + 2] - d1[i + 2])
+
       if (diff > threshold) {
         sumX += x
         sumY += y
@@ -100,6 +110,21 @@ export function detectDartInFrames(
     }
   }
 
-  if (count < 80) return null // too few changed pixels — probably noise
-  return { px: sumX / count, py: sumY / count }
+  if (count < 40) return null
+  return { px: sumX / count, py: sumY / count, pixelCount: count }
+}
+
+/**
+ * Measure total motion between two frames (whole frame).
+ * Used for motion detection to trigger dart scoring.
+ */
+export function measureMotion(refData: ImageData, curData: ImageData, threshold = 20): number {
+  const d1 = refData.data
+  const d2 = curData.data
+  let changed = 0
+  for (let i = 0; i < d1.length; i += 4) {
+    const diff = Math.abs(d2[i] - d1[i]) + Math.abs(d2[i+1] - d1[i+1]) + Math.abs(d2[i+2] - d1[i+2])
+    if (diff > threshold) changed++
+  }
+  return changed / (d1.length / 4) // fraction of changed pixels
 }
