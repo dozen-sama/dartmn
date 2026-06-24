@@ -876,6 +876,40 @@ export interface Database {
         Update: Record<string, never>
         Relationships: []
       }
+      matchmaking_queue: {
+        Row: {
+          id: string
+          player_id: string
+          rating_points: number
+          format: string
+          best_of: number
+          double_out: boolean
+          room_id: string | null
+          status: "searching" | "matched"
+          joined_at: string
+        }
+        Insert: {
+          id?: string
+          player_id: string
+          rating_points: number
+          format?: string
+          best_of?: number
+          double_out?: boolean
+          room_id?: string | null
+          status?: "searching" | "matched"
+          joined_at?: string
+        }
+        Update: {
+          rating_points?: number
+          format?: string
+          best_of?: number
+          double_out?: boolean
+          room_id?: string | null
+          status?: "searching" | "matched"
+          joined_at?: string
+        }
+        Relationships: []
+      }
       payment_transactions: {
         Row: {
           id: string

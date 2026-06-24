@@ -18,6 +18,7 @@ import { VisitLimitPicker } from "@/components/game/VisitLimitPicker"
 import { createClient } from "@/lib/supabase/client"
 import { mn } from "@/locales/mn"
 import { OnlineRoom, Profile } from "@/types/database"
+import { MatchmakingSection } from "@/components/play/MatchmakingSection"
 
 type ProfileSnippet = Pick<Profile, "id" | "display_name" | "username" | "avatar_url" | "rating_points">
 
@@ -207,6 +208,15 @@ export function PlayLobby({ profile, activeRooms }: Props) {
           </p>
         </div>
       </div>
+
+      {/* ELO Matchmaking */}
+      {profile && (
+        <MatchmakingSection
+          userId={profile.id}
+          ratingPoints={profile.rating_points}
+          displayName={profile.display_name}
+        />
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* Create Room */}
