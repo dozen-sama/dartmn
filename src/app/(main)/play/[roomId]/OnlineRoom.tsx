@@ -3,18 +3,21 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { ArrowLeft, Check, Copy, Delete, Flag, Loader2, LogOut, RotateCcw, Users, X } from "lucide-react"
+import { ArrowLeft, Check, Copy, Delete, Flag, Loader2, LogOut, RotateCcw, Users, Video, VideoOff, Volume2, VolumeX, X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { AccountLinkPicker, type LinkedAccount } from "@/components/game/AccountLinkPicker"
 import { DartSelector } from "@/components/game/DartSelector"
+import { CameraGrid } from "@/components/game/CameraGrid"
 import { createClient } from "@/lib/supabase/client"
 import { getTier } from "@/lib/rating"
 import { teamSize, totalPlayers, type RoomMode } from "@/lib/local-game/room"
 import { deriveX01 } from "@/lib/local-game/x01"
 import { classifyTurn, getCheckout, isPossibleVisitScore } from "@/lib/local-game/checkouts"
 import { useScoreboardKeyboard } from "@/hooks/useScoreboardKeyboard"
+import { useWebRTCCamera } from "@/hooks/useWebRTCCamera"
+import { useCaller } from "@/hooks/useCaller"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { buttonVariants } from "@/components/ui/button"
@@ -76,8 +79,11 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName, t
   const [dartsUsed, setDartsUsed] = useState(3)
   const [submitting, setSubmitting] = useState(false)
   const [now, setNow] = useState(() => Date.now())
+  const [showCamera, setShowCamera] = useState(false)
 
   const mode = liveRoom.mode as RoomMode
+  const { enabled: callerOn, supported: callerSupported, toggle: toggleCaller, announce } = useCaller()
+  const { cameraOn, localStream, remoteStreams, toggleCamera, cameraError } = useWebRTCCamera(supabase, room.id, currentUserId)
   const n = teamSize(mode)
   const me = livePlayers.find((p) => p.player_id === currentUserId) ?? null
   const isHost = liveRoom.host_id === currentUserId
@@ -327,6 +333,12 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName, t
   function submitTurnNow() {
     if (input === "" || submitting || !isMyTurn) return
     if (!isPossibleVisitScore(gInputNum)) { toast.error(`${gInputNum} — 3 дартаар гаргах боломжгүй оноо`); return }
+    const otherTeam = gActiveTeam === 0 ? 1 : 0
+    announce({
+      points: gInputNum,
+      outcome: gIsCheckout ? "checkout" : gIsBust ? "bust" : "score",
+      nextRemaining: game.scores[otherTeam],
+    })
     submitTurn(gInputNum, gIsCheckout ? dartsUsed : 3)
   }
   // Компьютерийн гар — тоо/Backspace/Enter (input талбарт фокустай үед hook алгасна)
@@ -461,10 +473,47 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName, t
               <Flag className="h-4 w-4" />
             </button>
           )}
+          {callerSupported && (
+            <button onClick={toggleCaller} title={callerOn ? "Дуут зарлагч унтраах" : "Дуут зарлагч асаах"}
+              className="text-muted-foreground hover:text-foreground">
+              {callerOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+            </button>
+          )}
+          <button
+            onClick={() => { setShowCamera((v) => !v) }}
+            title={showCamera ? "Камер хаах" : "Камер нээх"}
+            className={cn("text-muted-foreground hover:text-foreground", cameraOn && "text-blue-400")}>
+            {cameraOn ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}
+          </button>
           {done
             ? <Badge className="bg-[oklch(0.78_0.16_85)]/15 text-[oklch(0.78_0.16_85)] border-[oklch(0.78_0.16_85)]/30 text-xs">Дууссан</Badge>
             : <Badge className="bg-primary/15 text-primary border-primary/30 pulse-live text-xs">LIVE</Badge>}
         </div>
+
+        {/* Camera panel */}
+        {showCamera && (
+          <div className="shrink-0 rounded-xl border border-border/40 bg-card/80 p-2 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground">Камер</span>
+              <button
+                onClick={async () => { await toggleCamera(); if (!cameraOn) setShowCamera(true) }}
+                className={cn("text-xs flex items-center gap-1 px-2 py-1 rounded-lg transition-colors",
+                  cameraOn ? "bg-destructive/10 text-destructive hover:bg-destructive/20" : "bg-blue-500/10 text-blue-400 hover:bg-blue-500/20")}>
+                {cameraOn ? <><VideoOff className="h-3 w-3" />Унтраах</> : <><Video className="h-3 w-3" />Асаах</>}
+              </button>
+            </div>
+            {cameraError && <p className="text-xs text-destructive">{cameraError}</p>}
+            <CameraGrid
+              localStream={localStream}
+              remoteStreams={remoteStreams}
+              myLabel={livePlayers.find(p => p.player_id === currentUserId)?.profile?.display_name ?? "Та"}
+              getLabel={(id) => livePlayers.find(p => p.player_id === id)?.profile?.display_name ?? "Тоглогч"}
+            />
+            {!cameraOn && remoteStreams.size === 0 && (
+              <p className="text-[11px] text-muted-foreground text-center py-1">Камер асаахад өрсөлдөгч харна</p>
+            )}
+          </div>
+        )}
 
         {/* Winner banner */}
         {done && winnerTeam !== null && winnerTeam !== undefined && (

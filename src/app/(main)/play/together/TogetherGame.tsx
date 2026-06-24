@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react"
 import {
-  ArrowLeft, Delete, Minus, Pencil, Plus, RotateCcw, Users, X, Zap,
+  ArrowLeft, Delete, Minus, Pencil, Plus, RotateCcw, Users, Video, VideoOff, Volume2, VolumeX, X, Zap,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -10,7 +10,9 @@ import { cn } from "@/lib/utils"
 import { getCheckout, classifyTurn, isPossibleVisitScore } from "@/lib/local-game/checkouts"
 import { deriveX01 } from "@/lib/local-game/x01"
 import { useScoreboardKeyboard } from "@/hooks/useScoreboardKeyboard"
+import { useCaller } from "@/hooks/useCaller"
 import { BullOff } from "@/components/game/BullOff"
+import { CameraGrid } from "@/components/game/CameraGrid"
 import { VisitLimitPicker } from "@/components/game/VisitLimitPicker"
 import { DartSelector } from "@/components/game/DartSelector"
 import { AccountLinkPicker, type LinkedAccount } from "@/components/game/AccountLinkPicker"
@@ -78,6 +80,42 @@ export function TogetherGame() {
 
   const legsToWin = Math.ceil(bestOf / 2)
   const startScore = parseInt(format) || 501
+
+  // Camera (local only — same device game)
+  const [cameraOn, setCameraOn] = useState(false)
+  const [showCamera, setShowCamera] = useState(false)
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null)
+  const [cameraError, setCameraError] = useState<string | null>(null)
+  const localStreamRef = useRef<MediaStream | null>(null)
+
+  const { enabled: callerOn, supported: callerSupported, toggle: toggleCaller, announce } = useCaller()
+
+  async function toggleCamera() {
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((t) => t.stop())
+      localStreamRef.current = null
+      setLocalStream(null)
+      setCameraOn(false)
+      setCameraError(null)
+    } else {
+      setCameraError(null)
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
+          audio: false,
+        })
+        localStreamRef.current = stream
+        setLocalStream(stream)
+        setCameraOn(true)
+      } catch {
+        setCameraError("Камер нэвтэрч чадсангүй. Зөвшөөрөл шалгана уу.")
+      }
+    }
+  }
+
+  useEffect(() => {
+    return () => { localStreamRef.current?.getTracks().forEach((t) => t.stop()) }
+  }, [])
 
   // ── Setup helpers ──────────────────────────────────────
   function setTeamName(i: number, name: string) {
@@ -235,6 +273,16 @@ export function TogetherGame() {
     if (!isPossibleVisitScore(score)) {
       toast.error(`${score} — 3 дартаар гаргах боломжгүй оноо. Дахин шалгана уу.`)
       return
+    }
+
+    if (editingIndex === null) {
+      // Announce only for new visits (not edits)
+      const otherTeam = d.activeTeam === 0 ? 1 : 0
+      announce({
+        points: score,
+        outcome: isCheckout ? "checkout" : isBust ? "bust" : "score",
+        nextRemaining: d.scores[otherTeam],
+      })
     }
 
     if (editingIndex !== null) {
@@ -535,9 +583,43 @@ export function TogetherGame() {
                 <RotateCcw className="h-4 w-4" />
               </button>
             )}
+            {callerSupported && (
+              <button onClick={toggleCaller} title={callerOn ? "Дуут зарлагч унтраах" : "Дуут зарлагч асаах"}
+                className="text-muted-foreground hover:text-foreground">
+                {callerOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+              </button>
+            )}
+            <button
+              onClick={() => setShowCamera((v) => !v)}
+              title={showCamera ? "Камер хаах" : "Камер нээх"}
+              className={cn("text-muted-foreground hover:text-foreground", cameraOn && "text-blue-400")}>
+              {cameraOn ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}
+            </button>
             <Badge className="bg-primary/15 text-primary border-primary/30 pulse-live text-xs">LIVE</Badge>
           </div>
         </div>
+
+        {/* Camera panel */}
+        {showCamera && (
+          <div className="shrink-0 rounded-xl border border-border/40 bg-card/80 p-2 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground">Камер</span>
+              <button
+                onClick={toggleCamera}
+                className={cn("text-xs flex items-center gap-1 px-2 py-1 rounded-lg transition-colors",
+                  cameraOn ? "bg-destructive/10 text-destructive hover:bg-destructive/20" : "bg-blue-500/10 text-blue-400 hover:bg-blue-500/20")}>
+                {cameraOn ? <><VideoOff className="h-3 w-3" />Унтраах</> : <><Video className="h-3 w-3" />Асаах</>}
+              </button>
+            </div>
+            {cameraError && <p className="text-xs text-destructive">{cameraError}</p>}
+            <CameraGrid
+              localStream={localStream}
+              remoteStreams={new Map()}
+              myLabel="Камер"
+            />
+            {!cameraOn && <p className="text-[11px] text-muted-foreground text-center py-1">Дартсны тавцан харуулах</p>}
+          </div>
+        )}
 
         {/* ── TV scoreboard ── */}
         <div className="rounded-xl overflow-hidden border border-border/40 flex flex-col min-h-0 flex-1">
