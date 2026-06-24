@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { Loader2, Monitor, Plus, Search, Users, Zap } from "lucide-react"
+import { Camera, Loader2, Monitor, Plus, Search, Users, Video, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -19,6 +19,7 @@ import { createClient } from "@/lib/supabase/client"
 import { mn } from "@/locales/mn"
 import { OnlineRoom, Profile } from "@/types/database"
 import { MatchmakingSection } from "@/components/play/MatchmakingSection"
+import { CameraSetup } from "@/components/play/CameraSetup"
 
 type ProfileSnippet = Pick<Profile, "id" | "display_name" | "username" | "avatar_url" | "rating_points">
 
@@ -33,6 +34,7 @@ interface Props {
 
 export function PlayLobby({ profile, activeRooms }: Props) {
   const router = useRouter()
+  const [camFlow, setCamFlow] = useState<"idle" | "setup" | "ready">("idle")
   const [creating, setCreating] = useState(false)
   const [joining, setJoining] = useState(false)
   const [joinCode, setJoinCode] = useState("")
@@ -209,16 +211,91 @@ export function PlayLobby({ profile, activeRooms }: Props) {
         </div>
       </div>
 
-      {/* ELO Matchmaking */}
-      {profile && (
-        <MatchmakingSection
-          userId={profile.id}
-          ratingPoints={profile.rating_points}
-          displayName={profile.display_name}
-        />
+      {/* ── Камертай тоглолт ── */}
+      {camFlow === "idle" && (
+        <div className="rounded-2xl border border-blue-500/25 bg-gradient-to-br from-blue-500/8 via-card to-card p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="flex-1 space-y-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <Camera className="h-4 w-4 text-blue-400 shrink-0" />
+              <h2 className="text-sm font-bold">Камертай тоглолт</h2>
+              <Badge className="bg-blue-500/15 text-blue-400 border-blue-500/30 text-[10px]">Beta</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Камераар самбарыг зөв байрлуулсны дараа ELO хайлт болон онлайн өрөөнд орох боломжтой.
+            </p>
+          </div>
+          <button
+            onClick={() => setCamFlow("setup")}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-blue-500/30 text-blue-400 text-sm font-semibold hover:bg-blue-500/10 transition-all shrink-0">
+            <Video className="h-4 w-4" />
+            Камер тохируулах
+          </button>
+        </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      {camFlow === "setup" && (
+        <div className="rounded-2xl border border-blue-500/25 bg-card/80 p-4">
+          <CameraSetup
+            onConfirmed={() => setCamFlow("ready")}
+            onBack={() => setCamFlow("idle")}
+          />
+        </div>
+      )}
+
+      {camFlow === "ready" && (
+        <div className="rounded-2xl border border-blue-500/40 bg-gradient-to-br from-blue-500/10 via-card to-card p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-sm font-bold text-green-400">Камер бэлэн</span>
+            </div>
+            <button onClick={() => { setCamFlow("idle"); sessionStorage.removeItem("cam-ready") }}
+              className="text-xs text-muted-foreground hover:text-foreground">
+              Болих
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => {
+                if (!profile) return toast.error("Нэвтрэх шаардлагатай")
+                document.getElementById("cam-matchmaking")?.scrollIntoView({ behavior: "smooth" })
+              }}
+              className="flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl border border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10 transition-all text-blue-400 font-semibold text-sm">
+              <Zap className="h-5 w-5" />
+              ELO хайлт
+            </button>
+            <button
+              onClick={() => document.getElementById("create-room")?.scrollIntoView({ behavior: "smooth" })}
+              className="flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-all text-primary font-semibold text-sm">
+              <Plus className="h-5 w-5" />
+              Онлайн өрөө
+            </button>
+          </div>
+          {/* Per-dart game (local, with camera) */}
+          <button
+            onClick={() => router.push("/play/camera")}
+            className="w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl border border-green-500/30 bg-green-500/5 hover:bg-green-500/10 transition-all text-sm">
+            <div className="flex items-center gap-2 text-green-400 font-semibold">
+              <Camera className="h-4 w-4" />
+              Камертай дадлага тоглолт
+            </div>
+            <span className="text-xs text-muted-foreground">Dart тус бүр харагдана →</span>
+          </button>
+        </div>
+      )}
+
+      {/* ELO Matchmaking */}
+      {profile && (
+        <div id="cam-matchmaking">
+          <MatchmakingSection
+            userId={profile.id}
+            ratingPoints={profile.rating_points}
+            displayName={profile.display_name}
+          />
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5" id="create-room">
         {/* Create Room */}
         <Card className="border-border/50 bg-card/80">
           <CardHeader className="pb-3">
