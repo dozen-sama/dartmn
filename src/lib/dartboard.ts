@@ -3,55 +3,60 @@
 
 const SEGMENTS = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5]
 
-// Normalized radii (relative to outer double ring = 170mm total)
 const R = {
-  bullseye:      6.35 / 170,   // 0.037 — inner bull (50)
-  bull:          16   / 170,   // 0.094 — outer bull (25)
-  singleInner:   99   / 170,   // 0.582 — inner single → triple ring starts
-  tripleOuter:   107  / 170,   // 0.629 — triple ring ends
-  singleOuter:   162  / 170,   // 0.953 — outer single → double ring starts
-  doubleOuter:   170  / 170,   // 1.0   — outer double ring ends (miss beyond)
+  bullseye:    6.35 / 170,
+  bull:        16   / 170,
+  singleInner: 99   / 170,
+  tripleOuter: 107  / 170,
+  singleOuter: 162  / 170,
+  doubleOuter: 170  / 170,
 }
+
+// T20 center sits at the middle of the treble ring (~103mm from board center)
+const T20_NORM_DIST = 103 / 170  // 0.606
 
 export interface DartScore {
   score: number
-  label: string    // "T20", "S5", "DBull", "Miss" …
-  segment: number  // 1-20, 0 for bull/miss
+  label: string
+  segment: number
   multiplier: 0 | 1 | 2 | 3
 }
 
 /**
- * Convert a position relative to the dartboard center to a dart score.
- * dx, dy: offset from board center in pixels.
- * boardRadius: radius of the outer double ring in pixels.
+ * positionToScore — raw, axis-aligned coordinates.
+ * dx, dy: pixels from board center. dy positive = downward on screen.
+ * boardRadius: outer double ring radius in pixels.
  */
 export function positionToScore(dx: number, dy: number, boardRadius: number): DartScore {
   const dist = Math.sqrt(dx * dx + dy * dy)
-  const r = dist / boardRadius // normalized radius
+  const r = dist / boardRadius
 
-  if (r > R.doubleOuter) return { score: 0, label: "Miss", segment: 0, multiplier: 0 }
+  if (r > R.doubleOuter) return { score: 0,  label: "Miss",  segment: 0, multiplier: 0 }
   if (r <= R.bullseye)   return { score: 50, label: "DBull", segment: 0, multiplier: 2 }
   if (r <= R.bull)       return { score: 25, label: "SBull", segment: 0, multiplier: 1 }
 
-  // Angle: 0° at top (12-o'clock), clockwise positive
-  // atan2(dx, -dy) gives clockwise from top
   const angleDeg = ((Math.atan2(dx, -dy) * (180 / Math.PI)) + 360) % 360
-
-  // Each segment is 18°. Segment 20 is centered at 0°.
-  // Add 9° offset so segment 20 occupies [-9°, 9°].
   const segIndex = Math.floor(((angleDeg + 9) % 360) / 18) % 20
   const seg = SEGMENTS[segIndex]
 
-  if (r <= R.singleInner)  return { score: seg,     label: `S${seg}`, segment: seg, multiplier: 1 }
-  if (r <= R.tripleOuter)  return { score: seg * 3, label: `T${seg}`, segment: seg, multiplier: 3 }
-  if (r <= R.singleOuter)  return { score: seg,     label: `S${seg}`, segment: seg, multiplier: 1 }
-  return                          { score: seg * 2,  label: `D${seg}`, segment: seg, multiplier: 2 }
+  if (r <= R.singleInner) return { score: seg,     label: `S${seg}`, segment: seg, multiplier: 1 }
+  if (r <= R.tripleOuter) return { score: seg * 3, label: `T${seg}`, segment: seg, multiplier: 3 }
+  if (r <= R.singleOuter) return { score: seg,     label: `S${seg}`, segment: seg, multiplier: 1 }
+  return                         { score: seg * 2,  label: `D${seg}`, segment: seg, multiplier: 2 }
 }
 
+// ── Calibration ───────────────────────────────────────────────────────────────
+
 export interface BoardCalibration {
-  cx_pct: number   // center x as fraction of video width  (0-1)
-  cy_pct: number   // center y as fraction of video height (0-1)
-  r_pct: number    // radius as fraction of video width    (0-1)
+  // Overlay circle (fraction of video dimensions)
+  cx_pct: number
+  cy_pct: number
+  r_pct: number
+
+  // 2-point calibration result (computed from bullseye + T20 taps)
+  // Stored as fractions of video width/height so they're resolution-independent.
+  bullseye_pct?: { x: number; y: number }  // user-tapped bullseye
+  t20_pct?:      { x: number; y: number }  // user-tapped T20
 }
 
 const CAL_KEY = "dart-board-cal"
@@ -65,14 +70,70 @@ export function loadCalibration(): BoardCalibration {
     const s = sessionStorage.getItem(CAL_KEY)
     if (s) return JSON.parse(s) as BoardCalibration
   } catch {}
-  // Default: circle at center, 26% of width (matches CameraSetup overlay)
   return { cx_pct: 0.5, cy_pct: 0.5, r_pct: 0.26 }
 }
 
 /**
- * Analyze two canvas frames and find where a dart landed.
- * Only considers changed pixels INSIDE the board circle (ignores flights/shaft outside board).
- * Returns the centroid of changed pixels within the board area, or null if nothing found.
+ * Derived parameters from 2-point calibration, computed at runtime per frame size.
+ */
+export interface DerivedCal {
+  cx: number       // bullseye pixel x
+  cy: number       // bullseye pixel y
+  scale: number    // pixels per board-radius unit
+  rotation: number // radians: camera tilt correction (clockwise)
+}
+
+/**
+ * Compute runtime calibration from stored percentages and actual frame dimensions.
+ */
+export function deriveCal(cal: BoardCalibration, W: number, H: number): DerivedCal {
+  if (cal.bullseye_pct && cal.t20_pct) {
+    const bx = cal.bullseye_pct.x * W
+    const by = cal.bullseye_pct.y * H
+    const tx = cal.t20_pct.x * W
+    const ty = cal.t20_pct.y * H
+    const dx = tx - bx
+    const dy = ty - by
+    const dist = Math.sqrt(dx * dx + dy * dy)
+    // rotation: angle from "up" (-Y) to the T20 vector, clockwise positive
+    const rotation = Math.atan2(dx, -dy)
+    const scale = dist / T20_NORM_DIST
+    return { cx: bx, cy: by, scale, rotation }
+  }
+  // Fallback: use circle overlay (no rotation correction)
+  return {
+    cx: cal.cx_pct * W,
+    cy: cal.cy_pct * H,
+    scale: cal.r_pct * W,
+    rotation: 0,
+  }
+}
+
+/**
+ * Convert a raw pixel position to a dart score using the 2-point calibration.
+ * Corrects for camera rotation/angle.
+ */
+export function positionToScoreCal(
+  px: number, py: number,
+  cal: DerivedCal,
+): DartScore {
+  // 1. Translate to board center
+  const rdx = px - cal.cx
+  const rdy = py - cal.cy
+  // 2. Apply inverse rotation to align T20 with the true "up" direction
+  const cos = Math.cos(-cal.rotation)
+  const sin = Math.sin(-cal.rotation)
+  const corrX = rdx * cos - rdy * sin
+  const corrY = rdx * sin + rdy * cos
+  // 3. Score using board geometry
+  return positionToScore(corrX, corrY, cal.scale)
+}
+
+// ── Frame analysis ────────────────────────────────────────────────────────────
+
+/**
+ * Find where a dart landed by comparing two frames.
+ * Only considers pixels INSIDE the board circle to ignore flights/shaft.
  */
 export function detectDartInFrames(
   refData: ImageData,
@@ -83,30 +144,24 @@ export function detectDartInFrames(
   threshold = 25,
 ): { px: number; py: number; pixelCount: number } | null {
   const W = refData.width
-  const H = refData.height
   const d1 = refData.data
   const d2 = curData.data
+  const r2 = boardRadius * boardRadius * 1.05
 
   let sumX = 0, sumY = 0, count = 0
 
-  for (let y = 0; y < H; y++) {
+  for (let y = 0; y < refData.height; y++) {
     for (let x = 0; x < W; x++) {
-      // Only consider pixels inside the board circle + small margin
       const dx = x - boardCx
       const dy = y - boardCy
-      if (dx * dx + dy * dy > boardRadius * boardRadius * 1.1) continue
+      if (dx * dx + dy * dy > r2) continue
 
       const i = (y * W + x) * 4
       const diff =
         Math.abs(d2[i]     - d1[i]) +
         Math.abs(d2[i + 1] - d1[i + 1]) +
         Math.abs(d2[i + 2] - d1[i + 2])
-
-      if (diff > threshold) {
-        sumX += x
-        sumY += y
-        count++
-      }
+      if (diff > threshold) { sumX += x; sumY += y; count++ }
     }
   }
 
@@ -115,16 +170,13 @@ export function detectDartInFrames(
 }
 
 /**
- * Measure total motion between two frames (whole frame).
- * Used for motion detection to trigger dart scoring.
+ * Measure whole-frame motion. Returns fraction of changed pixels.
  */
-export function measureMotion(refData: ImageData, curData: ImageData, threshold = 20): number {
-  const d1 = refData.data
-  const d2 = curData.data
+export function measureMotion(a: ImageData, b: ImageData, threshold = 20): number {
   let changed = 0
-  for (let i = 0; i < d1.length; i += 4) {
-    const diff = Math.abs(d2[i] - d1[i]) + Math.abs(d2[i+1] - d1[i+1]) + Math.abs(d2[i+2] - d1[i+2])
+  for (let i = 0; i < a.data.length; i += 4) {
+    const diff = Math.abs(b.data[i] - a.data[i]) + Math.abs(b.data[i+1] - a.data[i+1]) + Math.abs(b.data[i+2] - a.data[i+2])
     if (diff > threshold) changed++
   }
-  return changed / (d1.length / 4) // fraction of changed pixels
+  return changed / (a.data.length / 4)
 }

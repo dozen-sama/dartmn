@@ -7,10 +7,11 @@ import { cn } from "@/lib/utils"
 import { CameraSetup } from "@/components/play/CameraSetup"
 import {
   detectDartInFrames,
+  deriveCal,
   loadCalibration,
   measureMotion,
-  positionToScore,
-  type BoardCalibration,
+  positionToScoreCal,
+  type DerivedCal,
   type DartScore,
 } from "@/lib/dartboard"
 import { classifyTurn, getCheckout } from "@/lib/local-game/checkouts"
@@ -67,7 +68,8 @@ function CameraGame() {
   const refFrameRef = useRef<ImageData | null>(null)   // no-dart reference
   const prevFrameRef = useRef<ImageData | null>(null)  // previous frame for motion
   const streamRef = useRef<MediaStream | null>(null)
-  const cal = useRef<BoardCalibration>(loadCalibration())
+  const rawCal = useRef(loadCalibration())
+  const cal = useRef<DerivedCal>(deriveCal(rawCal.current, 320, 240))
   const detectState = useRef<DetectState>("idle")
   const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pollId = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -117,20 +119,15 @@ function CameraGame() {
     const cur = captureFrame()
     if (!cur || !refFrameRef.current) return
 
-    const { cx_pct, cy_pct, r_pct } = cal.current
-    const cx = cx_pct * 320
-    const cy = cy_pct * 240
-    const boardR = r_pct * 320
-
-    const hit = detectDartInFrames(refFrameRef.current, cur, cx, cy, boardR)
+    const { cx, cy, scale } = cal.current
+    const hit = detectDartInFrames(refFrameRef.current, cur, cx, cy, scale)
     if (!hit) {
-      // Nothing found → let user tap
       detectState.current = "manual"
       setDetectUiState("manual")
       return
     }
 
-    const score = positionToScore(hit.px - cx, hit.py - cy, boardR)
+    const score = positionToScoreCal(hit.px, hit.py, cal.current)
     detectState.current = "detected"
     setDetectUiState("detected")
     setPendingScore(score)
@@ -254,17 +251,14 @@ function CameraGame() {
     setTimeout(captureReference, 600)
   }
 
-  // Manual tap on video
+  // Manual tap on video (fallback when auto-detect fails)
   function handleVideoTap(e: React.MouseEvent<HTMLDivElement>) {
     if (detectUiState !== "manual") return
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    const tapX = (e.clientX - rect.left) / rect.width
-    const tapY = (e.clientY - rect.top) / rect.height
-    const { cx_pct, cy_pct, r_pct } = cal.current
-    const dx = (tapX - cx_pct) * rect.width
-    const dy = (tapY - cy_pct) * rect.height
-    const boardR = r_pct * rect.width
-    const score = positionToScore(dx, dy, boardR)
+    // Convert tap to canvas-space coordinates (320×240)
+    const tapPx = (e.clientX - rect.left) / rect.width * 320
+    const tapPy = (e.clientY - rect.top) / rect.height * 240
+    const score = positionToScoreCal(tapPx, tapPy, cal.current)
     setPendingScore(score)
     detectState.current = "detected"
     setDetectUiState("detected")
@@ -276,7 +270,11 @@ function CameraGame() {
     return (
       <div className="max-w-lg mx-auto px-4 py-4">
         <CameraSetup
-          onConfirmed={() => { cal.current = loadCalibration(); setPhase("game") }}
+          onConfirmed={() => {
+            rawCal.current = loadCalibration()
+            cal.current = deriveCal(rawCal.current, 320, 240)
+            setPhase("game")
+          }}
           onBack={() => router.back()}
         />
       </div>

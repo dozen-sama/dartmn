@@ -10,23 +10,50 @@ interface CameraSetupProps {
   onBack: () => void
 }
 
-type Status = "checking" | "ok" | "bad"
+type AutoStatus = "checking" | "ok" | "bad"
+type SetupPhase = "auto" | "calibrate" | "done"
+
+interface TapPoint { x: number; y: number }
+
+const CAL_STEPS = [
+  {
+    key: "bullseye" as const,
+    label: "1 / 2 — Bullseye",
+    desc: "Самбарын дунд цэгийг (Bullseye) дарна уу",
+    color: "text-red-400",
+    dot: "bg-red-400",
+  },
+  {
+    key: "t20" as const,
+    label: "2 / 2 — T20",
+    desc: "Самбарын дээд хэсэг T20-ийн дунд хэсгийг дарна уу",
+    color: "text-green-400",
+    dot: "bg-green-400",
+  },
+]
 
 export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const prevFrameRef = useRef<ImageData | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const videoContainerRef = useRef<HTMLDivElement>(null)
 
   const [camError, setCamError] = useState<string | null>(null)
-  const [lightStatus, setLightStatus] = useState<Status>("checking")
-  const [stabilityStatus, setStabilityStatus] = useState<Status>("checking")
+  const [phase, setPhase] = useState<SetupPhase>("auto")
+  const [lightStatus, setLightStatus] = useState<AutoStatus>("checking")
+  const [stabilityStatus, setStabilityStatus] = useState<AutoStatus>("checking")
   const [countdown, setCountdown] = useState<number | null>(null)
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const allOk = lightStatus === "ok" && stabilityStatus === "ok"
+  // Calibration taps
+  const [calStep, setCalStep] = useState<0 | 1>(0)
+  const [bullseyeTap, setBullseyeTap] = useState<TapPoint | null>(null)
+  const [t20Tap, setT20Tap] = useState<TapPoint | null>(null)
 
-  // Start camera
+  const allAutoOk = lightStatus === "ok" && stabilityStatus === "ok"
+
+  // ── Start camera ──────────────────────────────────────────────────────────
   useEffect(() => {
     let active = true
     navigator.mediaDevices
@@ -43,44 +70,42 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
     }
   }, [])
 
-  // Auto-analysis every 800ms
+  // ── Auto-analysis ─────────────────────────────────────────────────────────
   const analyze = useCallback(() => {
+    if (phase !== "auto") return
     const video = videoRef.current
     const canvas = canvasRef.current
     if (!video || !canvas || video.readyState < 2) return
-
     const W = 120, H = 90
     canvas.width = W; canvas.height = H
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
+    const ctx = canvas.getContext("2d")!
     ctx.drawImage(video, 0, 0, W, H)
-    const { data } = ctx.getImageData(0, 0, W, H)
+    const frame = ctx.getImageData(0, 0, W, H)
 
     // Light check
     let sum = 0
-    for (let i = 0; i < data.length; i += 4) {
-      sum += data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114
-    }
-    const avg = sum / (data.length / 4)
-    setLightStatus(avg < 35 ? "bad" : avg > 215 ? "bad" : "ok")
+    for (let i = 0; i < frame.data.length; i += 4)
+      sum += frame.data[i] * 0.299 + frame.data[i+1] * 0.587 + frame.data[i+2] * 0.114
+    const avg = sum / (frame.data.length / 4)
+    setLightStatus(avg < 35 || avg > 215 ? "bad" : "ok")
 
-    // Stability check (motion between frames)
-    const curFrame = ctx.getImageData(0, 0, W, H)
+    // Stability check
     if (prevFrameRef.current) {
-      const motion = measureMotion(prevFrameRef.current, curFrame, 20)
-      setStabilityStatus(motion < 0.03 ? "ok" : "checking") // < 3% pixels changed = stable
+      const motion = measureMotion(prevFrameRef.current, frame, 20)
+      setStabilityStatus(motion < 0.025 ? "ok" : "checking")
     }
-    prevFrameRef.current = curFrame
-  }, [])
+    prevFrameRef.current = frame
+  }, [phase])
 
   useEffect(() => {
-    const id = setInterval(analyze, 800)
+    const id = setInterval(analyze, 700)
     return () => clearInterval(id)
   }, [analyze])
 
-  // Start countdown when all OK, cancel if conditions break
+  // ── Countdown when auto checks pass ──────────────────────────────────────
   useEffect(() => {
-    if (allOk) {
+    if (phase !== "auto") return
+    if (allAutoOk) {
       if (countdown === null) {
         setCountdown(3)
         countdownRef.current = setInterval(() => {
@@ -92,39 +117,53 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
         }, 1000)
       }
     } else {
-      if (countdownRef.current) clearInterval(countdownRef.current)
-      countdownRef.current = null
+      if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null }
       setCountdown(null)
     }
-    return () => {
-      if (countdownRef.current) clearInterval(countdownRef.current)
-    }
-  }, [allOk])
+    return () => { if (countdownRef.current) clearInterval(countdownRef.current) }
+  }, [allAutoOk, phase])
 
-  // Auto-confirm when countdown hits 0
   useEffect(() => {
-    if (countdown === 0) {
-      if (countdownRef.current) clearInterval(countdownRef.current)
-      saveCalibration({ cx_pct: 0.5, cy_pct: 0.5, r_pct: 0.26 })
-      sessionStorage.setItem("cam-ready", "1")
-      streamRef.current?.getTracks().forEach((t) => t.stop())
-      onConfirmed()
+    if (countdown === 0 && phase === "auto") {
+      if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null }
+      setPhase("calibrate")
     }
-  }, [countdown, onConfirmed])
+  }, [countdown, phase])
 
-  const checks = [
-    {
-      label: "💡 Гэрэл",
-      status: lightStatus,
-      okText: "Гэрэл хангалттай",
-      badText: lightStatus === "bad" ? "Гэрлийг тохируулна уу" : "Хэмжиж байна…",
-    },
-    {
-      label: "📷 Камер тогтвортой",
-      status: stabilityStatus,
-      okText: "Камер тогтворжсон",
-      badText: "Хөдөлгөөнгүй барина уу…",
-    },
+  // ── Handle tap on video for calibration ──────────────────────────────────
+  function handleVideoTap(e: React.MouseEvent<HTMLDivElement>) {
+    if (phase !== "calibrate") return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = (e.clientX - rect.left) / rect.width
+    const y = (e.clientY - rect.top) / rect.height
+
+    if (calStep === 0) {
+      setBullseyeTap({ x, y })
+      setCalStep(1)
+    } else {
+      setT20Tap({ x, y })
+      // All done
+      finishCalibration({ x: bullseyeTap!.x, y: bullseyeTap!.y }, { x, y })
+    }
+  }
+
+  function finishCalibration(bullseye: TapPoint, t20: TapPoint) {
+    saveCalibration({
+      cx_pct: bullseye.x,
+      cy_pct: bullseye.y,
+      r_pct: 0.26,
+      bullseye_pct: bullseye,
+      t20_pct: t20,
+    })
+    sessionStorage.setItem("cam-ready", "1")
+    setPhase("done")
+    streamRef.current?.getTracks().forEach((t) => t.stop())
+    onConfirmed()
+  }
+
+  const autoChecks = [
+    { label: "💡 Гэрэл", status: lightStatus, okText: "Гэрэл хангалттай", badText: "Гэрлийг тохируулна уу" },
+    { label: "📷 Тогтвор", status: stabilityStatus, okText: "Камер тогтворжсон", badText: "Хөдөлгөөнгүй барина уу…" },
   ]
 
   return (
@@ -139,7 +178,9 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
             <Video className="h-4 w-4 text-blue-400" />
             Камер тохируулах
           </h2>
-          <p className="text-xs text-muted-foreground">Самбарыг дугуй хүрээнд байрлуулна уу</p>
+          <p className="text-xs text-muted-foreground">
+            {phase === "auto" ? "Шалгаж байна…" : phase === "calibrate" ? "Байрлал тэмдэглэх" : "Бэлэн"}
+          </p>
         </div>
       </div>
 
@@ -150,76 +191,128 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
         </div>
       ) : (
         <>
-          {/* Live camera feed */}
-          <div className="relative rounded-xl overflow-hidden bg-zinc-900 aspect-video">
-            <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
+          {/* Camera feed */}
+          <div
+            ref={videoContainerRef}
+            className={cn(
+              "relative rounded-xl overflow-hidden bg-zinc-900 aspect-video select-none",
+              phase === "calibrate" ? "cursor-crosshair ring-2 ring-primary/50" : ""
+            )}
+            onClick={handleVideoTap}
+          >
+            <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover pointer-events-none" />
             <canvas ref={canvasRef} className="hidden" />
 
-            {/* Dartboard target overlay */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="relative flex items-center justify-center" style={{ width: "52%", aspectRatio: "1" }}>
-                <div className={cn(
-                  "absolute inset-0 rounded-full border-2 transition-colors",
-                  allOk ? "border-green-400/70" : "border-white/30 border-dashed"
-                )} />
-                <div className="absolute w-px h-5 bg-white/30" />
-                <div className="absolute h-px w-5 bg-white/30" />
-                <span className="absolute -bottom-7 text-[10px] text-white/60 whitespace-nowrap">
-                  Самбар энд байрлана — 30-60 см зайтай
-                </span>
+            {/* Phase: auto — dartboard circle overlay */}
+            {phase === "auto" && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div style={{ width: "52%", aspectRatio: "1" }} className="relative">
+                  <div className={cn(
+                    "absolute inset-0 rounded-full border-2 transition-colors duration-500",
+                    allAutoOk ? "border-green-400/70" : "border-white/25 border-dashed"
+                  )} />
+                  <div className="absolute w-px h-4 bg-white/20 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" />
+                  <div className="absolute h-px w-4 bg-white/20 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" />
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Countdown overlay */}
-            {countdown !== null && countdown > 0 && (
-              <div className="absolute inset-0 flex items-end justify-center pb-4 pointer-events-none">
-                <div className="bg-green-500/80 text-white text-sm font-bold px-4 py-1.5 rounded-full">
-                  {countdown}с…
+            {/* Phase: calibrate — tap markers */}
+            {phase === "calibrate" && (
+              <>
+                {/* Bullseye tap marker */}
+                {bullseyeTap && (
+                  <div
+                    className="absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+                    style={{ left: `${bullseyeTap.x * 100}%`, top: `${bullseyeTap.y * 100}%` }}
+                  >
+                    <div className="h-5 w-5 rounded-full bg-red-500/80 border-2 border-white/60 flex items-center justify-center">
+                      <Check className="h-2.5 w-2.5 text-white" />
+                    </div>
+                  </div>
+                )}
+                {/* Tap hint crosshair */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className={cn(
+                    "px-3 py-2 rounded-xl text-xs font-semibold text-center",
+                    "bg-black/70 text-white"
+                  )}>
+                    {CAL_STEPS[calStep].desc}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Countdown badge */}
+            {phase === "auto" && countdown !== null && countdown > 0 && (
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 pointer-events-none">
+                <div className="bg-green-500/80 text-white text-xs font-bold px-3 py-1 rounded-full">
+                  Калибрацид орно {countdown}с…
                 </div>
               </div>
             )}
           </div>
 
-          {/* Auto-checks */}
-          <div className="space-y-2">
-            {checks.map((c) => (
-              <div key={c.label} className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 border transition-colors",
-                c.status === "ok" ? "border-green-500/30 bg-green-500/5" : "border-border/40 bg-secondary/20"
-              )}>
-                <div className={cn(
-                  "h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
-                  c.status === "ok" ? "border-green-500 bg-green-500/20" : "border-border"
+          {/* Auto phase: check items */}
+          {phase === "auto" && (
+            <div className="space-y-2">
+              {autoChecks.map((c) => (
+                <div key={c.label} className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 border transition-colors",
+                  c.status === "ok" ? "border-green-500/30 bg-green-500/5" : "border-border/40 bg-secondary/20"
                 )}>
-                  {c.status === "ok"
-                    ? <Check className="h-3 w-3 text-green-400" />
-                    : <Loader2 className="h-3 w-3 text-muted-foreground animate-spin" />
-                  }
+                  <div className={cn(
+                    "h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
+                    c.status === "ok" ? "border-green-500 bg-green-500/20" : "border-border"
+                  )}>
+                    {c.status === "ok"
+                      ? <Check className="h-3 w-3 text-green-400" />
+                      : <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold">{c.label}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {c.status === "ok" ? c.okText : c.badText}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold">{c.label}</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    {c.status === "ok" ? c.okText : c.badText}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
-          {/* Status */}
-          <div className={cn(
-            "w-full py-3 rounded-xl font-bold text-sm text-center transition-all",
-            allOk
-              ? "bg-green-500/20 text-green-400 border border-green-500/30"
-              : "bg-secondary/50 text-muted-foreground border border-border/30"
-          )}>
-            {allOk
-              ? countdown !== null && countdown > 0
-                ? `Бэлэн болж байна — ${countdown}с…`
-                : "Шалгаж байна…"
-              : "Дээрх шаардлагуудыг хангана уу"
-            }
-          </div>
+          {/* Calibrate phase: step list */}
+          {phase === "calibrate" && (
+            <div className="space-y-2">
+              {CAL_STEPS.map((s, i) => {
+                const done = i === 0 ? !!bullseyeTap : !!t20Tap
+                const active = i === calStep
+                return (
+                  <div key={s.key} className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2.5 border transition-colors",
+                    done ? "border-green-500/30 bg-green-500/5" :
+                    active ? "border-primary/40 bg-primary/5" :
+                    "border-border/30 bg-secondary/10 opacity-40"
+                  )}>
+                    <div className={cn(
+                      "h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0",
+                      done ? "border-green-500 bg-green-500/20" :
+                      active ? "border-primary bg-primary/10 animate-pulse" :
+                      "border-border"
+                    )}>
+                      {done && <Check className="h-3 w-3 text-green-400" />}
+                    </div>
+                    <div>
+                      <p className={cn("text-xs font-semibold", active ? s.color : "")}>{s.label}</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">{s.desc}</p>
+                    </div>
+                  </div>
+                )
+              })}
+              <p className="text-[11px] text-muted-foreground/60 text-center pt-1">
+                Дэлгэцэн дээр яг тухайн хэсгийг дарна уу
+              </p>
+            </div>
+          )}
         </>
       )}
     </div>
