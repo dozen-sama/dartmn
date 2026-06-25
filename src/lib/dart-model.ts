@@ -6,9 +6,12 @@
 
 import * as ort from "onnxruntime-web"
 
-// dart-sense class names (confirmed after export)
-// index 0 = dart tip, others = calibration corners
-const DART_CLASS_INDEX = 0
+// Serve WASM runtime from CDN to avoid bundling 80MB binary in the repo
+ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.27.0/dist/"
+
+// dart-sense classes: {0:'20', 1:'3', 2:'11', 3:'6', 4:'dart', 5:'9', 6:'15'}
+// 0-3,5-6 = board calibration corners (segment numbers); 4 = dart tip
+const DART_CLASS_INDEX = 4
 const MODEL_INPUT_SIZE = 640
 const CONF_THRESHOLD = 0.35
 const IOU_THRESHOLD = 0.45
