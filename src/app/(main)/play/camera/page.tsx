@@ -65,6 +65,8 @@ function DartBox({ entry, active }: { entry: DartEntry | null; active?: boolean 
 function CameraGame() {
   const router = useRouter()
   const { modelReady, detectDart } = useDartModel()
+  const modelReadyRef = useRef(false)
+  useEffect(() => { modelReadyRef.current = modelReady }, [modelReady])
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const refFrameRef = useRef<ImageData | null>(null)   // no-dart reference
@@ -123,36 +125,36 @@ function CameraGame() {
     const cur = captureFrame()
     if (!cur || !refFrameRef.current) return
 
-    let px: number | null = null
-    let py: number | null = null
+    try {
+      let px: number | null = null
+      let py: number | null = null
 
-    if (modelReady) {
-      // YOLO inference: returns tip in 320x240 frame coords
-      const detection = await detectDart(cur)
-      if (detection) {
-        px = detection.tipX
-        py = detection.tipY
+      if (modelReadyRef.current) {
+        const detection = await detectDart(cur)
+        if (detection) { px = detection.tipX; py = detection.tipY }
       }
-    }
 
-    // Frame-diff fallback when model unavailable or no detection
-    if (px === null || py === null) {
-      const { cx, cy, scale } = cal.current
-      const hit = detectDartInFrames(refFrameRef.current, cur, cx, cy, scale)
-      if (!hit) {
-        detectState.current = "manual"
-        setDetectUiState("manual")
-        return
+      if (px === null || py === null) {
+        const { cx, cy, scale } = cal.current
+        const hit = detectDartInFrames(refFrameRef.current, cur, cx, cy, scale)
+        if (!hit) {
+          detectState.current = "manual"
+          setDetectUiState("manual")
+          return
+        }
+        px = hit.px
+        py = hit.py
       }
-      px = hit.px
-      py = hit.py
-    }
 
-    const score = positionToScoreCal(px, py, cal.current)
-    detectState.current = "detected"
-    setDetectUiState("detected")
-    setPendingScore(score)
-  }, [captureFrame, modelReady, detectDart])
+      const score = positionToScoreCal(px, py, cal.current)
+      detectState.current = "detected"
+      setDetectUiState("detected")
+      setPendingScore(score)
+    } catch {
+      detectState.current = "manual"
+      setDetectUiState("manual")
+    }
+  }, [captureFrame, detectDart])
 
   // ── Motion-triggered polling ───────────────────────────────────────────────
 
@@ -174,7 +176,7 @@ function CameraGame() {
 
       if (motion > 0.04) {
         motionFrames.current += 1
-        if (state === "idle" && motionFrames.current >= 2) {
+        if (state === "idle" && motionFrames.current >= 1) {
           detectState.current = "motion"
           setDetectUiState("motion")
           if (settleTimer.current) clearTimeout(settleTimer.current)
