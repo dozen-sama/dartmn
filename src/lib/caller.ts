@@ -142,30 +142,58 @@ let playToken = 0
 
 function stopAudio() { if (audioEl) { audioEl.pause(); audioEl.onended = null; audioEl.onerror = null } }
 
-function playClips(urls: string[]) {
-  if (typeof window === "undefined") return
-  playToken += 1
-  const token = playToken
-  if (!audioEl) audioEl = new Audio()
-  let i = 0
-  const next = () => {
-    if (token !== playToken) return            // шинэ дуудлагад дарагдсан
-    if (i >= urls.length) return
-    const el = audioEl!
-    el.src = urls[i++]
-    el.onended = next
-    el.onerror = next
-    el.play().catch(() => {})
-  }
-  next()
+// Clip key → TTS fallback text (бичлэг байхгүй key-д ашиглана)
+function keyToTTS(key: string): string {
+  const n = parseInt(key, 10)
+  if (!isNaN(n)) return mnNumber(n)
+  return PHRASE_LABELS[key] ?? ""
 }
 
-// Turn-ийг зарлах: бичлэгтэй бол хүний дуугаар, үгүй бол TTS.
+// Mixed-mode: clip байвал audio, байхгүй бол TTS — key бүрийг дарааллан тоглуулна.
+// Энэ нь "Таны оноо" бичсэн ч тоонуудыг бичээгүй тохиолдолд ч зөв ажиллана.
+async function playMixed(keys: string[], token: number) {
+  if (typeof window === "undefined") return
+  window.speechSynthesis.cancel()
+
+  for (const key of keys) {
+    if (token !== playToken) return  // шинэ дуудлагад дарагдсан
+
+    const url = clipUrl(key)
+    if (url) {
+      await new Promise<void>((resolve) => {
+        if (!audioEl) audioEl = new Audio()
+        audioEl.src = url
+        audioEl.onended = () => resolve()
+        audioEl.onerror = () => resolve()
+        audioEl.play().catch(() => resolve())
+      })
+    } else {
+      const text = keyToTTS(key)
+      if (!text) continue
+      await new Promise<void>((resolve) => {
+        if (cachedVoice === undefined) cachedVoice = pickVoice()
+        const u = new SpeechSynthesisUtterance(text)
+        if (cachedVoice) { u.voice = cachedVoice; u.lang = cachedVoice.lang }
+        u.rate = 1.0; u.pitch = 1.0; u.volume = 1
+        u.onend = () => resolve()
+        u.onerror = () => resolve()
+        window.speechSynthesis.speak(u)
+      })
+    }
+  }
+}
+
+// Turn-ийг зарлах.
+// clipMap ачаалагдсан үед: бичлэгтэй key → audio, байхгүй → TTS (mixed mode).
+// clipMap байхгүй эсвэл хоосон үед: бүхэл TTS.
 export function announceTurn(args: CallArgs) {
   const keys = clipKeysFor(args)
-  if (keys.length > 0 && hasClips() && keys.every((k) => clipUrl(k))) {
-    if (callerSupported()) window.speechSynthesis.cancel()
-    playClips(keys.map((k) => clipUrl(k)!))
+  if (!keys.length) { speak(ttsTextFor(args)); return }
+
+  if (hasClips()) {
+    stopAudio()
+    playToken += 1
+    playMixed(keys, playToken)
     return
   }
   stopAudio()
