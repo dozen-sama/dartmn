@@ -210,13 +210,29 @@ function CameraGame() {
         if (!alive) { stream.getTracks().forEach((t) => t.stop()); return }
         streamRef.current = stream
         if (videoRef.current) videoRef.current.srcObject = stream
-        // Камер тогтворжсоны дараа ref frame авч, ТЭГЖ л polling эхлүүлнэ.
-        // 2.5с: calibration-ийн дараа хүн хөдөлж буй хугацааг алгасна.
+        // 2.5с хүлээгээд камер тогтворжтол шалгана (auto-exposure дуустал).
+        // 8 дараалсан frame <1% motion байвал тогтворжсон гэж үзнэ.
         setTimeout(() => {
           if (!alive) return
-          captureReference()
-          startPolling()
-          setGameReady(true)
+          let stableFrames = 0
+          let lastFrame: ImageData | null = null
+          const { cx, cy, scale } = cal.current
+          const stabilityCheck = setInterval(() => {
+            if (!alive) { clearInterval(stabilityCheck); return }
+            const cur = captureFrame()
+            if (!cur) return
+            if (lastFrame) {
+              const motion = measureBoardMotion(lastFrame, cur, cx, cy, scale, 15)
+              stableFrames = motion < 0.01 ? stableFrames + 1 : 0
+            }
+            lastFrame = cur
+            if (stableFrames >= 8) {
+              clearInterval(stabilityCheck)
+              captureReference()
+              startPolling()
+              setGameReady(true)
+            }
+          }, 200)
         }, 2500)
       })
       .catch(() => {})
