@@ -37,6 +37,8 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
 
   // Auto-calibration state
   const [autoCalState, setAutoCalState] = useState<"idle" | "loading" | "detecting" | "fail">("idle")
+  // Нэг л удаа бэлэн болсон бол товч байнга харагдана (утас хөдрөхөд алга болохгүй)
+  const [wasEverReady, setWasEverReady] = useState(false)
 
   // Manual calibration taps
   const [calStep, setCalStep] = useState<0 | 1 | 2>(0)
@@ -95,6 +97,7 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
   useEffect(() => {
     if (phase !== "auto") return
     if (allAutoOk) {
+      setWasEverReady(true)
       if (countdown === null) {
         setCountdown(3)
         countdownRef.current = setInterval(() => {
@@ -297,8 +300,8 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
                 </div>
               ))}
 
-              {/* Auto-calibrate button */}
-              {allAutoOk && (
+              {/* Auto-calibrate button — нэг л удаа бэлэн болсон бол харагдана */}
+              {wasEverReady && (
                 <div className="pt-1 space-y-2">
                   {autoCalState === "fail" && (
                     <p className="text-[11px] text-destructive text-center">
