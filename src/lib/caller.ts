@@ -63,9 +63,14 @@ export function mnNumber(n: number): string {
 
 // ── Caller-ийн бүх key (админ бичлэг хийх жагсаалт) ──
 // Фраз key-үүд + тоо ("1".."180").
+// p_aas/p_ees/p_oos/p_uus: тооны сүүлчийн үгийн эгшгийн зохицол
+// (гурав→аас, нэг→ээс, хоёр→оос, дөрөв→өөс). 4-ийг бичвэл хангалттай.
 export const PHRASE_LABELS: Record<string, string> = {
   p_taniy_onoo: "Таны оноо",
   p_aas: "аас",
+  p_ees: "ээс",
+  p_oos: "оос",
+  p_uus: "өөс",
   p_maximum: "Максимум!",
   p_checkout: "Чек аут. Хожлоо!",
   p_bust: "Хэтэрлээ",
@@ -110,6 +115,37 @@ export function loadCallerClips(): Promise<void> {
 export function hasClips(): boolean { return !!clipMap && clipMap.size > 0 }
 function clipUrl(key: string): string | undefined { return clipMap?.get(key) }
 
+// ── Эгшгийн зохицол: тооны сүүлчийн үгийн дагуу залгавар сонгох ──
+// Жишээ: нэг→ ээс, хоёр→оос, гурав→аас, дөрөв→өөс
+const WORD_SUFFIX: Record<string, string> = {
+  нэг: "ээс",  хоёр: "оос",  гурав: "аас", дөрөв: "өөс",
+  тав: "аас",  зургаа: "аас", долоо: "оос", найм: "аас", ес: "өөс",
+  арав: "аас", хорь: "оос",  гуч: "аас",  дөч: "өөс",
+  тавь: "аас", жар: "аас",   дал: "аас",  ная: "аас",  ер: "өөс",
+  зуу: "аас",
+}
+
+function ablativeSuffix(n: number): string {
+  const words = mnNumber(n).split(" ")
+  return WORD_SUFFIX[words[words.length - 1]] ?? "аас"
+}
+
+function ablativeKey(n: number): string {
+  const s = ablativeSuffix(n)
+  if (s === "ээс") return "p_ees"
+  if (s === "оос") return "p_oos"
+  if (s === "өөс") return "p_uus"
+  return "p_aas"
+}
+
+// TTS-д эгшгийн уулзвар: зургаа+аас → зургааноос (холбох н)
+function ablativeText(n: number): string {
+  const word = mnNumber(n)
+  const suffix = ablativeSuffix(n)
+  const needsN = /[аэоөуүие]$/i.test(word)
+  return `${word}${needsN ? "н" : ""}${suffix}`
+}
+
 // ── Дуудлагын дараалал (clip key-үүд) + TTS текст ──
 export type CallOutcome = "score" | "bust" | "checkout"
 
@@ -125,14 +161,16 @@ function clipKeysFor({ points, outcome, nextRemaining }: CallArgs): string[] {
   if (outcome === "bust") seq.push("p_bust")
   else if (points === 180) seq.push("180", "p_maximum")
   else if (points > 0) seq.push(String(points))
-  if (nextRemaining > 1 && nextRemaining <= 170) seq.push("p_taniy_onoo", String(nextRemaining), "p_aas")
+  if (nextRemaining > 1 && nextRemaining <= 170)
+    seq.push("p_taniy_onoo", String(nextRemaining), ablativeKey(nextRemaining))
   return seq
 }
 
 function ttsTextFor({ points, outcome, nextRemaining }: CallArgs): string {
   if (outcome === "checkout") return "Чек аут. Хожлоо!"
   let text = outcome === "bust" ? "Хэтэрлээ" : (points === 180 ? "Зуун ная, максимум!" : mnNumber(points))
-  if (nextRemaining > 1 && nextRemaining <= 170) text += `. Таны оноо ${mnNumber(nextRemaining)} аас`
+  if (nextRemaining > 1 && nextRemaining <= 170)
+    text += `. Таны оноо ${ablativeText(nextRemaining)}`
   return text
 }
 
