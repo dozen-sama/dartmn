@@ -9,7 +9,7 @@ import {
   detectDartInFrames,
   deriveCal,
   loadCalibration,
-  measureMotion,
+  measureBoardMotion,
   positionToScoreCal,
   type DerivedCal,
   type DartScore,
@@ -148,26 +148,26 @@ function CameraGame() {
       prevFrameRef.current = cur
       if (!prev) return
 
-      const motion = measureMotion(prev, cur, 20)
+      // Board circle дотор л motion хэм — хүний хөдөлгөөн trigger болохгүй
+      const { cx, cy, scale } = cal.current
+      const motion = measureBoardMotion(prev, cur, cx, cy, scale, 20)
       const state = detectState.current
 
-      if (motion > 0.05) {
+      if (motion > 0.04) {
         motionFrames.current += 1
         if (state === "idle" && motionFrames.current >= 2) {
-          // 2 дараалсан frame хөдөлгөөнтэй → шидэж байна гэж үзнэ
           detectState.current = "motion"
           setDetectUiState("motion")
           if (settleTimer.current) clearTimeout(settleTimer.current)
         }
       } else {
         motionFrames.current = 0
-        if (state === "motion" && motion < 0.02) {
-          // Хөдөлгөөн зогссон → тогтворжиж байна
+        if (state === "motion" && motion < 0.015) {
           detectState.current = "settling"
           setDetectUiState("settling")
           settleTimer.current = setTimeout(() => {
             if (detectState.current === "settling") runDetect()
-          }, 1200) // 1.2s тогтворжсоны дараа таних
+          }, 1200)
         }
       }
     }, 200)

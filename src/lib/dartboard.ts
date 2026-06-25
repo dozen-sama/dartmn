@@ -239,6 +239,7 @@ export function detectDartInFrames(
 
 /**
  * Measure whole-frame motion. Returns fraction of changed pixels.
+ * Used only by CameraSetup stability check (full frame intentional).
  */
 export function measureMotion(a: ImageData, b: ImageData, threshold = 20): number {
   let changed = 0
@@ -247,4 +248,30 @@ export function measureMotion(a: ImageData, b: ImageData, threshold = 20): numbe
     if (diff > threshold) changed++
   }
   return changed / (a.data.length / 4)
+}
+
+/**
+ * Measure motion ONLY inside the board circle.
+ * Ignores player body/arm movement outside the board.
+ * Only a dart entering the board triggers significant motion here.
+ */
+export function measureBoardMotion(
+  a: ImageData, b: ImageData,
+  boardCx: number, boardCy: number, boardRadius: number,
+  threshold = 20,
+): number {
+  const W = a.width
+  const r2 = boardRadius * boardRadius * 1.44
+  let changed = 0, total = 0
+  for (let y = 0; y < a.height; y++) {
+    for (let x = 0; x < W; x++) {
+      const dx = x - boardCx, dy = y - boardCy
+      if (dx * dx + dy * dy > r2) continue
+      total++
+      const i = (y * W + x) * 4
+      const diff = Math.abs(b.data[i]-a.data[i]) + Math.abs(b.data[i+1]-a.data[i+1]) + Math.abs(b.data[i+2]-a.data[i+2])
+      if (diff > threshold) changed++
+    }
+  }
+  return total > 0 ? changed / total : 0
 }
