@@ -170,8 +170,16 @@ export function positionToScoreCal(
 // ── Frame analysis ────────────────────────────────────────────────────────────
 
 /**
- * Find where a dart landed by comparing two frames.
- * Only considers pixels INSIDE the board circle to ignore flights/shaft.
+ * Find where a dart landed by comparing two frames — "tip" method.
+ *
+ * Problem with naive centroid: dart shaft pixels inside the board circle
+ * pull the average away from where the tip actually hit.
+ *
+ * Solution:
+ *  Pass 1 — intensity-weighted centroid (diff² weight biases toward the
+ *            high-contrast impact area rather than the diffuse shaft)
+ *  Pass 2 — keep only pixels within TRIM_R px of pass-1 result, then
+ *            recompute (removes shaft pixels that extend away from impact)
  */
 export function detectDartInFrames(
   refData: ImageData,
@@ -184,10 +192,11 @@ export function detectDartInFrames(
   const W = refData.width
   const d1 = refData.data
   const d2 = curData.data
-  // 1.44 = 1.2² → double ring дөхөх талаас 20% зөрчил зөвшөөрнө
+  // 1.44 = 1.2² → 20% radius margin so double ring is always covered
   const r2 = boardRadius * boardRadius * 1.44
 
-  let sumX = 0, sumY = 0, count = 0
+  // Collect changed pixels with diff²-weight
+  const pts: { x: number; y: number; w: number }[] = []
 
   for (let y = 0; y < refData.height; y++) {
     for (let x = 0; x < W; x++) {
@@ -200,12 +209,32 @@ export function detectDartInFrames(
         Math.abs(d2[i]     - d1[i]) +
         Math.abs(d2[i + 1] - d1[i + 1]) +
         Math.abs(d2[i + 2] - d1[i + 2])
-      if (diff > threshold) { sumX += x; sumY += y; count++ }
+      if (diff > threshold) pts.push({ x, y, w: diff * diff })
     }
   }
 
-  if (count < 40) return null
-  return { px: sumX / count, py: sumY / count, pixelCount: count }
+  if (pts.length < 40) return null
+
+  // Pass 1: intensity-weighted centroid
+  let wx = 0, wy = 0, wt = 0
+  for (const p of pts) { wx += p.x * p.w; wy += p.y * p.w; wt += p.w }
+  const cx0 = wx / wt
+  const cy0 = wy / wt
+
+  // Pass 2: trim pixels far from pass-1 centroid (remove shaft outliers)
+  // TRIM_R = 25px in 320-wide frame ≈ 30% of typical board radius ≈ 50mm
+  const TRIM_R2 = 25 * 25
+  const core = pts.filter(p => (p.x - cx0) ** 2 + (p.y - cy0) ** 2 <= TRIM_R2)
+
+  if (core.length < 15) {
+    // Too few core pixels — fall back to pass-1 result
+    return { px: cx0, py: cy0, pixelCount: pts.length }
+  }
+
+  wx = 0; wy = 0; wt = 0
+  for (const p of core) { wx += p.x * p.w; wy += p.y * p.w; wt += p.w }
+
+  return { px: wx / wt, py: wy / wt, pixelCount: pts.length }
 }
 
 /**
