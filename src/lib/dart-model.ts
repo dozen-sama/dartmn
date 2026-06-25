@@ -137,7 +137,7 @@ export async function detectBoardCorners(imageData: ImageData): Promise<BoardCor
       const conf = output[(4 + c) * numBoxes + i]
       if (conf > maxConf) { maxConf = conf; maxCls = c }
     }
-    if (!(maxCls in BOARD_CORNERS) || maxConf < 0.25) continue
+    if (!(maxCls in BOARD_CORNERS) || maxConf < 0.12) continue
     const existing = bestByClass.get(maxCls)
     if (!existing || maxConf > existing.score) {
       const imgCx = ((cx - w/2 + cx + w/2) / 2 - padX) / scale
@@ -170,14 +170,24 @@ export function computeCalFromCorners(
   const c180 = byAngle.get(180)  // segment 3 (bottom)
   const c270 = byAngle.get(270)  // segment 11 (left)
 
-  // Board center from opposite pairs
-  let bxSum = 0, bySum = 0, count = 0
-  if (c0 && c180) { bxSum += (c0.cx + c180.cx) / 2; bySum += (c0.cy + c180.cy) / 2; count++ }
-  if (c90 && c270) { bxSum += (c90.cx + c270.cx) / 2; bySum += (c90.cy + c270.cy) / 2; count++ }
-  if (count === 0) return null  // no opposite pairs
+  // Board center estimation — preference order:
+  // 1. Average of opposite pairs (most accurate)
+  // 2. Circumcenter of 3 corners
+  let bx = 0, by = 0, pairCount = 0
+  if (c0 && c180) { bx += (c0.cx + c180.cx) / 2; by += (c0.cy + c180.cy) / 2; pairCount++ }
+  if (c90 && c270) { bx += (c90.cx + c270.cx) / 2; by += (c90.cy + c270.cy) / 2; pairCount++ }
 
-  const bx = bxSum / count
-  const by = bySum / count
+  if (pairCount === 0) {
+    // Try circumcenter from any 3 corners (all equidistant from board center)
+    if (corners.length < 3) return null
+    const [a, b, c] = corners
+    const D = 2 * (a.cx*(b.cy-c.cy) + b.cx*(c.cy-a.cy) + c.cx*(a.cy-b.cy))
+    if (Math.abs(D) < 1e-6) return null
+    bx = ((a.cx**2+a.cy**2)*(b.cy-c.cy) + (b.cx**2+b.cy**2)*(c.cy-a.cy) + (c.cx**2+c.cy**2)*(a.cy-b.cy)) / D
+    by = ((a.cx**2+a.cy**2)*(c.cx-b.cx) + (b.cx**2+b.cy**2)*(a.cx-c.cx) + (c.cx**2+c.cy**2)*(b.cx-a.cx)) / D
+  } else {
+    bx /= pairCount; by /= pairCount
+  }
 
   // Board radius (outer double ring in pixels)
   const available = [c0, c90, c180, c270].filter(Boolean) as BoardCorner[]
