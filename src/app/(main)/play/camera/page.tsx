@@ -76,6 +76,7 @@ function CameraGame() {
   const motionFrames = useRef(0)  // consecutive high-motion frame counter
 
   const [phase, setPhase] = useState<"setup" | "game">("setup")
+  const [gameReady, setGameReady] = useState(false)  // ref frame авч, polling эхлэхэд true
   const [players, setPlayers] = useState<[PlayerState, PlayerState]>([
     { name: "Тоглогч 1", remaining: 501, legs: 0, visits: [] },
     { name: "Тоглогч 2", remaining: 501, legs: 0, visits: [] },
@@ -188,9 +189,14 @@ function CameraGame() {
         if (!alive) { stream.getTracks().forEach((t) => t.stop()); return }
         streamRef.current = stream
         if (videoRef.current) videoRef.current.srcObject = stream
-        // Capture reference after a short delay for stream to start
-        setTimeout(captureReference, 1500)
-        startPolling()
+        // Камер тогтворжсоны дараа ref frame авч, ТЭГЖ л polling эхлүүлнэ.
+        // 2.5с: calibration-ийн дараа хүн хөдөлж буй хугацааг алгасна.
+        setTimeout(() => {
+          if (!alive) return
+          captureReference()
+          startPolling()
+          setGameReady(true)
+        }, 2500)
       })
       .catch(() => {})
     return () => {
@@ -280,6 +286,7 @@ function CameraGame() {
           onConfirmed={() => {
             rawCal.current = loadCalibration()
             cal.current = deriveCal(rawCal.current, 320, 240)
+            setGameReady(false)
             setPhase("game")
           }}
           onBack={() => router.back()}
@@ -362,8 +369,19 @@ function CameraGame() {
           </div>
         </div>
 
+        {/* Game not ready yet — waiting for ref frame */}
+        {!gameReady && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/60 pointer-events-none">
+            <div className="flex flex-col items-center gap-3 text-white">
+              <Loader2 className="h-8 w-8 animate-spin" />
+              <p className="text-sm font-semibold">Камер тогтворжиж байна…</p>
+              <p className="text-xs text-white/60">Хөдөлгөөнгүй байна уу</p>
+            </div>
+          </div>
+        )}
+
         {/* State overlay */}
-        {detectUiState !== "idle" && detectUiState !== "detected" && (
+        {gameReady && detectUiState !== "idle" && detectUiState !== "detected" && (
           <div className="absolute top-3 left-1/2 -translate-x-1/2 pointer-events-none">
             <div className={cn(
               "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold",
