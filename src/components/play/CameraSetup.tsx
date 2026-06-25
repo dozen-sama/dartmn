@@ -11,7 +11,7 @@ interface CameraSetupProps {
   onBack: () => void
 }
 
-type SetupPhase = "checking" | "scanning" | "failed" | "calibrate" | "done"
+type SetupPhase = "checking" | "scanning" | "calibrate" | "done"
 interface TapPoint { x: number; y: number }
 
 const CAL_STEPS = [
@@ -30,7 +30,6 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
   const [phase, setPhase] = useState<SetupPhase>("checking")
   const [lightOk, setLightOk] = useState(false)
   const [scanMsg, setScanMsg] = useState("")
-  const [cornerCount, setCornerCount] = useState(0)
 
   // Manual calibration
   const [calStep, setCalStep] = useState<0 | 1 | 2>(0)
@@ -93,56 +92,57 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
     return () => clearInterval(id)
   }, [analyze])
 
-  // ── Auto scan ─────────────────────────────────────────────────────────────
+  // ── Auto scan — 3 оролдлого, дараа нь анхдагч тохиргоо ────────────────────
   async function runAutoScan() {
     const video = videoRef.current
     const canvas = canvasRef.current
-    if (!video || !canvas || video.readyState < 2) { goManual(); return }
+    if (!video || !canvas || video.readyState < 2) { proceedWithDefault(); return }
 
     setPhase("scanning")
     setScanMsg("AI model ачааллаж байна…")
     try {
       if (!isDartModelLoaded()) await loadDartModel()
-      setScanMsg("Самбар хайж байна…")
 
-      canvas.width = 320; canvas.height = 240
-      const ctx = canvas.getContext("2d")!
-      ctx.drawImage(video, 0, 0, 320, 240)
-      const frame = ctx.getImageData(0, 0, 320, 240)
-
-      const corners = await detectBoardCorners(frame)
-      setCornerCount(corners.length)
-
-      const cal = computeCalFromCorners(corners, 320, 240)
-      if (!cal) {
-        setPhase("failed")
-        setScanMsg(`${corners.length} өнцөг олдсон — хангалтгүй`)
-        return
+      // Try up to 3 frames
+      let cal = null
+      for (let attempt = 0; attempt < 3; attempt++) {
+        setScanMsg(`Самбар хайж байна… (${attempt + 1}/3)`)
+        await new Promise(r => setTimeout(r, 400))
+        canvas.width = 320; canvas.height = 240
+        const ctx = canvas.getContext("2d")!
+        ctx.drawImage(video, 0, 0, 320, 240)
+        const frame = ctx.getImageData(0, 0, 320, 240)
+        const corners = await detectBoardCorners(frame)
+        cal = computeCalFromCorners(corners, 320, 240)
+        if (cal) break
       }
 
-      saveCalibration(cal)
+      if (cal) {
+        saveCalibration(cal)
+      } else {
+        // Fall through with default center calibration — no manual required
+        saveCalibration({ cx_pct: 0.5, cy_pct: 0.5, r_pct: 0.26 })
+      }
       sessionStorage.setItem("cam-ready", "1")
       setPhase("done")
       streamRef.current?.getTracks().forEach(t => t.stop())
       onConfirmed()
     } catch {
-      setPhase("failed")
-      setScanMsg("Алдаа гарлаа")
+      proceedWithDefault()
     }
+  }
+
+  function proceedWithDefault() {
+    saveCalibration({ cx_pct: 0.5, cy_pct: 0.5, r_pct: 0.26 })
+    sessionStorage.setItem("cam-ready", "1")
+    streamRef.current?.getTracks().forEach(t => t.stop())
+    onConfirmed()
   }
 
   function goManual() {
     stableFrames.current = 0
     autoStarted.current = false
     setPhase("calibrate")
-  }
-
-  function retryAuto() {
-    stableFrames.current = 0
-    autoStarted.current = false
-    setPhase("checking")
-    setScanMsg("")
-    setCornerCount(0)
   }
 
   // ── Manual tap ────────────────────────────────────────────────────────────
@@ -176,10 +176,9 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
             Камер тохируулах
           </h2>
           <p className="text-xs text-muted-foreground">
-            {phase === "checking" ? "Шалгаж байна…" :
-             phase === "scanning" ? "AI самбар хайж байна…" :
-             phase === "failed"   ? "Дахин оролдоно уу" :
-             phase === "calibrate"? "Гараар тохируулах" : "Бэлэн"}
+            {phase === "checking"  ? "Шалгаж байна…" :
+             phase === "scanning"  ? "AI самбар хайж байна…" :
+             phase === "calibrate" ? "Гараар тохируулах" : "Бэлэн"}
           </p>
         </div>
       </div>
@@ -260,26 +259,9 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
                   </p>
                 </div>
               </div>
-              <p className="text-[11px] text-muted-foreground/60 text-center">Тогтворжмогц автоматаар самбар таньна</p>
-              <button onClick={goManual} className="w-full py-2.5 rounded-xl border border-border/40 text-muted-foreground text-sm">
-                Гараар тохируулах (3 цэг)
-              </button>
-            </div>
-          )}
-
-          {/* Failed */}
-          {phase === "failed" && (
-            <div className="space-y-2">
-              <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5">
-                <p className="text-xs font-semibold text-destructive">Самбар таньж чадсангүй</p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">{scanMsg}</p>
-              </div>
-              <button onClick={retryAuto}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 text-sm font-semibold">
-                <Scan className="h-4 w-4" />Дахин оролдох
-              </button>
-              <button onClick={goManual} className="w-full py-2.5 rounded-xl border border-border/40 text-muted-foreground text-sm">
-                Гараар тохируулах (3 цэг)
+              <p className="text-[11px] text-muted-foreground/60 text-center">Тогтворжмогц автоматаар эхэлнэ</p>
+              <button onClick={goManual} className="w-full py-2 text-[11px] text-muted-foreground/40 underline-offset-2 underline">
+                Гараар тохируулах
               </button>
             </div>
           )}
