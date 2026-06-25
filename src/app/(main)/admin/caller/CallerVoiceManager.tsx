@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
-import { callerKeys } from "@/lib/caller"
+import { callerKeys, type CallerKey } from "@/lib/caller"
 import { toast } from "sonner"
 
 type ClipInfo = { ext: string; updated_at: string }
@@ -100,6 +100,7 @@ export function CallerVoiceManager({ existing }: { existing: Record<string, Clip
 
   const phrases = keys.filter((k) => k.group === "phrase")
   const numbers = keys.filter((k) => k.group === "number" && (!onlyMissing || !clips[k.key]))
+  const remainings = keys.filter((k: CallerKey) => k.group === "remaining" && (!onlyMissing || !clips[k.key]))
 
   function Row({ k, label }: { k: string; label: string }) {
     const info = clips[k]
@@ -159,6 +160,16 @@ export function CallerVoiceManager({ existing }: { existing: Record<string, Clip
         <CardContent className="p-3">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 px-2">Фраз</p>
           {phrases.filter((k) => !onlyMissing || !clips[k.key]).map((k) => <Row key={k.key} k={k.key} label={k.label} />)}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-3">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 px-2">Таны оноо … аас/ээс (2–170)</p>
+          <p className="text-[11px] text-muted-foreground px-2 mb-2">Бүтэн фраз бичнэ: "Таны оноо нэг зуун дөчин нэгээс" г.м.</p>
+          <div className="grid sm:grid-cols-2 gap-x-4">
+            {remainings.map((k) => <Row key={k.key} k={k.key} label={k.label} />)}
+          </div>
         </CardContent>
       </Card>
 

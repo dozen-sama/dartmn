@@ -2,9 +2,15 @@
 // чанга хэлнэ (Russ Bray маягийн).
 //
 // Хоёр горим:
-//  1) Хүний дуу бичлэг (админ upload хийсэн) — бүх шаардлагатай key-д бичлэг
-//     байвал тэдгээрийг дараалан тоглуулна (caller_clips + caller-voice bucket).
-//  2) Web Speech API (TTS) — бичлэг дутуу бол fallback. Voice: mn→ru→default.
+//  1) Хүний дуу бичлэг (админ upload) — clip байвал audio, байхгүй → TTS.
+//  2) Web Speech API (TTS) — fallback. Voice: mn→ru→default.
+//
+// Clip key бүтэц:
+//   "60", "141", …       : шидсэн оноо (1–180)
+//   "r_141", "r_60", …   : "Таны оноо нэг зуун дөчин нэгээс" бүтэн фраз (2–170)
+//   "p_maximum"          : "Максимум!"
+//   "p_checkout"         : "Чек аут. Хожлоо!"
+//   "p_bust"             : "Хэтэрлээ"
 
 import { createClient } from "@/lib/supabase/client"
 
@@ -36,9 +42,7 @@ export function speak(text: string) {
   if (cachedVoice === undefined) cachedVoice = pickVoice()
   const u = new SpeechSynthesisUtterance(text)
   if (cachedVoice) { u.voice = cachedVoice; u.lang = cachedVoice.lang }
-  u.rate = 1.0
-  u.pitch = 1.0
-  u.volume = 1
+  u.rate = 1.0; u.pitch = 1.0; u.volume = 1
   synth.cancel()
   synth.speak(u)
 }
@@ -46,7 +50,7 @@ export function speak(text: string) {
 // ── Монгол тооны үг (0–180) ──
 const ONES = ["тэг", "нэг", "хоёр", "гурав", "дөрөв", "тав", "зургаа", "долоо", "найм", "ес"]
 const TENS_ALONE: Record<number, string> = { 1: "арав", 2: "хорь", 3: "гуч", 4: "дөч", 5: "тавь", 6: "жар", 7: "дал", 8: "ная", 9: "ер" }
-const TENS_COMB: Record<number, string> = { 1: "арван", 2: "хорин", 3: "гучин", 4: "дөчин", 5: "тавин", 6: "жаран", 7: "далан", 8: "наян", 9: "ерэн" }
+const TENS_COMB:  Record<number, string> = { 1: "арван", 2: "хорин", 3: "гучин", 4: "дөчин", 5: "тавин", 6: "жаран", 7: "далан", 8: "наян", 9: "ерэн" }
 
 export function mnNumber(n: number): string {
   if (n <= 0) return "тэг"
@@ -61,28 +65,49 @@ export function mnNumber(n: number): string {
   return parts.join(" ")
 }
 
-// ── Caller-ийн бүх key (админ бичлэг хийх жагсаалт) ──
-// Фраз key-үүд + тоо ("1".."180").
-// p_aas/p_ees/p_oos/p_uus: тооны сүүлчийн үгийн эгшгийн зохицол
-// (гурав→аас, нэг→ээс, хоёр→оос, дөрөв→өөс). 4-ийг бичвэл хангалттай.
+// ── Эгшгийн зохицол: тооны сүүлчийн үгийн дагуу чийрэг залгавар ──
+const WORD_SUFFIX: Record<string, string> = {
+  нэг: "ээс",  хоёр: "оос",  гурав: "аас", дөрөв: "өөс",
+  тав: "аас",  зургаа: "аас", долоо: "оос", найм: "аас",  ес: "өөс",
+  арав: "аас", хорь: "оос",  гуч: "аас",   дөч: "өөс",
+  тавь: "аас", жар: "аас",   дал: "аас",   ная: "аас",   ер: "өөс",
+  зуу: "аас",
+}
+
+function ablativeSuffix(n: number): string {
+  const words = mnNumber(n).split(" ")
+  return WORD_SUFFIX[words[words.length - 1]] ?? "аас"
+}
+
+// TTS-д эгшгийн уулзвар: зургаа → зургааноос (холбох н)
+function ablativeText(n: number): string {
+  const word = mnNumber(n)
+  const suffix = ablativeSuffix(n)
+  const needsN = /[аэоөуүие]$/i.test(word)
+  return `${word}${needsN ? "н" : ""}${suffix}`
+}
+
+// "Таны оноо нэг зуун дөчин нэгээс" гэх бүтэн фраз (r_n-ийн label)
+export function remainingLabel(n: number): string {
+  return `Таны оноо ${ablativeText(n)}`
+}
+
+// ── Caller key-үүд ──
 export const PHRASE_LABELS: Record<string, string> = {
-  p_taniy_onoo: "Таны оноо",
-  p_aas: "аас",
-  p_ees: "ээс",
-  p_oos: "оос",
-  p_uus: "өөс",
   p_maximum: "Максимум!",
   p_checkout: "Чек аут. Хожлоо!",
   p_bust: "Хэтэрлээ",
 }
 
-export interface CallerKey { key: string; label: string; group: "phrase" | "number" }
+export interface CallerKey { key: string; label: string; group: "phrase" | "number" | "remaining" }
 
 export function callerKeys(): CallerKey[] {
   const phrases: CallerKey[] = Object.entries(PHRASE_LABELS).map(([key, label]) => ({ key, label, group: "phrase" }))
   const numbers: CallerKey[] = []
   for (let n = 1; n <= 180; n++) numbers.push({ key: String(n), label: mnNumber(n), group: "number" })
-  return [...phrases, ...numbers]
+  const remainings: CallerKey[] = []
+  for (let n = 2; n <= 170; n++) remainings.push({ key: `r_${n}`, label: remainingLabel(n), group: "remaining" })
+  return [...phrases, ...numbers, ...remainings]
 }
 
 // ── Хүний бичлэгийн manifest (caller_clips) ──
@@ -91,7 +116,7 @@ let clipMap: Map<string, string> | null = null
 let clipLoading: Promise<void> | null = null
 
 export function loadCallerClips(): Promise<void> {
-  if (clipMap) return Promise.resolve()
+  if (clipMap !== null) return Promise.resolve()
   if (clipLoading) return clipLoading
   clipLoading = (async () => {
     try {
@@ -115,44 +140,13 @@ export function loadCallerClips(): Promise<void> {
 export function hasClips(): boolean { return !!clipMap && clipMap.size > 0 }
 function clipUrl(key: string): string | undefined { return clipMap?.get(key) }
 
-// ── Эгшгийн зохицол: тооны сүүлчийн үгийн дагуу залгавар сонгох ──
-// Жишээ: нэг→ ээс, хоёр→оос, гурав→аас, дөрөв→өөс
-const WORD_SUFFIX: Record<string, string> = {
-  нэг: "ээс",  хоёр: "оос",  гурав: "аас", дөрөв: "өөс",
-  тав: "аас",  зургаа: "аас", долоо: "оос", найм: "аас", ес: "өөс",
-  арав: "аас", хорь: "оос",  гуч: "аас",  дөч: "өөс",
-  тавь: "аас", жар: "аас",   дал: "аас",  ная: "аас",  ер: "өөс",
-  зуу: "аас",
-}
-
-function ablativeSuffix(n: number): string {
-  const words = mnNumber(n).split(" ")
-  return WORD_SUFFIX[words[words.length - 1]] ?? "аас"
-}
-
-function ablativeKey(n: number): string {
-  const s = ablativeSuffix(n)
-  if (s === "ээс") return "p_ees"
-  if (s === "оос") return "p_oos"
-  if (s === "өөс") return "p_uus"
-  return "p_aas"
-}
-
-// TTS-д эгшгийн уулзвар: зургаа+аас → зургааноос (холбох н)
-function ablativeText(n: number): string {
-  const word = mnNumber(n)
-  const suffix = ablativeSuffix(n)
-  const needsN = /[аэоөуүие]$/i.test(word)
-  return `${word}${needsN ? "н" : ""}${suffix}`
-}
-
-// ── Дуудлагын дараалал (clip key-үүд) + TTS текст ──
+// ── Дуудлагын дараалал ──
 export type CallOutcome = "score" | "bust" | "checkout"
 
 export interface CallArgs {
-  points: number          // шидсэн тоглогчийн visit-ийн нийт оноо
+  points: number          // шидсэн оноо
   outcome: CallOutcome
-  nextRemaining: number   // ДАРААГИЙН (одоо ээлж нь болсон) тоглогчийн үлдэгдэл
+  nextRemaining: number   // дараагийн тоглогчийн үлдэгдэл
 }
 
 function clipKeysFor({ points, outcome, nextRemaining }: CallArgs): string[] {
@@ -161,8 +155,8 @@ function clipKeysFor({ points, outcome, nextRemaining }: CallArgs): string[] {
   if (outcome === "bust") seq.push("p_bust")
   else if (points === 180) seq.push("180", "p_maximum")
   else if (points > 0) seq.push(String(points))
-  if (nextRemaining > 1 && nextRemaining <= 170)
-    seq.push("p_taniy_onoo", String(nextRemaining), ablativeKey(nextRemaining))
+  // r_N = "Таны оноо Nаас/ээс/…" бүтэн фраз — нэг clip
+  if (nextRemaining > 1 && nextRemaining <= 170) seq.push(`r_${nextRemaining}`)
   return seq
 }
 
@@ -180,21 +174,22 @@ let playToken = 0
 
 function stopAudio() { if (audioEl) { audioEl.pause(); audioEl.onended = null; audioEl.onerror = null } }
 
-// Clip key → TTS fallback text (бичлэг байхгүй key-д ашиглана)
 function keyToTTS(key: string): string {
+  if (key.startsWith("r_")) {
+    const n = parseInt(key.slice(2), 10)
+    if (!isNaN(n)) return remainingLabel(n)
+  }
   const n = parseInt(key, 10)
   if (!isNaN(n)) return mnNumber(n)
   return PHRASE_LABELS[key] ?? ""
 }
 
-// Mixed-mode: clip байвал audio, байхгүй бол TTS — key бүрийг дарааллан тоглуулна.
-// Энэ нь "Таны оноо" бичсэн ч тоонуудыг бичээгүй тохиолдолд ч зөв ажиллана.
 async function playMixed(keys: string[], token: number) {
   if (typeof window === "undefined") return
   window.speechSynthesis.cancel()
 
   for (const key of keys) {
-    if (token !== playToken) return  // шинэ дуудлагад дарагдсан
+    if (token !== playToken) return
 
     const url = clipUrl(key)
     if (url) {
@@ -221,9 +216,6 @@ async function playMixed(keys: string[], token: number) {
   }
 }
 
-// Turn-ийг зарлах.
-// clipMap ачаалагдсан үед: бичлэгтэй key → audio, байхгүй → TTS (mixed mode).
-// clipMap байхгүй эсвэл хоосон үед: бүхэл TTS.
 export function announceTurn(args: CallArgs) {
   const keys = clipKeysFor(args)
   if (!keys.length) { speak(ttsTextFor(args)); return }
@@ -238,12 +230,12 @@ export function announceTurn(args: CallArgs) {
   speak(ttsTextFor(args))
 }
 
-// ── Асаалт/унтраалт (төхөөрөмж тус бүр, localStorage) ──
+// ── Асаалт/унтраалт ──
 const STORAGE_KEY = "darts-caller-enabled"
 
 export function getCallerEnabled(): boolean {
   if (typeof window === "undefined") return false
-  return localStorage.getItem(STORAGE_KEY) !== "0"   // default: ON
+  return localStorage.getItem(STORAGE_KEY) !== "0"
 }
 
 export function setCallerEnabled(on: boolean) {

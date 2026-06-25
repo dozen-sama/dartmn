@@ -73,6 +73,7 @@ function CameraGame() {
   const detectState = useRef<DetectState>("idle")
   const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pollId = useRef<ReturnType<typeof setInterval> | null>(null)
+  const motionFrames = useRef(0)  // consecutive high-motion frame counter
 
   const [phase, setPhase] = useState<"setup" | "game">("setup")
   const [players, setPlayers] = useState<[PlayerState, PlayerState]>([
@@ -149,18 +150,24 @@ function CameraGame() {
       const motion = measureMotion(prev, cur, 20)
       const state = detectState.current
 
-      if (state === "idle" && motion > 0.05) {
-        // Motion started (player is throwing)
-        detectState.current = "motion"
-        setDetectUiState("motion")
-        if (settleTimer.current) clearTimeout(settleTimer.current)
-      } else if (state === "motion" && motion < 0.02) {
-        // Motion stopped (dart settled)
-        detectState.current = "settling"
-        setDetectUiState("settling")
-        settleTimer.current = setTimeout(() => {
-          if (detectState.current === "settling") runDetect()
-        }, 1000) // wait 1s after settling
+      if (motion > 0.05) {
+        motionFrames.current += 1
+        if (state === "idle" && motionFrames.current >= 2) {
+          // 2 дараалсан frame хөдөлгөөнтэй → шидэж байна гэж үзнэ
+          detectState.current = "motion"
+          setDetectUiState("motion")
+          if (settleTimer.current) clearTimeout(settleTimer.current)
+        }
+      } else {
+        motionFrames.current = 0
+        if (state === "motion" && motion < 0.02) {
+          // Хөдөлгөөн зогссон → тогтворжиж байна
+          detectState.current = "settling"
+          setDetectUiState("settling")
+          settleTimer.current = setTimeout(() => {
+            if (detectState.current === "settling") runDetect()
+          }, 1200) // 1.2s тогтворжсоны дараа таних
+        }
       }
     }, 200)
   }, [captureFrame, runDetect])
@@ -247,7 +254,7 @@ function CameraGame() {
     setActive((p) => (p === 0 ? 1 : 0))
     detectState.current = "idle"
     setDetectUiState("idle")
-    // Capture fresh reference for the new player's turn
+    motionFrames.current = 0
     setTimeout(captureReference, 600)
   }
 

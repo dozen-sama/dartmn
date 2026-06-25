@@ -184,7 +184,8 @@ export function detectDartInFrames(
   const W = refData.width
   const d1 = refData.data
   const d2 = curData.data
-  const r2 = boardRadius * boardRadius * 1.05
+  // 1.44 = 1.2² → double ring дөхөх талаас 20% зөрчил зөвшөөрнө
+  const r2 = boardRadius * boardRadius * 1.44
 
   let sumX = 0, sumY = 0, count = 0
 
