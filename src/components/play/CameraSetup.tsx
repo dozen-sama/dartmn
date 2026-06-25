@@ -1,9 +1,10 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { AlertTriangle, Check, ChevronLeft, Loader2, Video } from "lucide-react"
+import { AlertTriangle, Check, ChevronLeft, Loader2, Scan, Video } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { saveCalibration, measureMotion } from "@/lib/dartboard"
+import { loadDartModel, isDartModelLoaded, detectBoardCorners, computeCalFromCorners } from "@/lib/dart-model"
 
 interface CameraSetupProps {
   onConfirmed: () => void
@@ -16,24 +17,9 @@ type SetupPhase = "auto" | "calibrate" | "done"
 interface TapPoint { x: number; y: number }
 
 const CAL_STEPS = [
-  {
-    key: "bullseye" as const,
-    label: "1 / 3 — Bullseye",
-    desc: "Самбарын дунд цэгийг (Bullseye) дарна уу",
-    color: "text-red-400",
-  },
-  {
-    key: "t20" as const,
-    label: "2 / 3 — T20 (12 цаг)",
-    desc: "Дээд хэсгийн T20-ийн голыг дарна уу",
-    color: "text-green-400",
-  },
-  {
-    key: "t6" as const,
-    label: "3 / 3 — T6 (3 цаг)",
-    desc: "Баруун хэсгийн T6-ийн голыг дарна уу",
-    color: "text-blue-400",
-  },
+  { key: "bullseye" as const, label: "1 / 3 — Bullseye", desc: "Самбарын дунд цэгийг (Bullseye) дарна уу", color: "text-red-400" },
+  { key: "t20" as const,      label: "2 / 3 — T20 (12 цаг)", desc: "Дээд хэсгийн T20-ийн голыг дарна уу", color: "text-green-400" },
+  { key: "t6" as const,       label: "3 / 3 — T6 (3 цаг)",  desc: "Баруун хэсгийн T6-ийн голыг дарна уу", color: "text-blue-400" },
 ]
 
 export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
@@ -41,7 +27,6 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const prevFrameRef = useRef<ImageData | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
-  const videoContainerRef = useRef<HTMLDivElement>(null)
 
   const [camError, setCamError] = useState<string | null>(null)
   const [phase, setPhase] = useState<SetupPhase>("auto")
@@ -50,7 +35,10 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
   const [countdown, setCountdown] = useState<number | null>(null)
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // Calibration taps
+  // Auto-calibration state
+  const [autoCalState, setAutoCalState] = useState<"idle" | "loading" | "detecting" | "fail">("idle")
+
+  // Manual calibration taps
   const [calStep, setCalStep] = useState<0 | 1 | 2>(0)
   const [bullseyeTap, setBullseyeTap] = useState<TapPoint | null>(null)
   const [t20Tap, setT20Tap] = useState<TapPoint | null>(null)
@@ -75,7 +63,7 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
     }
   }, [])
 
-  // ── Auto-analysis ─────────────────────────────────────────────────────────
+  // ── Auto-analysis (light + stability) ─────────────────────────────────────
   const analyze = useCallback(() => {
     if (phase !== "auto") return
     const video = videoRef.current
@@ -87,17 +75,13 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
     ctx.drawImage(video, 0, 0, W, H)
     const frame = ctx.getImageData(0, 0, W, H)
 
-    // Light check
     let sum = 0
     for (let i = 0; i < frame.data.length; i += 4)
       sum += frame.data[i] * 0.299 + frame.data[i+1] * 0.587 + frame.data[i+2] * 0.114
-    const avg = sum / (frame.data.length / 4)
-    setLightStatus(avg < 35 || avg > 215 ? "bad" : "ok")
+    setLightStatus(sum / (frame.data.length / 4) < 35 ? "bad" : "ok")
 
-    // Stability check
     if (prevFrameRef.current) {
-      const motion = measureMotion(prevFrameRef.current, frame, 20)
-      setStabilityStatus(motion < 0.025 ? "ok" : "checking")
+      setStabilityStatus(measureMotion(prevFrameRef.current, frame, 20) < 0.025 ? "ok" : "checking")
     }
     prevFrameRef.current = frame
   }, [phase])
@@ -107,18 +91,14 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
     return () => clearInterval(id)
   }, [analyze])
 
-  // ── Countdown when auto checks pass ──────────────────────────────────────
+  // ── Countdown when checks pass ────────────────────────────────────────────
   useEffect(() => {
     if (phase !== "auto") return
     if (allAutoOk) {
       if (countdown === null) {
         setCountdown(3)
         countdownRef.current = setInterval(() => {
-          setCountdown((c) => {
-            if (c === null) return null
-            if (c <= 1) return 0
-            return c - 1
-          })
+          setCountdown((c) => (c === null ? null : c <= 1 ? 0 : c - 1))
         }, 1000)
       }
     } else {
@@ -135,7 +115,42 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
     }
   }, [countdown, phase])
 
-  // ── Handle tap on video for calibration ──────────────────────────────────
+  // ── Auto-calibration via YOLO ─────────────────────────────────────────────
+  async function runAutoCalibration() {
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    if (!video || !canvas || video.readyState < 2) return
+
+    setAutoCalState("loading")
+    try {
+      if (!isDartModelLoaded()) await loadDartModel()
+      setAutoCalState("detecting")
+
+      // Capture 320×240 frame
+      canvas.width = 320; canvas.height = 240
+      const ctx = canvas.getContext("2d")!
+      ctx.drawImage(video, 0, 0, 320, 240)
+      const frame = ctx.getImageData(0, 0, 320, 240)
+
+      const corners = await detectBoardCorners(frame)
+      const cal = computeCalFromCorners(corners, 320, 240)
+
+      if (!cal) {
+        setAutoCalState("fail")
+        return
+      }
+
+      saveCalibration(cal)
+      sessionStorage.setItem("cam-ready", "1")
+      setPhase("done")
+      streamRef.current?.getTracks().forEach((t) => t.stop())
+      onConfirmed()
+    } catch {
+      setAutoCalState("fail")
+    }
+  }
+
+  // ── Manual tap calibration ────────────────────────────────────────────────
   function handleVideoTap(e: React.MouseEvent<HTMLDivElement>) {
     if (phase !== "calibrate") return
     const rect = e.currentTarget.getBoundingClientRect()
@@ -143,11 +158,9 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
     const y = (e.clientY - rect.top) / rect.height
 
     if (calStep === 0) {
-      setBullseyeTap({ x, y })
-      setCalStep(1)
+      setBullseyeTap({ x, y }); setCalStep(1)
     } else if (calStep === 1) {
-      setT20Tap({ x, y })
-      setCalStep(2)
+      setT20Tap({ x, y }); setCalStep(2)
     } else {
       setT6Tap({ x, y })
       finishCalibration(bullseyeTap!, t20Tap!, { x, y })
@@ -155,24 +168,12 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
   }
 
   function finishCalibration(bullseye: TapPoint, t20: TapPoint, t6: TapPoint) {
-    saveCalibration({
-      cx_pct: bullseye.x,
-      cy_pct: bullseye.y,
-      r_pct: 0.26,
-      bullseye_pct: bullseye,
-      t20_pct: t20,
-      t6_pct: t6,
-    })
+    saveCalibration({ cx_pct: bullseye.x, cy_pct: bullseye.y, r_pct: 0.26, bullseye_pct: bullseye, t20_pct: t20, t6_pct: t6 })
     sessionStorage.setItem("cam-ready", "1")
     setPhase("done")
     streamRef.current?.getTracks().forEach((t) => t.stop())
     onConfirmed()
   }
-
-  const autoChecks = [
-    { label: "💡 Гэрэл", status: lightStatus, okText: "Гэрэл хангалттай", badText: "Гэрлийг тохируулна уу" },
-    { label: "📷 Тогтвор", status: stabilityStatus, okText: "Камер тогтворжсон", badText: "Хөдөлгөөнгүй барина уу…" },
-  ]
 
   return (
     <div className="space-y-4">
@@ -201,7 +202,6 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
         <>
           {/* Camera feed */}
           <div
-            ref={videoContainerRef}
             className={cn(
               "relative rounded-xl overflow-hidden bg-zinc-900 aspect-video select-none",
               phase === "calibrate" ? "cursor-crosshair ring-2 ring-primary/50" : ""
@@ -211,7 +211,6 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
             <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover pointer-events-none" />
             <canvas ref={canvasRef} className="hidden" />
 
-            {/* Phase: auto — dartboard circle overlay */}
             {phase === "auto" && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div style={{ width: "52%", aspectRatio: "1" }} className="relative">
@@ -225,28 +224,20 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
               </div>
             )}
 
-            {/* Phase: calibrate — tap markers */}
             {phase === "calibrate" && (
               <>
-                {/* Placed tap markers */}
                 {[
                   { tap: bullseyeTap, color: "bg-red-500/80" },
                   { tap: t20Tap,      color: "bg-green-500/80" },
                   { tap: t6Tap,       color: "bg-blue-500/80" },
-                ].map(({ tap, color }, i) =>
-                  tap ? (
-                    <div
-                      key={i}
-                      className="absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-                      style={{ left: `${tap.x * 100}%`, top: `${tap.y * 100}%` }}
-                    >
-                      <div className={cn("h-5 w-5 rounded-full border-2 border-white/60 flex items-center justify-center", color)}>
-                        <Check className="h-2.5 w-2.5 text-white" />
-                      </div>
+                ].map(({ tap, color }, i) => tap ? (
+                  <div key={i} className="absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+                    style={{ left: `${tap.x * 100}%`, top: `${tap.y * 100}%` }}>
+                    <div className={cn("h-5 w-5 rounded-full border-2 border-white/60 flex items-center justify-center", color)}>
+                      <Check className="h-2.5 w-2.5 text-white" />
                     </div>
-                  ) : null
-                )}
-                {/* Current step instruction */}
+                  </div>
+                ) : null)}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <div className="px-3 py-2 rounded-xl text-xs font-semibold text-center bg-black/70 text-white">
                     {CAL_STEPS[calStep].desc}
@@ -255,7 +246,6 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
               </>
             )}
 
-            {/* Countdown badge */}
             {phase === "auto" && countdown !== null && countdown > 0 && (
               <div className="absolute bottom-3 left-1/2 -translate-x-1/2 pointer-events-none">
                 <div className="bg-green-500/80 text-white text-xs font-bold px-3 py-1 rounded-full">
@@ -263,18 +253,35 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
                 </div>
               </div>
             )}
+
+            {/* Auto-cal overlay */}
+            {autoCalState === "loading" && (
+              <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-2 pointer-events-none">
+                <Loader2 className="h-8 w-8 animate-spin text-white" />
+                <p className="text-sm text-white font-semibold">AI model ачааллаж байна…</p>
+              </div>
+            )}
+            {autoCalState === "detecting" && (
+              <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-2 pointer-events-none">
+                <Scan className="h-8 w-8 text-cyan-400 animate-pulse" />
+                <p className="text-sm text-white font-semibold">Самбар хайж байна…</p>
+              </div>
+            )}
           </div>
 
-          {/* Auto phase: check items */}
+          {/* Auto phase checks */}
           {phase === "auto" && (
             <div className="space-y-2">
-              {autoChecks.map((c) => (
+              {[
+                { label: "💡 Гэрэл", status: lightStatus, okText: "Гэрэл хангалттай", badText: "Гэрлийг тохируулна уу" },
+                { label: "📷 Тогтвор", status: stabilityStatus, okText: "Камер тогтворжсон", badText: "Хөдөлгөөнгүй барина уу…" },
+              ].map((c) => (
                 <div key={c.label} className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 border transition-colors",
                   c.status === "ok" ? "border-green-500/30 bg-green-500/5" : "border-border/40 bg-secondary/20"
                 )}>
                   <div className={cn(
-                    "h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
+                    "h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0",
                     c.status === "ok" ? "border-green-500 bg-green-500/20" : "border-border"
                   )}>
                     {c.status === "ok"
@@ -289,10 +296,35 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
                   </div>
                 </div>
               ))}
+
+              {/* Auto-calibrate button */}
+              {allAutoOk && (
+                <div className="pt-1 space-y-2">
+                  {autoCalState === "fail" && (
+                    <p className="text-[11px] text-destructive text-center">
+                      Самбар таньж чадсангүй. Гараар тохируулна уу.
+                    </p>
+                  )}
+                  <button
+                    onClick={runAutoCalibration}
+                    disabled={autoCalState === "loading" || autoCalState === "detecting"}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 text-sm font-semibold disabled:opacity-50"
+                  >
+                    <Scan className="h-4 w-4" />
+                    AI автоматаар тохируулах
+                  </button>
+                  <button
+                    onClick={() => setPhase("calibrate")}
+                    className="w-full py-2.5 rounded-xl border border-border/40 text-muted-foreground text-sm"
+                  >
+                    Гараар тохируулах (3 цэг дарах)
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Calibrate phase: step list */}
+          {/* Manual calibrate phase */}
           {phase === "calibrate" && (
             <div className="space-y-2">
               {CAL_STEPS.map((s, i) => {
@@ -308,8 +340,7 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
                     <div className={cn(
                       "h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0",
                       done ? "border-green-500 bg-green-500/20" :
-                      active ? "border-primary bg-primary/10 animate-pulse" :
-                      "border-border"
+                      active ? "border-primary bg-primary/10 animate-pulse" : "border-border"
                     )}>
                       {done && <Check className="h-3 w-3 text-green-400" />}
                     </div>
