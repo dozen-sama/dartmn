@@ -14,8 +14,13 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // Vercel Edge compatibility
-  serverExternalPackages: ["html2canvas"],
+  // Prevent server-side bundling for browser-only packages
+  serverExternalPackages: ["html2canvas", "onnxruntime-web"],
+  webpack(config) {
+    // Enable async WASM imports required by onnxruntime-web
+    config.experiments = { ...config.experiments, asyncWebAssembly: true }
+    return config
+  },
 }
 
 export default nextConfig

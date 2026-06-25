@@ -15,6 +15,7 @@ import {
   type DartScore,
 } from "@/lib/dartboard"
 import { classifyTurn, getCheckout } from "@/lib/local-game/checkouts"
+import { useDartModel } from "@/hooks/useDartModel"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -63,6 +64,7 @@ function DartBox({ entry, active }: { entry: DartEntry | null; active?: boolean 
 
 function CameraGame() {
   const router = useRouter()
+  const { modelReady, detectDart } = useDartModel()
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const refFrameRef = useRef<ImageData | null>(null)   // no-dart reference
@@ -117,23 +119,40 @@ function CameraGame() {
 
   // ── Score detection ────────────────────────────────────────────────────────
 
-  const runDetect = useCallback(() => {
+  const runDetect = useCallback(async () => {
     const cur = captureFrame()
     if (!cur || !refFrameRef.current) return
 
-    const { cx, cy, scale } = cal.current
-    const hit = detectDartInFrames(refFrameRef.current, cur, cx, cy, scale)
-    if (!hit) {
-      detectState.current = "manual"
-      setDetectUiState("manual")
-      return
+    let px: number | null = null
+    let py: number | null = null
+
+    if (modelReady) {
+      // YOLO inference: returns tip in 320x240 frame coords
+      const detection = await detectDart(cur)
+      if (detection) {
+        px = detection.tipX
+        py = detection.tipY
+      }
     }
 
-    const score = positionToScoreCal(hit.px, hit.py, cal.current)
+    // Frame-diff fallback when model unavailable or no detection
+    if (px === null || py === null) {
+      const { cx, cy, scale } = cal.current
+      const hit = detectDartInFrames(refFrameRef.current, cur, cx, cy, scale)
+      if (!hit) {
+        detectState.current = "manual"
+        setDetectUiState("manual")
+        return
+      }
+      px = hit.px
+      py = hit.py
+    }
+
+    const score = positionToScoreCal(px, py, cal.current)
     detectState.current = "detected"
     setDetectUiState("detected")
     setPendingScore(score)
-  }, [captureFrame])
+  }, [captureFrame, modelReady, detectDart])
 
   // ── Motion-triggered polling ───────────────────────────────────────────────
 
@@ -376,6 +395,24 @@ function CameraGame() {
               <Loader2 className="h-8 w-8 animate-spin" />
               <p className="text-sm font-semibold">Камер тогтворжиж байна…</p>
               <p className="text-xs text-white/60">Хөдөлгөөнгүй байна уу</p>
+            </div>
+          </div>
+        )}
+
+        {/* YOLO model loading indicator (non-blocking) */}
+        {gameReady && !modelReady && (
+          <div className="absolute top-3 right-3 pointer-events-none">
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/50 text-white/70 text-[10px]">
+              <Loader2 className="h-2.5 w-2.5 animate-spin" />
+              AI ачааллаж байна…
+            </div>
+          </div>
+        )}
+        {gameReady && modelReady && (
+          <div className="absolute top-3 right-3 pointer-events-none">
+            <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-black/40 text-emerald-400 text-[10px]">
+              <div className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              AI
             </div>
           </div>
         )}
