@@ -16,11 +16,8 @@ const nextConfig: NextConfig = {
   },
   // Prevent server-side bundling for browser-only packages
   serverExternalPackages: ["html2canvas", "onnxruntime-web"],
-  webpack(config) {
-    // Enable async WASM imports required by onnxruntime-web
-    config.experiments = { ...config.experiments, asyncWebAssembly: true }
-    return config
-  },
+  // Turbopack is default in Next.js 16 — no webpack config needed
+  turbopack: {},
 }
 
 export default nextConfig
