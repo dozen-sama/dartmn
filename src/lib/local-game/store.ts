@@ -18,6 +18,7 @@ interface LocalGameStore {
   createSession: (config: {
     name: string
     joinPassword: string
+    joinCode?: string
     description: string
     format: GameFormat
     startScore: number
@@ -139,6 +140,7 @@ export const useLocalGame = create<LocalGameStore>()(
           id,
           name: config.name,
           joinPassword: config.joinPassword,
+          joinCode: config.joinCode,
           description: config.description,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),

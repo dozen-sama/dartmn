@@ -23,29 +23,25 @@ export function LiveView() {
 
   useEffect(() => { setMounted(true) }, [])
 
-  // Суурь remote state татах + realtime subscribe
+  // Always subscribe to realtime (Zustand is per-tab, realtime crosses tabs/devices)
   useEffect(() => {
     if (!mounted) return
 
-    // 1. Local байвал ашиглана
-    if (localSession) { setSyncStatus("local"); return }
-
-    // 2. Remote-с татах
     fetchRemoteSession(sessionId).then((s) => {
       if (s) { setRemoteSession(s); setSyncStatus("remote") }
+      else if (localSession) setSyncStatus("local")
     })
 
-    // 3. Realtime subscribe
     const unsub = subscribeToSession(sessionId, (s) => {
       setRemoteSession(s)
       setSyncStatus("remote")
     })
 
     return unsub
-  }, [mounted, sessionId, localSession])
+  }, [mounted, sessionId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Аль state ашиглах: local > remote
-  const session = localSession ?? remoteSession
+  // Remote always wins (broadcast on every throw), fall back to local
+  const session = remoteSession ?? localSession
 
   useEffect(() => {
     if (tableRef.current) tableRef.current.scrollTop = tableRef.current.scrollHeight

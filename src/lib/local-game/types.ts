@@ -73,6 +73,7 @@ export interface LocalSession {
   id: string
   name: string
   joinPassword: string
+  joinCode?: string          // 6-char share code → /local/join/[code]
   description: string
   createdAt: string
   updatedAt: string

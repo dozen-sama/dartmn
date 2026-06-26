@@ -253,6 +253,7 @@ export function SetupWizard() {
     const id = createSession({
       name: name.trim(),
       joinPassword,
+      joinCode,
       description,
       format: "501",
       startScore,
