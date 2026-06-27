@@ -24,7 +24,7 @@ export function FFASetup() {
   const router = useRouter()
   const createGame = useFFAStore((s) => s.createGame)
 
-  const [name, setName] = useState("Зэрэгцэн тоглолт")
+  const [name, setName] = useState("Олуулаа тоглох")
   const [format, setFormat] = useState<"501" | "301" | "170" | "121" | "custom">("501")
   const [customScore, setCustomScore] = useState("")
   const [firstTo, setFirstTo] = useState(2)
@@ -83,7 +83,7 @@ export function FFASetup() {
         <button onClick={() => router.push("/local")} className="text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <h1 className="font-bold text-lg">Зэрэгцэн тоглолт</h1>
+        <h1 className="font-bold text-lg">Олуулаа тоглох</h1>
       </div>
 
       <Card className="border-border/50 bg-card/80">
