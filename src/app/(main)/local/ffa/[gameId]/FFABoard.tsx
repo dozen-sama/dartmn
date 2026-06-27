@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { ArrowLeft, Trophy } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
@@ -23,6 +23,7 @@ export function FFABoard() {
   const [mounted, setMounted] = useState(false)
   const [input, setInput] = useState("")
   const [dartsUsed, setDartsUsed] = useState(3)
+  const currentRowRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => setMounted(true), [])
 
@@ -46,6 +47,11 @@ export function FFABoard() {
     const unsub = subscribeToFFA(gameId, importGame)
     return () => { clearInterval(poll); unsub() }
   }, [mounted, gameId]) // eslint-disable-line
+
+  // Current тоглогчийн мөр рүү автоматаар скролл (throw хийх бүрт game өөрчлөгдөнө)
+  useEffect(() => {
+    currentRowRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" })
+  }, [game])
 
   const kbInput  = useCallback((d: string) => setInput((p) => { const n = p + d; return parseInt(n) > 180 ? p : n }), [])
   const kbDelete = useCallback(() => setInput((p) => p.slice(0, -1)), [])
@@ -172,7 +178,7 @@ export function FFABoard() {
             const avg = getPlayerAvg(player.id)
 
             return (
-              <div key={player.id} className={cn(
+              <div key={player.id} ref={isCurrent ? currentRowRef : undefined} className={cn(
                 "grid grid-cols-[1fr_auto] items-center gap-3 px-3 py-3 border-b border-border/20 transition-all",
                 isCurrent
                   ? "bg-primary/8 border-l-[3px] border-l-primary"
