@@ -1,4 +1,4 @@
-export type FFAFormat = "501" | "301" | "170" | "121"
+export type FFAFormat = "501" | "301" | "170" | "121" | "custom"
 
 export interface FFAPlayer {
   id: string

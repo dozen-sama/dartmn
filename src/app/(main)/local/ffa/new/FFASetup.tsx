@@ -17,6 +17,7 @@ const FORMATS = [
   { value: "301", label: "301" },
   { value: "170", label: "170" },
   { value: "121", label: "121" },
+  { value: "custom", label: "Дурын" },
 ] as const
 
 export function FFASetup() {
@@ -24,7 +25,8 @@ export function FFASetup() {
   const createGame = useFFAStore((s) => s.createGame)
 
   const [name, setName] = useState("Зэрэгцэн тоглолт")
-  const [format, setFormat] = useState<"501" | "301" | "170" | "121">("501")
+  const [format, setFormat] = useState<"501" | "301" | "170" | "121" | "custom">("501")
+  const [customScore, setCustomScore] = useState("")
   const [firstTo, setFirstTo] = useState(2)
   const [doubleOut, setDoubleOut] = useState(true)
   const [doubleIn, setDoubleIn] = useState(false)
@@ -33,7 +35,7 @@ export function FFASetup() {
     { id: nanoid(4), name: "" },
   ])
 
-  const startScore = parseInt(format)
+  const startScore = format === "custom" ? parseInt(customScore) || 0 : parseInt(format)
 
   function addPlayer() {
     if (players.length >= 10) return
@@ -51,6 +53,7 @@ export function FFASetup() {
 
   function handleCreate() {
     if (!name.trim()) return toast.error("Тоглолтын нэр оруулна уу")
+    if (format === "custom" && (startScore < 2 || startScore > 9999)) return toast.error("Оноог 2-9999 хооронд оруулна уу")
     const filled = players.filter((p) => p.name.trim())
     if (filled.length < 2) return toast.error("Хамгийн багадаа 2 тоглогч байх ёстой")
 
@@ -106,6 +109,17 @@ export function FFASetup() {
                 </button>
               ))}
             </div>
+            {format === "custom" && (
+              <Input
+                type="number"
+                value={customScore}
+                onChange={(e) => setCustomScore(e.target.value)}
+                placeholder="Эхлэх оноо (жиш: 701, 1001...)"
+                className="bg-secondary/50 border-border/60 mt-2"
+                min={2}
+                max={9999}
+              />
+            )}
           </div>
 
           {/* First to */}

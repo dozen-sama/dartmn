@@ -136,7 +136,7 @@ export function FFABoard() {
         </button>
         <div className="text-center">
           <p className="font-bold text-sm">{game.name}</p>
-          <p className="text-xs text-muted-foreground">{game.format} · First to {game.firstTo} · Leg {legCount + 1}</p>
+          <p className="text-xs text-muted-foreground">{game.startScore} · First to {game.firstTo} · Leg {legCount + 1}</p>
         </div>
         <div className="w-6" />
       </div>
