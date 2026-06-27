@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Trophy, Loader2 } from "lucide-react"
@@ -325,17 +326,23 @@ function OnlineRRGrid({ entrantIds, matches, entrants, myEntrant, isOrganizer, b
                   const isLive = m.status === "ongoing"
                   const canAct = (isMe || isOrganizer) && m.status === "pending" && !!m.side1_entrant_id && !!m.side2_entrant_id
 
+                  const scoreCell = (
+                    <div className={cn(
+                      "flex items-center justify-center rounded text-[11px] font-bold px-1.5 py-1 mx-1 min-h-[36px] transition-all",
+                      iWon  ? "bg-green-500/15 text-green-400 hover:bg-green-500/25" :
+                      iLost ? "bg-destructive/10 text-destructive/80 hover:bg-destructive/15" :
+                      "text-muted-foreground hover:bg-secondary/40"
+                    )}>
+                      <span className="score-display text-sm whitespace-nowrap">{myLegs} - {oppLegs}</span>
+                    </div>
+                  )
+
                   return (
                     <td key={cpid} className="py-1 text-center min-w-[64px]">
                       {m.status === "completed" ? (
-                        <div className={cn(
-                          "flex items-center justify-center rounded text-[11px] font-bold px-1.5 py-1 mx-1 min-h-[36px]",
-                          iWon  ? "bg-green-500/15 text-green-400" :
-                          iLost ? "bg-destructive/10 text-destructive/80" :
-                          "text-muted-foreground"
-                        )}>
-                          <span className="score-display text-sm whitespace-nowrap">{myLegs} - {oppLegs}</span>
-                        </div>
+                        m.room_id
+                          ? <Link href={`/play/${m.room_id}`}>{scoreCell}</Link>
+                          : scoreCell
                       ) : isLive ? (
                         <button onClick={() => m.room_id && onStartMatch(m)}
                           className="flex items-center justify-center w-9 h-9 rounded-full bg-primary/20 border-2 border-primary pulse-live mx-auto">
@@ -511,7 +518,9 @@ function OnlineMatchSlot({ match: m, entrants, myEntrant, isOrganizer, busy, onS
     </div>
   )
 
-  if (!canAct || isTBD) return card
+  // Live match: spectators can also navigate to the room to watch
+  const canOpen = canAct || (isLive && !!m.room_id)
+  if (!canOpen || isTBD) return card
 
   return (
     <button onClick={() => onStartMatch(m)} disabled={busy === m.id} className="block w-full text-left">
