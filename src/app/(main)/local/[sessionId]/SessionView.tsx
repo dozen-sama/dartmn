@@ -17,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import { useLocalGame } from "@/lib/local-game/store"
 import { LocalMatch, LocalPlayer } from "@/lib/local-game/types"
-import { fetchRemoteSession, broadcastSession } from "@/lib/local-game/sync"
+import { fetchRemoteSession, broadcastSession, subscribeToSession } from "@/lib/local-game/sync"
 import { BracketView } from "@/components/local-game/BracketView"
 import { BracketEditor } from "@/components/local-game/BracketEditor"
 import { VisitLimitPicker } from "@/components/game/VisitLimitPicker"
@@ -82,6 +82,24 @@ export function SessionView() {
       if (owned.includes(sessionId)) broadcastSession(session)
     } catch {}
   }, [mounted]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Viewer device (non-owner): poll + realtime subscription for live updates
+  useEffect(() => {
+    if (!mounted) return
+    let owned: string[] = []
+    try { owned = JSON.parse(localStorage.getItem("owned-sessions") ?? "[]") } catch {}
+    if (owned.includes(sessionId)) return
+
+    const apply = (remote: import("@/lib/local-game/types").LocalSession | null) => {
+      if (remote) importSession(remote)
+    }
+
+    fetchRemoteSession(sessionId).then(apply)
+    const poll = setInterval(() => fetchRemoteSession(sessionId).then(apply), 3000)
+    const unsub = subscribeToSession(sessionId, (s) => apply(s))
+
+    return () => { clearInterval(poll); unsub() }
+  }, [mounted, sessionId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (session && !settingsInitialized) {

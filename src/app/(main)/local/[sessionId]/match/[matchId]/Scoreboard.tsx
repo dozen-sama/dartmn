@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { useLocalGame } from "@/lib/local-game/store"
+import { broadcastSession } from "@/lib/local-game/sync"
 import type { LegThrow, LocalLeg } from "@/lib/local-game/types"
 import { getCheckout, IMPOSSIBLE_CHECKOUTS, VALID_DOUBLES, classifyTurn, isPossibleVisitScore } from "@/lib/local-game/checkouts"
 import { useScoreboardKeyboard } from "@/hooks/useScoreboardKeyboard"
@@ -164,6 +165,16 @@ export function Scoreboard() {
 
   useEffect(() => { setMounted(true) }, [])
   useEffect(() => { if (mounted && match?.status === "pending") startMatch(sessionId, matchId) }, [mounted])
+
+  // Owner device: broadcast session to Supabase whenever session state changes
+  useEffect(() => {
+    if (!mounted || !session) return
+    try {
+      const owned = JSON.parse(localStorage.getItem("owned-sessions") ?? "[]") as string[]
+      if (!owned.includes(sessionId)) return
+    } catch { return }
+    broadcastSession(session)
+  }, [session, mounted, sessionId])
 
   function declareWinner(winnerId: string) {
     setShowWinnerSelect(false)
