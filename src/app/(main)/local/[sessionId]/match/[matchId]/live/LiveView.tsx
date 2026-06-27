@@ -29,8 +29,6 @@ export function LiveView() {
     if (!mounted) return
 
     function apply(s: LocalSession | null) {
-      const matchStatus = s?.matches?.find((m: any) => m.id === matchId)?.status
-      console.log("[LiveView] apply:", s ? `got session, match=${matchStatus}` : "null")
       if (!s) return
       setLiveSession(s)
       setSyncStatus("synced")
@@ -39,7 +37,6 @@ export function LiveView() {
     // 1. Same-device cross-tab: Scoreboard localStorage write → storage event
     function onStorage(e: StorageEvent) {
       if (e.key !== "dartmn-local-games") return
-      console.log("[LiveView] storage event fired")
       try {
         const stored = JSON.parse(e.newValue || "{}")
         const s = stored?.state?.sessions?.[sessionId]
@@ -51,29 +48,19 @@ export function LiveView() {
     // 2. Tab visibility change: хэрэглэгч tab руу буцаж ирэхэд fetch
     function onVisible() {
       if (document.visibilityState === "visible") {
-        console.log("[LiveView] visibility → visible, fetching")
         fetchRemoteSession(sessionId).then(apply)
       }
     }
     document.addEventListener("visibilitychange", onVisible)
 
     // 3. Initial fetch
-    console.log("[LiveView] initial fetch for", sessionId)
     fetchRemoteSession(sessionId).then(apply)
 
     // 4. Realtime broadcast
-    const unsub = subscribeToSession(sessionId, (s) => {
-      console.log("[LiveView] broadcast received")
-      apply(s)
-    })
+    const unsub = subscribeToSession(sessionId, apply)
 
     // 5. Polling fallback every 2s
-    let pollCount = 0
-    const poll = setInterval(() => {
-      pollCount++
-      console.log("[LiveView] poll #" + pollCount)
-      fetchRemoteSession(sessionId).then(apply)
-    }, 2000)
+    const poll = setInterval(() => fetchRemoteSession(sessionId).then(apply), 2000)
 
     return () => {
       window.removeEventListener("storage", onStorage)

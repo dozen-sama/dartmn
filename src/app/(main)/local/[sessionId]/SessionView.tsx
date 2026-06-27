@@ -64,16 +64,15 @@ export function SessionView() {
   const [isOwner, setIsOwner] = useState(false)
   const [recovering, setRecovering] = useState(false)
 
-  // Mount болоход Supabase-с нэг удаа татаж sync хийнэ
-  // (session байхгүй → recovery, байгаа → remote илүү шинэ бол дарна)
+  // localStorage-д байхгүй бол Supabase-с татаж хадгална (recovery only)
   useEffect(() => {
-    if (!mounted) return
-    if (!session) setRecovering(true)
+    if (!mounted || session) return
+    setRecovering(true)
     fetchRemoteSession(sessionId).then((remote) => {
       if (remote) importSession(remote)
       setRecovering(false)
     })
-  }, [mounted]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mounted, session]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (session && !settingsInitialized) {
