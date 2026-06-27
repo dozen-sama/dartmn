@@ -384,7 +384,7 @@ export function SessionView() {
                             {match.status === "completed" && (
                               <p className="text-[10px] text-muted-foreground font-semibold uppercase">Дууссан</p>
                             )}
-                            {canClick && isOwner && (
+                            {canClick && (
                               <Link
                                 href={`/local/${sessionId}/match/${match.id}`}
                                 className={cn(buttonVariants({ size: "sm" }), "text-[11px] px-2 py-1 h-auto glow-primary")}

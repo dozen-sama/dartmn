@@ -166,13 +166,9 @@ export function Scoreboard() {
   useEffect(() => { setMounted(true) }, [])
   useEffect(() => { if (mounted && match?.status === "pending") startMatch(sessionId, matchId) }, [mounted])
 
-  // Owner device: broadcast session to Supabase whenever session state changes
+  // Any scoring device broadcasts session changes to Supabase for live sync
   useEffect(() => {
     if (!mounted || !session) return
-    try {
-      const owned = JSON.parse(localStorage.getItem("owned-sessions") ?? "[]") as string[]
-      if (!owned.includes(sessionId)) return
-    } catch { return }
     broadcastSession(session)
   }, [session, mounted, sessionId])
 
