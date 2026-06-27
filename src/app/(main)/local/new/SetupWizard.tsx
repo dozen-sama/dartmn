@@ -621,7 +621,7 @@ export function SetupWizard() {
             <div className="flex items-center gap-2">
               <Input value={`${typeof window !== "undefined" ? window.location.origin : ""}/local/join/${joinCode}`}
                 readOnly className="bg-secondary/30 border-border/60 text-xs" />
-              <button onClick={() => { navigator.clipboard.writeText(joinCode); toast.success("Join Code хуулагдлаа") }}
+              <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/local/join/${joinCode}`); toast.success("Холбоос хуулагдлаа") }}
                 className="shrink-0 px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium flex items-center gap-1">
                 <Copy className="h-3 w-3" /> Хуулах
               </button>
@@ -807,7 +807,7 @@ export function SetupWizard() {
             <div className="flex items-center gap-2">
               <Input value={`${typeof window !== "undefined" ? window.location.origin : ""}/local/join/${joinCode}`}
                 readOnly className="bg-secondary/30 border-border/60 text-xs" />
-              <button onClick={() => { navigator.clipboard.writeText(joinCode); toast.success("Хуулагдлаа") }}
+              <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/local/join/${joinCode}`); toast.success("Холбоос хуулагдлаа") }}
                 className="shrink-0 px-3 py-1.5 rounded-md bg-blue-600 text-white text-xs flex items-center gap-1">
                 <Copy className="h-3 w-3" /> Хуулах
               </button>
