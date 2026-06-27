@@ -15,40 +15,34 @@ export function LiveView() {
   const { sessionId, matchId } = useParams<{ sessionId: string; matchId: string }>()
   const [mounted, setMounted] = useState(false)
   const tableRef = useRef<HTMLDivElement>(null)
-  const [remoteSession, setRemoteSession] = useState<LocalSession | null>(null)
-  const [syncStatus, setSyncStatus] = useState<"local" | "remote" | "none">("none")
+  const [syncStatus, setSyncStatus] = useState<"synced" | "none">("none")
 
-  // Local Zustand state (same device)
-  const localSession = useLocalGame((s) => s.sessions[sessionId])
+  // Zustand — single source of truth; importSession writes remote data here too
+  const session = useLocalGame((s) => s.sessions[sessionId])
+  const importSession = useLocalGame((s) => s.importSession)
 
   useEffect(() => { setMounted(true) }, [])
 
-  // Realtime subscription + 2s polling fallback
   useEffect(() => {
     if (!mounted) return
 
-    function applyRemote(s: typeof remoteSession) {
-      if (s) { setRemoteSession(s); setSyncStatus("remote") }
-      else if (localSession) setSyncStatus("local")
+    function applyRemote(s: LocalSession | null) {
+      if (!s) return
+      importSession(s)
+      setSyncStatus("synced")
     }
 
+    // Initial fetch
     fetchRemoteSession(sessionId).then(applyRemote)
 
-    // Broadcast/postgres_changes subscription (instant when it works)
-    const unsub = subscribeToSession(sessionId, (s) => {
-      setRemoteSession(s); setSyncStatus("remote")
-    })
+    // Realtime broadcast (instant when channel is ready)
+    const unsub = subscribeToSession(sessionId, applyRemote)
 
-    // Polling fallback — broadcast тасарсан ч 2s дотор update хүргэнэ
-    const poll = setInterval(() => {
-      fetchRemoteSession(sessionId).then(applyRemote)
-    }, 2000)
+    // Polling fallback every 2s
+    const poll = setInterval(() => fetchRemoteSession(sessionId).then(applyRemote), 2000)
 
     return () => { unsub(); clearInterval(poll) }
   }, [mounted, sessionId]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Remote always wins (broadcast on every throw), fall back to local
-  const session = remoteSession ?? localSession
 
   useEffect(() => {
     if (tableRef.current) tableRef.current.scrollTop = tableRef.current.scrollHeight
@@ -157,12 +151,11 @@ export function LiveView() {
         </div>
         <div className="flex items-center gap-1.5">
           <div className="flex items-center gap-1.5">
-          {syncStatus === "remote" && (
+          {syncStatus === "synced" ? (
             <span title="Realtime sync" className="flex items-center gap-1 text-[10px] text-emerald-400">
               <Wifi className="h-3 w-3" />
             </span>
-          )}
-          {syncStatus === "local" && (
+          ) : (
             <span title="Local" className="flex items-center gap-1 text-[10px] text-sky-400">
               <WifiOff className="h-3 w-3" />
             </span>
