@@ -17,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import { useLocalGame } from "@/lib/local-game/store"
 import { LocalMatch, LocalPlayer } from "@/lib/local-game/types"
-import { fetchRemoteSession } from "@/lib/local-game/sync"
+import { fetchRemoteSession, broadcastSession } from "@/lib/local-game/sync"
 import { BracketView } from "@/components/local-game/BracketView"
 import { BracketEditor } from "@/components/local-game/BracketEditor"
 import { VisitLimitPicker } from "@/components/game/VisitLimitPicker"
@@ -73,6 +73,15 @@ export function SessionView() {
       setRecovering(false)
     })
   }, [mounted, session]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Энэ device session-г эзэмшдэг бол local state-г Supabase-д push хийнэ
+  useEffect(() => {
+    if (!mounted || !session) return
+    try {
+      const owned = JSON.parse(localStorage.getItem("owned-sessions") ?? "[]") as string[]
+      if (owned.includes(sessionId)) broadcastSession(session)
+    } catch {}
+  }, [mounted]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (session && !settingsInitialized) {
