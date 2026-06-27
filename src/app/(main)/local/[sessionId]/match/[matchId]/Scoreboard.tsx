@@ -16,7 +16,7 @@ import { BullOff } from "@/components/game/BullOff"
 import { DartSelector } from "@/components/game/DartSelector"
 import { toast } from "sonner"
 
-const KEYPAD = [[7,8,9],[4,5,6],[1,2,3],["*",0,"DEL"]] as const
+const KEYPAD = [[1,2,3],[4,5,6],[7,8,9],["*",0,"DEL"]] as const
 const QUICK_SCORES = [26, 41, 45, 60, 81, 85, 100, 121, 140, 180]
 
 export function Scoreboard() {

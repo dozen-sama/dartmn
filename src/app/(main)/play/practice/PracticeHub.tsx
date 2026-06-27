@@ -14,7 +14,7 @@ import { buttonVariants } from "@/components/ui/button"
 
 type Mode = "menu" | "501" | "checkout" | "scoring" | "around"
 
-const KEYPAD = [[7,8,9],[4,5,6],[1,2,3],["*",0,"DEL"]] as const
+const KEYPAD = [[1,2,3],[4,5,6],[7,8,9],["*",0,"DEL"]] as const
 const QUICK_SCORES = [26, 41, 45, 60, 81, 85, 100, 121, 140, 180]
 
 // Around the board targets (1-20 then bull)

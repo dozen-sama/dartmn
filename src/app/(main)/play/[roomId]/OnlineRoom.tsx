@@ -23,7 +23,7 @@ import Link from "next/link"
 import { buttonVariants } from "@/components/ui/button"
 import type { OnlineRoom as Room, RoomVisit } from "@/types/database"
 
-const KEYPAD = [[7, 8, 9], [4, 5, 6], [1, 2, 3], ["*", 0, "DEL"]] as const
+const KEYPAD = [[1, 2, 3], [4, 5, 6], [7, 8, 9], ["*", 0, "DEL"]] as const
 
 interface Profile {
   id: string

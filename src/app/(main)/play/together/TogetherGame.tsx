@@ -45,7 +45,7 @@ interface VisitView {
 
 interface Roster { name: string; players: string[] }
 
-const KEYPAD = [[7,8,9],[4,5,6],[1,2,3],["*",0,"DEL"]] as const
+const KEYPAD = [[1,2,3],[4,5,6],[7,8,9],["*",0,"DEL"]] as const
 
 export function TogetherGame() {
   const [phase, setPhase] = useState<Phase>("setup")
