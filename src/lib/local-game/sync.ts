@@ -36,15 +36,20 @@ export async function broadcastSession(session: LocalSession) {
   } catch {}
 }
 
-// Supabase-с session state татах (spectator)
+// Supabase-с session state татах — шууд fetch, cache: no-store
 export async function fetchRemoteSession(sessionId: string): Promise<LocalSession | null> {
   try {
-    const { data } = await db()
-      .from("local_session_sync")
-      .select("data")
-      .eq("session_id", sessionId)
-      .single()
-    return (data?.data as LocalSession) ?? null
+    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/local_session_sync?session_id=eq.${encodeURIComponent(sessionId)}&select=data&limit=1`
+    const res = await fetch(url, {
+      headers: {
+        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
+      },
+      cache: "no-store",
+    })
+    if (!res.ok) return null
+    const rows: { data: LocalSession }[] = await res.json()
+    return rows[0]?.data ?? null
   } catch {
     return null
   }
@@ -102,24 +107,22 @@ export function subscribeToPublicSessions(onUpdate: (sessions: LocalSession[]) =
 }
 
 // Realtime subscription — LiveView ашиглана
+// Filtered postgres_changes: тухайн session row update болоход шууд мэдэгдэнэ
 export function subscribeToSession(
   sessionId: string,
   onUpdate: (session: LocalSession) => void
 ) {
   const supabase = createClient() as any
   const channel = supabase
-    .channel(`ls-${sessionId}`)
-    // Broadcast: scoreboard → live view (шууд, <100ms)
-    .on("broadcast", { event: "session" }, ({ payload }: any) => {
-      const s = payload?.session as LocalSession
-      if (s) onUpdate(s)
-    })
-    // postgres_changes: fallback хэрэв broadcast ажиллаагүй бол
+    .channel(`live-${sessionId}-${Date.now()}`)
     .on("postgres_changes", {
-      event: "*", schema: "public", table: "local_session_sync",
+      event: "UPDATE",
+      schema: "public",
+      table: "local_session_sync",
+      filter: `session_id=eq.${sessionId}`,
     }, (payload: any) => {
       const s = payload.new?.data as LocalSession
-      if (s?.id === sessionId) onUpdate(s)
+      if (s) onUpdate(s)
     })
     .subscribe()
 
