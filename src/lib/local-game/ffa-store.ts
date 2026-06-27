@@ -19,6 +19,7 @@ interface FFAStore {
     joinPassword: string
   }) => string
   recordThrow: (gameId: string, score: number, darts: number, bust: boolean) => void
+  undoThrow: (gameId: string) => void
   completeLeg: (gameId: string, winnerId: string) => void
   completeGame: (gameId: string, winnerId: string) => void
   deleteGame: (id: string) => void
@@ -71,6 +72,33 @@ export const useFFAStore = create<FFAStore>()(
           }
           const newLegs = game.legs.map((l, i) => i === legIdx ? newLeg : l)
           const updated: FFAGame = { ...game, legs: newLegs, updatedAt: new Date().toISOString() }
+          broadcastFFA(updated)
+          return { games: { ...s.games, [gameId]: updated } }
+        })
+      },
+
+      undoThrow(gameId) {
+        set((s) => {
+          const game = s.games[gameId]
+          if (!game || game.status !== "active") return s
+          const legIdx = game.legs.findIndex((l) => !l.winnerId)
+          if (legIdx === -1) return s
+          const leg = game.legs[legIdx]
+          const playerCount = game.players.length
+          const prevIdx = (leg.currentPlayerIndex - 1 + playerCount) % playerCount
+          const prevPlayer = game.players[prevIdx]
+          const prevThrows = leg.throws[prevPlayer.id] ?? []
+          if (prevThrows.length === 0) return s
+          const newLeg: FFALeg = {
+            ...leg,
+            throws: { ...leg.throws, [prevPlayer.id]: prevThrows.slice(0, -1) },
+            currentPlayerIndex: prevIdx,
+          }
+          const updated: FFAGame = {
+            ...game,
+            legs: game.legs.map((l, i) => i === legIdx ? newLeg : l),
+            updatedAt: new Date().toISOString(),
+          }
           broadcastFFA(updated)
           return { games: { ...s.games, [gameId]: updated } }
         })

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Trophy } from "lucide-react"
+import { ArrowLeft, RotateCcw, Trophy } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { useFFAStore } from "@/lib/local-game/ffa-store"
@@ -17,6 +17,7 @@ export function FFABoard() {
   const router = useRouter()
   const game = useFFAStore((s) => s.games[gameId])
   const recordThrow = useFFAStore((s) => s.recordThrow)
+  const undoThrow = useFFAStore((s) => s.undoThrow)
   const completeLeg = useFFAStore((s) => s.completeLeg)
   const importGame = useFFAStore((s) => s.importGame)
 
@@ -84,6 +85,13 @@ export function FFABoard() {
     }
     return darts ? Math.round((pts / darts) * 3) : 0
   }
+
+  // Буцааж болох throw байгаа эсэх
+  const canUndo = (() => {
+    if (!leg) return false
+    const prevIdx = (leg.currentPlayerIndex - 1 + game.players.length) % game.players.length
+    return (leg.throws[game.players[prevIdx].id] ?? []).length > 0
+  })()
 
   const remaining = currentPlayer ? getRemaining(currentPlayer.id) : 0
   const inputNum = parseInt(input) || 0
@@ -159,7 +167,13 @@ export function FFABoard() {
           <p className="font-bold text-sm">{game.name}</p>
           <p className="text-xs text-muted-foreground">{game.startScore} · First to {game.firstTo} · Leg {legCount + 1}</p>
         </div>
-        <div className="w-6" />
+        <button
+          onClick={() => { undoThrow(gameId); setInput(""); setDartsUsed(3) }}
+          disabled={!canUndo}
+          className="text-muted-foreground hover:text-foreground disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+          title="Сүүлийн онооыг буцаах">
+          <RotateCcw className="h-4 w-4" />
+        </button>
       </div>
 
       {/* TV Scoreboard — скроллтой хайрцаг */}
