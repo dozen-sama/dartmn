@@ -23,21 +23,28 @@ export function LiveView() {
 
   useEffect(() => { setMounted(true) }, [])
 
-  // Always subscribe to realtime (Zustand is per-tab, realtime crosses tabs/devices)
+  // Realtime subscription + 2s polling fallback
   useEffect(() => {
     if (!mounted) return
 
-    fetchRemoteSession(sessionId).then((s) => {
+    function applyRemote(s: typeof remoteSession) {
       if (s) { setRemoteSession(s); setSyncStatus("remote") }
       else if (localSession) setSyncStatus("local")
-    })
+    }
 
+    fetchRemoteSession(sessionId).then(applyRemote)
+
+    // Broadcast/postgres_changes subscription (instant when it works)
     const unsub = subscribeToSession(sessionId, (s) => {
-      setRemoteSession(s)
-      setSyncStatus("remote")
+      setRemoteSession(s); setSyncStatus("remote")
     })
 
-    return unsub
+    // Polling fallback — broadcast тасарсан ч 2s дотор update хүргэнэ
+    const poll = setInterval(() => {
+      fetchRemoteSession(sessionId).then(applyRemote)
+    }, 2000)
+
+    return () => { unsub(); clearInterval(poll) }
   }, [mounted, sessionId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Remote always wins (broadcast on every throw), fall back to local
