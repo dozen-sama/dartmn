@@ -42,7 +42,10 @@ export function BracketView({ session, sessionId }: Props) {
                 <p className="text-xs font-semibold text-muted-foreground mb-2">{group.name}</p>
                 <RRGrid
                   playerIds={group.playerIds}
-                  matches={groupMatches.filter((m) => m.groupId === group.id)}
+                  matches={groupMatches.filter((m) => {
+                    const s = new Set(group.playerIds)
+                    return s.has(m.player1Id) && s.has(m.player2Id)
+                  })}
                   standings={session.standings}
                   playerMap={playerMap}
                   sessionId={sessionId}
@@ -136,14 +139,14 @@ function RRGrid({ playerIds, matches, standings, playerMap, sessionId }: {
       <table className="border-collapse w-full text-sm">
         <thead>
           <tr className="bg-secondary/60">
-            <th className="px-2 py-2 text-left text-[11px] text-muted-foreground font-medium w-7">#</th>
-            <th className="px-3 py-2 text-left text-[11px] text-muted-foreground font-medium min-w-[120px]">Name</th>
+            <th className="px-2 py-2 text-left text-[11px] text-muted-foreground font-medium w-6">#</th>
+            <th className="px-3 py-2 text-left text-[11px] text-muted-foreground font-medium min-w-[100px]">Нэр</th>
             {sorted.map((_, i) => (
-              <th key={i} className="px-1 py-2 text-center text-[11px] text-muted-foreground font-medium w-12">{i + 1}</th>
+              <th key={i} className="py-2 text-center text-[11px] text-muted-foreground font-medium w-16 min-w-[64px]">{i + 1}</th>
             ))}
-            <th className="px-2 py-2 text-center text-[11px] text-muted-foreground font-medium w-12">W - L</th>
-            <th className="px-2 py-2 text-center text-[11px] text-muted-foreground font-medium w-12">Legs</th>
-            <th className="px-2 py-2 text-center text-[11px] text-muted-foreground font-medium w-12">Rank</th>
+            <th className="px-2 py-2 text-center text-[11px] text-muted-foreground font-medium w-14">W-L</th>
+            <th className="px-2 py-2 text-center text-[11px] text-muted-foreground font-medium w-14">Legs</th>
+            <th className="px-2 py-2 text-center text-[11px] text-muted-foreground font-medium w-10">Rank</th>
           </tr>
         </thead>
         <tbody>
@@ -176,24 +179,24 @@ function RRGrid({ playerIds, matches, standings, playerMap, sessionId }: {
                     : `/local/${sessionId}/match/${m.id}`
 
                   return (
-                    <td key={cpid} className="px-0.5 py-1 text-center w-12">
+                    <td key={cpid} className="py-1 text-center min-w-[64px]">
                       <Link href={href}>
                         {m.status === "completed" ? (
                           <div className={cn(
-                            "flex flex-col items-center justify-center min-h-[40px] rounded text-[11px] font-bold px-1 py-0.5 transition-all",
+                            "flex flex-col items-center justify-center min-h-[40px] rounded text-[11px] font-bold px-1.5 py-1 mx-1 transition-all",
                             iWon  ? "bg-green-500/15 text-green-400 hover:bg-green-500/25" :
                             iLost ? "bg-destructive/10 text-destructive/80 hover:bg-destructive/15" :
                             "text-muted-foreground hover:bg-secondary/40"
                           )}>
-                            <span className="score-display text-sm leading-tight">{myLegs} - {oppLegs}</span>
-                            {avg && <span className="text-[9px] font-normal text-muted-foreground/70 leading-tight">({avg})</span>}
+                            <span className="score-display text-sm leading-tight whitespace-nowrap">{myLegs} - {oppLegs}</span>
+                            {avg && <span className="text-[9px] font-normal text-muted-foreground/70 leading-tight whitespace-nowrap">({avg})</span>}
                           </div>
                         ) : isLive ? (
-                          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/20 border-2 border-primary pulse-live mx-auto">
+                          <div className="flex items-center justify-center w-9 h-9 rounded-full bg-primary/20 border-2 border-primary pulse-live mx-auto">
                             <span className="h-2 w-2 rounded-full bg-primary" />
                           </div>
                         ) : (
-                          <div className="flex items-center justify-center w-8 h-8 rounded-full border border-border/50 text-[11px] text-muted-foreground hover:border-primary/50 hover:text-primary hover:bg-primary/5 mx-auto transition-all">
+                          <div className="flex items-center justify-center w-9 h-9 rounded-full border border-border/50 text-[11px] text-muted-foreground hover:border-primary/50 hover:text-primary hover:bg-primary/5 mx-auto transition-all">
                             {matchNumber[m.id] ?? "?"}
                           </div>
                         )}
@@ -201,14 +204,14 @@ function RRGrid({ playerIds, matches, standings, playerMap, sessionId }: {
                     </td>
                   )
                 })}
-                <td className="px-2 py-2 text-center text-xs font-semibold">
+                <td className="px-2 py-2 text-center text-xs font-semibold whitespace-nowrap">
                   {st ? (
                     <><span className="text-green-400">{st.won}</span>
                     <span className="text-muted-foreground"> - </span>
                     <span className="text-destructive/80">{st.lost}</span></>
                   ) : ""}
                 </td>
-                <td className="px-2 py-2 text-center text-xs text-muted-foreground score-display">
+                <td className="px-2 py-2 text-center text-xs text-muted-foreground score-display whitespace-nowrap">
                   {st ? `${st.legsWon} - ${st.legsLost}` : ""}
                 </td>
                 <td className="px-2 py-2 text-center text-sm font-bold text-primary">
