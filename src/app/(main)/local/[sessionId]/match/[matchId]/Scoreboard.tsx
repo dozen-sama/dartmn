@@ -38,6 +38,7 @@ export function Scoreboard() {
   const [dartsUsed, setDartsUsed]           = useState(3)
   const [showBullOff, setShowBullOff]       = useState(true)
   const [showWinnerSelect, setShowWinnerSelect] = useState(false)
+  const [showScorerPrompt, setShowScorerPrompt] = useState(false)
   const SCORER_KEY = `scoring-${matchId}`
   const [visitRound, setVisitRound]         = useState(1)
   const [playerOpened, setPlayerOpened]     = useState<Record<string, boolean>>({})
@@ -182,8 +183,9 @@ export function Scoreboard() {
       else if (t2 > t1) setActivePlayer(0)
       setVisitRound(Math.min(t1, t2) + 1)
     } else {
-      // Өөр device — live рүү
-      router.replace(`/local/${sessionId}/match/${matchId}/live`)
+      // Flag байхгүй (хуучин match эсвэл өөр device) — сонголт өгнө
+      setShowBullOff(false)
+      setShowScorerPrompt(true)
     }
   }, [mounted]) // eslint-disable-line
 
@@ -218,6 +220,44 @@ export function Scoreboard() {
 
   const rem1 = getRemaining(p1Id)
   const rem2 = getRemaining(p2Id)
+
+  // ── Scorer prompt (flag байхгүй ongoing match) ──
+  if (showScorerPrompt && p1 && p2) {
+    const resumeScoring = () => {
+      const leg = match.legs[currentLegIndex]
+      const t1 = ((leg?.throws?.[p1Id] ?? []) as LegThrow[]).length
+      const t2 = ((leg?.throws?.[p2Id] ?? []) as LegThrow[]).length
+      localStorage.setItem(SCORER_KEY, "1")
+      setShowScorerPrompt(false)
+      if (t1 > t2) setActivePlayer(1)
+      else if (t2 > t1) setActivePlayer(0)
+      setVisitRound(Math.min(t1, t2) + 1)
+    }
+    return (
+      <div className="max-w-sm mx-auto space-y-4 pt-4">
+        <div className="flex items-center gap-3">
+          <button onClick={() => router.push(`/local/${sessionId}`)} className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-8 w-8")}><ArrowLeft className="h-4 w-4" /></button>
+          <div><p className="font-semibold text-sm">{p1.name} vs {p2.name}</p><p className="text-xs text-muted-foreground">{session.format} · First to {session.firstTo}</p></div>
+        </div>
+        <Card className="border-border/50 bg-card/80">
+          <CardContent className="p-6 space-y-4 text-center">
+            <p className="text-sm font-semibold">Энэ тоглолт аль хэдийн эхэлсэн</p>
+            <p className="text-xs text-muted-foreground">Та оноо оруулах хүн мөн үү?</p>
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button onClick={resumeScoring}
+                className="py-3 rounded-lg border-2 border-primary bg-primary/10 text-primary text-sm font-semibold hover:bg-primary/20 transition-colors">
+                Тийм, оруулна
+              </button>
+              <button onClick={() => router.replace(`/local/${sessionId}/match/${matchId}/live`)}
+                className="py-3 rounded-lg border border-border/50 text-muted-foreground text-sm hover:border-border transition-colors">
+                📺 Live харах
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   // ── Bull-off screen ──
   if (showBullOff && p1 && p2) {
