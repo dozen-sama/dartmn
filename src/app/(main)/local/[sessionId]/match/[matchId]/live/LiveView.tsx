@@ -9,7 +9,7 @@ import { fetchRemoteSession, subscribeToSession } from "@/lib/local-game/sync"
 import { getCheckout } from "@/lib/local-game/checkouts"
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
-import type { LocalSession, LocalLeg, LegThrow } from "@/lib/local-game/types"
+import type { LocalLeg, LegThrow, LocalSession } from "@/lib/local-game/types"
 
 export function LiveView() {
   const { sessionId, matchId } = useParams<{ sessionId: string; matchId: string }>()
@@ -17,43 +17,54 @@ export function LiveView() {
   const tableRef = useRef<HTMLDivElement>(null)
   const [syncStatus, setSyncStatus] = useState<"synced" | "none">("none")
 
-  // Zustand — single source of truth; importSession writes remote data here too
-  const session = useLocalGame((s) => s.sessions[sessionId])
-  const importSession = useLocalGame((s) => s.importSession)
+  // liveSession: Supabase/storage-аас ирсэн шинэ өгөгдөл (Zustand bypas)
+  // localSession: нэг device-ийн Zustand (initial fallback)
+  const [liveSession, setLiveSession] = useState<LocalSession | null>(null)
+  const localSession = useLocalGame((s) => s.sessions[sessionId])
+  const session = liveSession ?? localSession
 
   useEffect(() => { setMounted(true) }, [])
 
   useEffect(() => {
     if (!mounted) return
 
-    function applyRemote(s: LocalSession | null) {
+    function apply(s: LocalSession | null) {
       if (!s) return
-      importSession(s)
+      setLiveSession(s)
       setSyncStatus("synced")
     }
 
-    // Same-device cross-tab: localStorage-ийн өөрчлөлтийг шууд мэдэгдэнэ
+    // 1. Same-device cross-tab: Scoreboard localStorage write → storage event
     function onStorage(e: StorageEvent) {
       if (e.key !== "dartmn-local-games") return
       try {
         const stored = JSON.parse(e.newValue || "{}")
-        const s = stored?.state?.sessions?.[sessionId] as LocalSession | undefined
-        if (s) applyRemote(s)
+        const s = stored?.state?.sessions?.[sessionId]
+        if (s) apply(s)
       } catch {}
     }
     window.addEventListener("storage", onStorage)
 
-    // Initial fetch
-    fetchRemoteSession(sessionId).then(applyRemote)
+    // 2. Tab visibility change: хэрэглэгч tab руу буцаж ирэхэд fetch
+    function onVisible() {
+      if (document.visibilityState === "visible") {
+        fetchRemoteSession(sessionId).then(apply)
+      }
+    }
+    document.addEventListener("visibilitychange", onVisible)
 
-    // Realtime broadcast (instant when channel is ready)
-    const unsub = subscribeToSession(sessionId, applyRemote)
+    // 3. Initial fetch
+    fetchRemoteSession(sessionId).then(apply)
 
-    // Polling fallback every 2s
-    const poll = setInterval(() => fetchRemoteSession(sessionId).then(applyRemote), 2000)
+    // 4. Realtime broadcast
+    const unsub = subscribeToSession(sessionId, apply)
+
+    // 5. Polling fallback every 2s
+    const poll = setInterval(() => fetchRemoteSession(sessionId).then(apply), 2000)
 
     return () => {
       window.removeEventListener("storage", onStorage)
+      document.removeEventListener("visibilitychange", onVisible)
       unsub()
       clearInterval(poll)
     }
