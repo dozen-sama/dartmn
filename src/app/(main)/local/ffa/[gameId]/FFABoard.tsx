@@ -10,7 +10,7 @@ import { broadcastFFA, fetchRemoteFFA, subscribeToFFA } from "@/lib/local-game/f
 import { classifyTurn, getCheckout, isPossibleVisitScore } from "@/lib/local-game/checkouts"
 import { toast } from "sonner"
 
-const KEYPAD = [[1,2,3],[4,5,6],[7,8,9],["*",0,"DEL"]] as const
+const KEYPAD = [[1,2,3],[4,5,6],[7,8,9],["*",0,"UNDO"]] as const
 
 export function FFABoard() {
   const { gameId } = useParams<{ gameId: string }>()
@@ -168,11 +168,11 @@ export function FFABoard() {
           <p className="text-xs text-muted-foreground">{game.startScore} · First to {game.firstTo} · Leg {legCount + 1}</p>
         </div>
         <button
-          onClick={() => { undoThrow(gameId); setInput(""); setDartsUsed(3) }}
-          disabled={!canUndo}
-          className="text-muted-foreground hover:text-foreground disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-          title="Сүүлийн онооыг буцаах">
-          <RotateCcw className="h-4 w-4" />
+          onClick={kbDelete}
+          disabled={input.length === 0}
+          className="text-muted-foreground hover:text-foreground disabled:opacity-20 disabled:cursor-not-allowed transition-colors text-lg leading-none"
+          title="Сүүлийн оронг устгах">
+          ⌫
         </button>
       </div>
 
@@ -280,8 +280,9 @@ export function FFABoard() {
           <div key={ri} className="grid grid-cols-3 gap-1.5">
             {row.map((key) => (
               <button key={key}
+                disabled={key === "UNDO" && !canUndo}
                 onClick={() => {
-                  if (key === "DEL") kbDelete()
+                  if (key === "UNDO") { undoThrow(gameId); setInput(""); setDartsUsed(3) }
                   else if (key === "*") submitScore()
                   else kbInput(String(key))
                 }}
@@ -289,11 +290,11 @@ export function FFABoard() {
                   "h-12 rounded-xl font-bold text-lg border transition-all active:scale-95",
                   key === "*"
                     ? "border-primary/50 bg-primary/20 text-primary hover:bg-primary/30 glow-primary"
-                    : key === "DEL"
-                      ? "border-border/50 bg-secondary/50 text-muted-foreground hover:bg-secondary"
+                    : key === "UNDO"
+                      ? "border-border/50 bg-secondary/50 text-muted-foreground hover:bg-secondary disabled:opacity-30"
                       : "border-border/40 bg-card/80 hover:bg-secondary/50 score-display"
                 )}>
-                {key === "*" ? "OK" : key === "DEL" ? "⌫" : key}
+                {key === "*" ? "OK" : key === "UNDO" ? <RotateCcw className="h-5 w-5 mx-auto" /> : key}
               </button>
             ))}
           </div>
