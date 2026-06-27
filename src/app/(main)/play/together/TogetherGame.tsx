@@ -392,6 +392,16 @@ export function TogetherGame() {
           </CardContent>
         </Card>
 
+        {/* FFA shortcut */}
+        <Link href="/local/ffa/new"
+          className="flex items-center justify-between p-4 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all group">
+          <div>
+            <p className="font-semibold text-sm text-primary">1v1v1v1… Зэрэгцэн тоглолт</p>
+            <p className="text-xs text-muted-foreground mt-0.5">2–10 хүн нэг онооноос ээлжилж тоглоно</p>
+          </div>
+          <span className="text-primary text-lg group-hover:translate-x-1 transition-transform">→</span>
+        </Link>
+
         {/* Game format */}
         <Card className="border-border/50 bg-card/80">
           <CardContent className="p-4 space-y-4">
