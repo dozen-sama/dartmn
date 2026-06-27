@@ -11,7 +11,7 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
-import { Edit } from "lucide-react"
+import { Edit, Edit2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
@@ -29,6 +29,7 @@ import { TournamentBet } from "@/components/tournament/TournamentBet"
 import { OrganizerRating } from "@/components/tournament/OrganizerRating"
 import { useTournamentBracket } from "@/hooks/useTournamentBracket"
 import { BracketView } from "@/components/tournament/BracketView"
+import { OnlineBracketEditor } from "@/components/tournament/OnlineBracketEditor"
 import { PlayerName } from "@/components/cosmetic/PlayerName"
 
 type TournamentWithRelations = Tournament & {
@@ -321,6 +322,12 @@ export function TournamentDetail({ tournament: t, registrations, currentUserId, 
               ⚙ Удирдах
             </TabsTrigger>
           )}
+          {isOrganizer && bracket.matches.length > 0 && (
+            <TabsTrigger value="edit-bracket">
+              <Edit2 className="h-4 w-4 mr-1.5" />
+              Edit Bracket
+            </TabsTrigger>
+          )}
           {isOrganizer && (
             <TabsTrigger value="settings">
               <Settings className="h-4 w-4 mr-1.5" />
@@ -413,6 +420,22 @@ export function TournamentDetail({ tournament: t, registrations, currentUserId, 
         {isOrganizer && (
           <TabsContent value="manage" className="mt-4">
             <OrganizerPanel tournament={t} registrations={registrations} />
+          </TabsContent>
+        )}
+
+        {isOrganizer && bracket.matches.length > 0 && (
+          <TabsContent value="edit-bracket" className="mt-4">
+            <OnlineBracketEditor
+              tournamentId={t.id}
+              bracketType={t.bracket_type}
+              groupsCount={t.groups_count}
+              groupAdvance={t.group_advance}
+              firstTo={t.first_to}
+              setsEnabled={t.sets_enabled}
+              entrants={bracket.entrants}
+              matches={bracket.matches}
+              onRefresh={bracket.refetch}
+            />
           </TabsContent>
         )}
 
