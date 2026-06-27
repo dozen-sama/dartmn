@@ -10,7 +10,7 @@ import { broadcastFFA, fetchRemoteFFA, subscribeToFFA } from "@/lib/local-game/f
 import { classifyTurn, getCheckout, isPossibleVisitScore } from "@/lib/local-game/checkouts"
 import { toast } from "sonner"
 
-const KEYPAD = [[1,2,3],[4,5,6],[7,8,9],["*",0,"UNDO"]] as const
+const KEYPAD = [[1,2,3],[4,5,6],[7,8,9],["*",0,"DEL"]] as const
 
 export function FFABoard() {
   const { gameId } = useParams<{ gameId: string }>()
@@ -167,13 +167,7 @@ export function FFABoard() {
           <p className="font-bold text-sm">{game.name}</p>
           <p className="text-xs text-muted-foreground">{game.startScore} · First to {game.firstTo} · Leg {legCount + 1}</p>
         </div>
-        <button
-          onClick={kbDelete}
-          disabled={input.length === 0}
-          className="text-muted-foreground hover:text-foreground disabled:opacity-20 disabled:cursor-not-allowed transition-colors text-lg leading-none"
-          title="Сүүлийн оронг устгах">
-          ⌫
-        </button>
+        <div className="w-5" />
       </div>
 
       {/* TV Scoreboard — скроллтой хайрцаг */}
@@ -238,7 +232,13 @@ export function FFABoard() {
         <div className="rounded-xl border border-border/40 bg-card/80 px-3 py-2 shrink-0">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-muted-foreground">{currentPlayer.name}</p>
+              <button
+                onClick={() => { undoThrow(gameId); setInput(""); setDartsUsed(3) }}
+                disabled={!canUndo}
+                className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                <RotateCcw className="h-3.5 w-3.5" />
+                Буцаах
+              </button>
               {checkoutHint && !input && (
                 <p className="text-xs text-green-400/80 mt-0.5">🎯 {checkoutHint}</p>
               )}
@@ -280,9 +280,8 @@ export function FFABoard() {
           <div key={ri} className="grid grid-cols-3 gap-1.5">
             {row.map((key) => (
               <button key={key}
-                disabled={key === "UNDO" && !canUndo}
                 onClick={() => {
-                  if (key === "UNDO") { undoThrow(gameId); setInput(""); setDartsUsed(3) }
+                  if (key === "DEL") kbDelete()
                   else if (key === "*") submitScore()
                   else kbInput(String(key))
                 }}
@@ -290,11 +289,11 @@ export function FFABoard() {
                   "h-12 rounded-xl font-bold text-lg border transition-all active:scale-95",
                   key === "*"
                     ? "border-primary/50 bg-primary/20 text-primary hover:bg-primary/30 glow-primary"
-                    : key === "UNDO"
-                      ? "border-border/50 bg-secondary/50 text-muted-foreground hover:bg-secondary disabled:opacity-30"
+                    : key === "DEL"
+                      ? "border-border/50 bg-secondary/50 text-muted-foreground hover:bg-secondary"
                       : "border-border/40 bg-card/80 hover:bg-secondary/50 score-display"
                 )}>
-                {key === "*" ? "OK" : key === "UNDO" ? <RotateCcw className="h-5 w-5 mx-auto" /> : key}
+                {key === "*" ? "OK" : key === "DEL" ? "⌫" : key}
               </button>
             ))}
           </div>
