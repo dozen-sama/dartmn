@@ -38,7 +38,6 @@ export function Scoreboard() {
   const [dartsUsed, setDartsUsed]           = useState(3)
   const [showBullOff, setShowBullOff]       = useState(true)
   const [showWinnerSelect, setShowWinnerSelect] = useState(false)
-  const [showScorerPrompt, setShowScorerPrompt] = useState(false)
   const [visitRound, setVisitRound]         = useState(1)
   const [playerOpened, setPlayerOpened]     = useState<Record<string, boolean>>({})
 
@@ -139,7 +138,6 @@ export function Scoreboard() {
       const newP2 = match.player2Legs + (activePlayerId === p2Id ? 1 : 0)
       if (newP1 >= legsToWin || newP2 >= legsToWin) {
         completeMatch(sessionId, matchId, activePlayerId)
-        localStorage.removeItem(`scoring-${matchId}`)
         toast.success(`${playerMap[activePlayerId]?.name} ялав!`)
         router.push(`/local/${sessionId}`)
         return
@@ -168,26 +166,14 @@ export function Scoreboard() {
   useEffect(() => { setMounted(true) }, [])
   useEffect(() => { if (mounted && match?.status === "pending") startMatch(sessionId, matchId) }, [mounted])
 
-  // Ongoing match-д буцаж орвол: scorer эсэхийг шалгаж, prompt эсвэл resume хийнэ
+  // Ongoing match-д throw байвал live view рүү шилжүүлнэ
   useEffect(() => {
     if (!mounted || !match || match.status !== "ongoing") return
     const leg = match.legs[currentLegIndex]
     const t1 = ((leg?.throws?.[p1Id] ?? []) as LegThrow[]).length
     const t2 = ((leg?.throws?.[p2Id] ?? []) as LegThrow[]).length
-
-    if (t1 === 0 && t2 === 0) return // Throw байхгүй — BullOff харуулна
-
-    const isScorer = localStorage.getItem(`scoring-${matchId}`) === "1"
-    if (isScorer) {
-      // Энэ device-с өмнө тоглосон — шууд resume
-      setShowBullOff(false)
-      if (t1 > t2) setActivePlayer(1)
-      else if (t2 > t1) setActivePlayer(0)
-      setVisitRound(Math.min(t1, t2) + 1)
-    } else {
-      // Тодорхойгүй — хэрэглэгчид сонголт өгнө
-      setShowBullOff(false)
-      setShowScorerPrompt(true)
+    if (t1 > 0 || t2 > 0) {
+      router.replace(`/local/${sessionId}/match/${matchId}/live`)
     }
   }, [mounted]) // eslint-disable-line
 
@@ -204,7 +190,6 @@ export function Scoreboard() {
     const newP2 = match!.player2Legs + (winnerId === p2Id ? 1 : 0)
     if (newP1 >= legsToWin || newP2 >= legsToWin) {
       completeMatch(sessionId, matchId, winnerId)
-      localStorage.removeItem(`scoring-${matchId}`)
       toast.success(`${playerMap[winnerId]?.name} тэмцэнд ялав!`)
       router.push(`/local/${sessionId}`)
       return
@@ -223,47 +208,6 @@ export function Scoreboard() {
   const rem1 = getRemaining(p1Id)
   const rem2 = getRemaining(p2Id)
 
-  // ── Scorer prompt: ongoing match, unclear if this device is scoring ──
-  if (showScorerPrompt && p1 && p2) {
-    return (
-      <div className="max-w-sm mx-auto space-y-4 pt-4">
-        <div className="flex items-center gap-3">
-          <button onClick={() => router.push(`/local/${sessionId}`)} className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-8 w-8")}><ArrowLeft className="h-4 w-4" /></button>
-          <div><p className="font-semibold text-sm">{p1.name} vs {p2.name}</p><p className="text-xs text-muted-foreground">{session.format} · First to {session.firstTo}</p></div>
-        </div>
-        <Card className="border-border/50 bg-card/80">
-          <CardContent className="p-6 space-y-4 text-center">
-            <p className="text-sm font-semibold">Энэ тоглолт аль хэдийн эхэлсэн байна</p>
-            <p className="text-xs text-muted-foreground">Та оноо оруулах хүн мөн үү?</p>
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <button
-                onClick={() => {
-                  localStorage.setItem(`scoring-${matchId}`, "1")
-                  setShowScorerPrompt(false)
-                  const leg = match.legs[currentLegIndex]
-                  const t1 = ((leg?.throws?.[p1Id] ?? []) as LegThrow[]).length
-                  const t2 = ((leg?.throws?.[p2Id] ?? []) as LegThrow[]).length
-                  if (t1 > t2) setActivePlayer(1)
-                  else if (t2 > t1) setActivePlayer(0)
-                  setVisitRound(Math.min(t1, t2) + 1)
-                }}
-                className="py-3 rounded-lg border-2 border-primary bg-primary/10 text-primary text-sm font-semibold hover:bg-primary/20 transition-colors"
-              >
-                Тийм, оноо оруулна
-              </button>
-              <button
-                onClick={() => router.replace(`/local/${sessionId}/match/${matchId}/live`)}
-                className="py-3 rounded-lg border border-border/50 text-muted-foreground text-sm hover:border-border transition-colors"
-              >
-                📺 Live харах
-              </button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
   // ── Bull-off screen ──
   if (showBullOff && p1 && p2) {
     return (
@@ -274,11 +218,7 @@ export function Scoreboard() {
         </div>
         <Card className="border-border/50 bg-card/80"><CardContent className="p-5">
           <BullOff players={[{ id: p1Id, name: p1.name }, { id: p2Id, name: p2.name }]}
-            onSelect={(id) => {
-              localStorage.setItem(`scoring-${matchId}`, "1")
-              setActivePlayer(id === p1Id ? 0 : 1)
-              setShowBullOff(false)
-            }} purpose="start" />
+            onSelect={(id) => { setActivePlayer(id === p1Id ? 0 : 1); setShowBullOff(false) }} purpose="start" />
         </CardContent></Card>
       </div>
     )
@@ -500,7 +440,7 @@ export function Scoreboard() {
         <div className="grid grid-cols-2 gap-2">
           {[{ id: p1Id, name: p1?.name }, { id: p2Id, name: p2?.name }].map(({ id, name }) => (
             <button key={id}
-              onClick={() => { completeMatch(sessionId, matchId, id); localStorage.removeItem(`scoring-${matchId}`); toast.success(`${name} ялагч боллоо`); router.push(`/local/${sessionId}`) }}
+              onClick={() => { completeMatch(sessionId, matchId, id); toast.success(`${name} ялагч боллоо`); router.push(`/local/${sessionId}`) }}
               className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-border/40 text-sm text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors">
               <Trophy className="h-3.5 w-3.5" />{name} ялав
             </button>
