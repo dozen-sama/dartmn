@@ -408,6 +408,8 @@ export interface Database {
           organizer_iban: string | null
           organizer_account_number: string | null
           organizer_account_holder: string | null
+          uses_stages: boolean
+          current_stage_id: string | null
           created_at: string
           updated_at: string
         }
@@ -463,6 +465,8 @@ export interface Database {
           organizer_iban?: string | null
           organizer_account_number?: string | null
           organizer_account_holder?: string | null
+          uses_stages?: boolean
+          current_stage_id?: string | null
         }
         Update: {
           name?: string
@@ -502,6 +506,34 @@ export interface Database {
           organizer_iban?: string | null
           organizer_account_number?: string | null
           organizer_account_holder?: string | null
+          uses_stages?: boolean
+          current_stage_id?: string | null
+        }
+        Relationships: []
+      }
+      tournament_stages: {
+        Row: {
+          id: string
+          tournament_id: string
+          order_no: number
+          stage_type: "group" | "elimination" | "round_robin" | "swiss" | "rescue"
+          config: Record<string, unknown>
+          status: "pending" | "active" | "completed"
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tournament_id: string
+          order_no: number
+          stage_type: "group" | "elimination" | "round_robin" | "swiss" | "rescue"
+          config?: Record<string, unknown>
+          status?: "pending" | "active" | "completed"
+        }
+        Update: {
+          order_no?: number
+          stage_type?: "group" | "elimination" | "round_robin" | "swiss" | "rescue"
+          config?: Record<string, unknown>
+          status?: "pending" | "active" | "completed"
         }
         Relationships: []
       }
@@ -589,6 +621,7 @@ export interface Database {
           next_match_id: string | null
           next_loser_match_id: string | null
           room_id: string | null
+          stage_id: string | null
           created_at: string
         }
         Insert: {
@@ -608,6 +641,7 @@ export interface Database {
           next_match_id?: string | null
           next_loser_match_id?: string | null
           room_id?: string | null
+          stage_id?: string | null
         }
         Update: {
           side1_entrant_id?: string | null
