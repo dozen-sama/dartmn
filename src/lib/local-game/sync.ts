@@ -6,17 +6,34 @@ function db() {
   return createClient() as any
 }
 
+// Realtime broadcast-д зориулсан channel-уудыг дахин ашиглах
+const senderChannels = new Map<string, any>()
+
+function getSenderChannel(sessionId: string) {
+  if (!senderChannels.has(sessionId)) {
+    const ch = (createClient() as any).channel(`ls-${sessionId}`)
+    ch.subscribe()
+    senderChannels.set(sessionId, ch)
+  }
+  return senderChannels.get(sessionId)
+}
+
 // Session state-г Supabase-д broadcast хийх
 export async function broadcastSession(session: LocalSession) {
+  // 1. DB upsert — persistence + postgres_changes fallback
   try {
     await db().from("local_session_sync").upsert({
       session_id: session.id,
       data: session,
       updated_at: new Date().toISOString(),
     })
-  } catch {
-    // Network error тохиолдолд дуугүй — offline тоглолтыг хаахгүй
-  }
+  } catch {}
+
+  // 2. Realtime broadcast — шууд бүх subscriber-д хүргэнэ
+  try {
+    const ch = getSenderChannel(session.id)
+    await ch.send({ type: "broadcast", event: "session", payload: { session } })
+  } catch {}
 }
 
 // Supabase-с session state татах (spectator)
@@ -89,22 +106,21 @@ export function subscribeToSession(
   sessionId: string,
   onUpdate: (session: LocalSession) => void
 ) {
-  const supabase = createClient()
+  const supabase = createClient() as any
   const channel = supabase
-    .channel(`local-session-${sessionId}`)
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "local_session_sync",
-        filter: `session_id=eq.${sessionId}`,
-      },
-      (payload) => {
-        const session = (payload.new as any)?.data as LocalSession
-        if (session) onUpdate(session)
-      }
-    )
+    .channel(`ls-${sessionId}`)
+    // Broadcast: scoreboard → live view (шууд, <100ms)
+    .on("broadcast", { event: "session" }, ({ payload }: any) => {
+      const s = payload?.session as LocalSession
+      if (s) onUpdate(s)
+    })
+    // postgres_changes: fallback хэрэв broadcast ажиллаагүй бол
+    .on("postgres_changes", {
+      event: "*", schema: "public", table: "local_session_sync",
+    }, (payload: any) => {
+      const s = payload.new?.data as LocalSession
+      if (s?.id === sessionId) onUpdate(s)
+    })
     .subscribe()
 
   return () => { supabase.removeChannel(channel) }
