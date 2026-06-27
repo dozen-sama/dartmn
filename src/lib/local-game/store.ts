@@ -73,6 +73,7 @@ interface LocalGameStore {
   autoAssignKnockout: (sessionId: string) => void
   setConcurrentMatches: (sessionId: string, groupId: string, count: number) => void
 
+  importSession: (session: LocalSession) => void
   getSummaries: () => SessionSummary[]
 
   // Match management
@@ -332,6 +333,10 @@ export const useLocalGame = create<LocalGameStore>()(
             },
           }
         })
+      },
+
+      importSession: (session) => {
+        set((s) => ({ sessions: { ...s.sessions, [session.id]: session } }))
       },
 
       getSummaries: () => {

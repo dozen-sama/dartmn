@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import { useLocalGame } from "@/lib/local-game/store"
 import { LocalMatch, LocalPlayer } from "@/lib/local-game/types"
+import { fetchRemoteSession } from "@/lib/local-game/sync"
 import { BracketView } from "@/components/local-game/BracketView"
 import { BracketEditor } from "@/components/local-game/BracketEditor"
 import { VisitLimitPicker } from "@/components/game/VisitLimitPicker"
@@ -33,6 +34,7 @@ export function SessionView() {
   const { sessionId } = useParams<{ sessionId: string }>()
   const router = useRouter()
   const session = useLocalGame((s) => s.sessions[sessionId])
+  const importSession = useLocalGame((s) => s.importSession)
   const addSwissRound = useLocalGame((s) => s.addSwissRound)
   const advanceGroupsToKnockout = useLocalGame((s) => s.advanceGroupsToKnockout)
   const updateSession = useLocalGame((s) => s.updateSession)
@@ -59,6 +61,17 @@ export function SessionView() {
   const [editPointLost, setEditPointLost] = useState(0)
   const [settingsInitialized, setSettingsInitialized] = useState(false)
   const [isOwner, setIsOwner] = useState(false)
+  const [recovering, setRecovering] = useState(false)
+
+  // localStorage-д байхгүй бол Supabase-с татаж хадгална
+  useEffect(() => {
+    if (!mounted || session) return
+    setRecovering(true)
+    fetchRemoteSession(sessionId).then((remote) => {
+      if (remote) importSession(remote)
+      setRecovering(false)
+    })
+  }, [mounted, session]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (session && !settingsInitialized) {
@@ -115,12 +128,18 @@ export function SessionView() {
     } catch {}
   }, [mounted, sessionId])
 
-  if (!mounted) return <div className="flex items-center justify-center py-20"><div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" /></div>
+  if (!mounted || recovering) return (
+    <div className="flex flex-col items-center justify-center py-20 gap-3">
+      <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
+      {recovering && <p className="text-xs text-muted-foreground">Тоглолт хайж байна…</p>}
+    </div>
+  )
 
   if (!session) {
     return (
       <div className="text-center py-20">
         <p className="text-muted-foreground">Тоглолт олдсонгүй</p>
+        <p className="text-xs text-muted-foreground/60 mt-1">Тоглолт дууссан эсвэл өөр төхөөрөмжид л байна.</p>
         <Link href="/local" className={cn(buttonVariants({ variant: "outline" }), "mt-4")}>Буцах</Link>
       </div>
     )
