@@ -4,9 +4,10 @@ import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import {
-  ArrowLeft, ChevronRight, Edit2, ListOrdered, Loader2, Minus, Plus, RotateCcw,
+  ArrowLeft, ChevronRight, Copy, Edit2, ListOrdered, Loader2, Minus, Plus, QrCode, RotateCcw,
   Save, Settings, Trophy, Users, Zap,
 } from "lucide-react"
+import { QRCodeSVG } from "qrcode.react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -456,7 +457,12 @@ export function SessionView() {
         </TabsContent>
 
         {/* Settings / Edit */}
-        <TabsContent value="settings" className="mt-4">
+        <TabsContent value="settings" className="mt-4 space-y-4">
+          {/* Join URL + QR */}
+          {session.joinCode && (
+            <JoinQR sessionId={sessionId} joinCode={session.joinCode} joinPassword={session.joinPassword} />
+          )}
+
           <Card className="border-primary/20 bg-card/80">
             <CardContent className="p-5 space-y-5">
               <h2 className="font-bold flex items-center gap-2 text-primary">
@@ -699,5 +705,50 @@ function StandingsTable({ playerIds, standings, playerMap, advanceCount }: {
         </tbody>
       </table>
     </div>
+  )
+}
+
+function JoinQR({ sessionId, joinCode, joinPassword }: { sessionId: string; joinCode: string; joinPassword: string }) {
+  const [showQR, setShowQR] = useState(false)
+  const joinUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/local/join/${joinCode}`
+    : `https://dartmn.com/local/join/${joinCode}`
+
+  return (
+    <Card className="border-border/40 bg-card/60">
+      <CardContent className="p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold">Оролцогчдод хуваалцах</p>
+          <button onClick={() => setShowQR(!showQR)}
+            className={cn("flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border transition-colors",
+              showQR ? "border-primary/50 text-primary bg-primary/10" : "border-border/50 text-muted-foreground hover:border-border")}>
+            <QrCode className="h-3.5 w-3.5" />QR код
+          </button>
+        </div>
+
+        {showQR && (
+          <div className="flex flex-col sm:flex-row items-center gap-4 p-4 bg-secondary/20 rounded-lg">
+            <div className="p-3 bg-white rounded-xl shrink-0">
+              <QRCodeSVG value={joinUrl} size={150} level="M" />
+            </div>
+            <div className="space-y-1 text-center sm:text-left">
+              <p className="text-sm font-semibold">Камераар скан хийж орно</p>
+              <p className="text-xs text-muted-foreground font-mono break-all">{joinUrl}</p>
+              {joinPassword && (
+                <p className="text-xs text-muted-foreground">Нууц үг: <span className="font-semibold text-foreground">{joinPassword}</span></p>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2">
+          <Input value={joinUrl} readOnly className="bg-secondary/30 border-border/60 text-xs h-8" />
+          <button onClick={() => { navigator.clipboard.writeText(joinUrl); toast.success("Холбоос хуулагдлаа") }}
+            className="shrink-0 px-3 h-8 rounded-md bg-secondary hover:bg-secondary/80 text-xs flex items-center gap-1.5 border border-border/50 whitespace-nowrap">
+            <Copy className="h-3 w-3" />Хуулах
+          </button>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
