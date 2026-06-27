@@ -38,6 +38,7 @@ export function Scoreboard() {
   const [dartsUsed, setDartsUsed]           = useState(3)
   const [showBullOff, setShowBullOff]       = useState(true)
   const [showWinnerSelect, setShowWinnerSelect] = useState(false)
+  const SCORER_KEY = `scoring-${matchId}`
   const [visitRound, setVisitRound]         = useState(1)
   const [playerOpened, setPlayerOpened]     = useState<Record<string, boolean>>({})
 
@@ -138,6 +139,7 @@ export function Scoreboard() {
       const newP2 = match.player2Legs + (activePlayerId === p2Id ? 1 : 0)
       if (newP1 >= legsToWin || newP2 >= legsToWin) {
         completeMatch(sessionId, matchId, activePlayerId)
+        localStorage.removeItem(SCORER_KEY)
         toast.success(`${playerMap[activePlayerId]?.name} ялав!`)
         router.push(`/local/${sessionId}`)
         return
@@ -166,13 +168,21 @@ export function Scoreboard() {
   useEffect(() => { setMounted(true) }, [])
   useEffect(() => { if (mounted && match?.status === "pending") startMatch(sessionId, matchId) }, [mounted])
 
-  // Ongoing match-д throw байвал live view рүү шилжүүлнэ
+  // Ongoing match-д: flag байвал scorer буцаж ирсэн, байхгүй бол live рүү
   useEffect(() => {
     if (!mounted || !match || match.status !== "ongoing") return
     const leg = match.legs[currentLegIndex]
     const t1 = ((leg?.throws?.[p1Id] ?? []) as LegThrow[]).length
     const t2 = ((leg?.throws?.[p2Id] ?? []) as LegThrow[]).length
-    if (t1 > 0 || t2 > 0) {
+    if (t1 === 0 && t2 === 0) return // Throw байхгүй — BullOff харуулна
+    if (localStorage.getItem(SCORER_KEY) === "1") {
+      // Энэ device scorer байсан — resume (bust хийгээд буцаж ирсэн ч орно)
+      setShowBullOff(false)
+      if (t1 > t2) setActivePlayer(1)
+      else if (t2 > t1) setActivePlayer(0)
+      setVisitRound(Math.min(t1, t2) + 1)
+    } else {
+      // Өөр device — live рүү
       router.replace(`/local/${sessionId}/match/${matchId}/live`)
     }
   }, [mounted]) // eslint-disable-line
@@ -190,6 +200,7 @@ export function Scoreboard() {
     const newP2 = match!.player2Legs + (winnerId === p2Id ? 1 : 0)
     if (newP1 >= legsToWin || newP2 >= legsToWin) {
       completeMatch(sessionId, matchId, winnerId)
+      localStorage.removeItem(SCORER_KEY)
       toast.success(`${playerMap[winnerId]?.name} тэмцэнд ялав!`)
       router.push(`/local/${sessionId}`)
       return
@@ -218,7 +229,11 @@ export function Scoreboard() {
         </div>
         <Card className="border-border/50 bg-card/80"><CardContent className="p-5">
           <BullOff players={[{ id: p1Id, name: p1.name }, { id: p2Id, name: p2.name }]}
-            onSelect={(id) => { setActivePlayer(id === p1Id ? 0 : 1); setShowBullOff(false) }} purpose="start" />
+            onSelect={(id) => {
+              localStorage.setItem(SCORER_KEY, "1")
+              setActivePlayer(id === p1Id ? 0 : 1)
+              setShowBullOff(false)
+            }} purpose="start" />
         </CardContent></Card>
       </div>
     )
@@ -440,7 +455,7 @@ export function Scoreboard() {
         <div className="grid grid-cols-2 gap-2">
           {[{ id: p1Id, name: p1?.name }, { id: p2Id, name: p2?.name }].map(({ id, name }) => (
             <button key={id}
-              onClick={() => { completeMatch(sessionId, matchId, id); toast.success(`${name} ялагч боллоо`); router.push(`/local/${sessionId}`) }}
+              onClick={() => { completeMatch(sessionId, matchId, id); localStorage.removeItem(SCORER_KEY); toast.success(`${name} ялагч боллоо`); router.push(`/local/${sessionId}`) }}
               className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-border/40 text-sm text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors">
               <Trophy className="h-3.5 w-3.5" />{name} ялав
             </button>
