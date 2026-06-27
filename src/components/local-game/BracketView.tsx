@@ -44,7 +44,7 @@ export function BracketView({ session, sessionId }: Props) {
                   playerIds={group.playerIds}
                   matches={groupMatches.filter((m) => {
                     const s = new Set(group.playerIds)
-                    return s.has(m.player1Id) && s.has(m.player2Id)
+                    return m.player1Id != null && m.player2Id != null && s.has(m.player1Id) && s.has(m.player2Id)
                   })}
                   standings={session.standings}
                   playerMap={playerMap}
