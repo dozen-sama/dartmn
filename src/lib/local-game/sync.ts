@@ -1,39 +1,32 @@
 import { createClient } from "@/lib/supabase/client"
 import type { LocalSession } from "./types"
 
-// Supabase typed client-г bypass хийж local_session_sync ашиглана
-function db() {
-  return createClient() as any
-}
+const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const SUPA_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-// Realtime broadcast-д зориулсан channel-уудыг дахин ашиглах
-const senderChannels = new Map<string, any>()
-
-function getSenderChannel(sessionId: string) {
-  if (!senderChannels.has(sessionId)) {
-    const ch = (createClient() as any).channel(`ls-${sessionId}`)
-    ch.subscribe()
-    senderChannels.set(sessionId, ch)
-  }
-  return senderChannels.get(sessionId)
-}
-
-// Session state-г Supabase-д broadcast хийх
+// Session state-г Supabase-д шууд fetch-ээр upsert хийх
 export async function broadcastSession(session: LocalSession) {
-  // 1. DB upsert — persistence + postgres_changes fallback
   try {
-    await db().from("local_session_sync").upsert({
-      session_id: session.id,
-      data: session,
-      updated_at: new Date().toISOString(),
+    const res = await fetch(`${SUPA_URL}/rest/v1/local_session_sync`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: SUPA_KEY,
+        Authorization: `Bearer ${SUPA_KEY}`,
+        Prefer: "resolution=merge-duplicates,return=minimal",
+      },
+      body: JSON.stringify({
+        session_id: session.id,
+        data: session,
+        updated_at: new Date().toISOString(),
+      }),
     })
-  } catch {}
-
-  // 2. Realtime broadcast — шууд бүх subscriber-д хүргэнэ
-  try {
-    const ch = getSenderChannel(session.id)
-    await ch.send({ type: "broadcast", event: "session", payload: { session } })
-  } catch {}
+    if (!res.ok) {
+      console.error("[broadcastSession] upsert failed:", res.status, await res.text())
+    }
+  } catch (e) {
+    console.error("[broadcastSession] fetch error:", e)
+  }
 }
 
 // Supabase-с session state татах — шууд fetch, cache: no-store
@@ -55,22 +48,31 @@ export async function fetchRemoteSession(sessionId: string): Promise<LocalSessio
   }
 }
 
+const HEADERS = {
+  apikey: SUPA_KEY,
+  Authorization: `Bearer ${SUPA_KEY}`,
+}
+
 // Supabase-с session устгах
 export async function deleteRemoteSession(sessionId: string) {
   try {
-    await db().from("local_session_sync").delete().eq("session_id", sessionId)
+    await fetch(`${SUPA_URL}/rest/v1/local_session_sync?session_id=eq.${encodeURIComponent(sessionId)}`, {
+      method: "DELETE",
+      headers: HEADERS,
+    })
   } catch {}
 }
 
-// joinCode-оор session хайх (нууц үгтэй эсэхээс үл хамааран)
+// joinCode-оор session хайх
 export async function fetchSessionByJoinCode(joinCode: string): Promise<LocalSession | null> {
   try {
-    const { data } = await db()
-      .from("local_session_sync")
-      .select("data")
-      .eq("data->>joinCode", joinCode.toUpperCase())
-      .maybeSingle()
-    return (data?.data as LocalSession) ?? null
+    const res = await fetch(
+      `${SUPA_URL}/rest/v1/local_session_sync?data->>joinCode=eq.${encodeURIComponent(joinCode.toUpperCase())}&select=data&limit=1`,
+      { headers: HEADERS, cache: "no-store" }
+    )
+    if (!res.ok) return null
+    const rows: { data: LocalSession }[] = await res.json()
+    return rows[0]?.data ?? null
   } catch {
     return null
   }
@@ -79,15 +81,13 @@ export async function fetchSessionByJoinCode(joinCode: string): Promise<LocalSes
 // Нээлттэй (нууц үггүй) active session-уудыг татах
 export async function fetchPublicSessions(): Promise<LocalSession[]> {
   try {
-    const { data } = await db()
-      .from("local_session_sync")
-      .select("data, updated_at")
-      .order("updated_at", { ascending: false })
-      .limit(30)
-    if (!data) return []
-    return (data as any[])
-      .map((row: any) => row.data as LocalSession)
-      .filter((s) => !s.joinPassword && s.status !== "completed")
+    const res = await fetch(
+      `${SUPA_URL}/rest/v1/local_session_sync?select=data,updated_at&order=updated_at.desc&limit=30`,
+      { headers: HEADERS, cache: "no-store" }
+    )
+    if (!res.ok) return []
+    const rows: { data: LocalSession }[] = await res.json()
+    return rows.map((r) => r.data).filter((s) => !s.joinPassword && s.status !== "completed")
   } catch {
     return []
   }
