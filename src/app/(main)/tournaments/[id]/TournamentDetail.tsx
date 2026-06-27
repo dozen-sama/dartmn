@@ -6,7 +6,7 @@ import Image from "next/image"
 import { toast } from "sonner"
 import {
   ArrowLeft, Calendar, CheckCircle2, Copy, Eye, EyeOff,
-  Globe, Lock, Loader2, MapPin, Share2, Target, Trophy, Users,
+  Globe, Lock, Loader2, MapPin, Settings, Share2, Target, Trophy, Users,
 } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -321,6 +321,12 @@ export function TournamentDetail({ tournament: t, registrations, currentUserId, 
               ⚙ Удирдах
             </TabsTrigger>
           )}
+          {isOrganizer && (
+            <TabsTrigger value="settings">
+              <Settings className="h-4 w-4 mr-1.5" />
+              Тохиргоо
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="players" className="mt-4">
@@ -409,6 +415,80 @@ export function TournamentDetail({ tournament: t, registrations, currentUserId, 
             <OrganizerPanel tournament={t} registrations={registrations} />
           </TabsContent>
         )}
+
+        {isOrganizer && (
+          <TabsContent value="settings" className="mt-4">
+            <Card className="border-primary/20 bg-card/80">
+              <CardContent className="p-5 space-y-5">
+                <div className="flex items-center justify-between">
+                  <h2 className="font-bold flex items-center gap-2 text-primary">
+                    <Settings className="h-4 w-4" />
+                    Тохиргоо
+                  </h2>
+                  <Link href={`/tournaments/${t.id}/edit`}
+                    className={cn(buttonVariants({ variant: "outline", size: "sm" }), "border-primary/30 text-primary hover:bg-primary/10")}>
+                    <Edit className="h-3.5 w-3.5 mr-1.5" />
+                    Засах
+                  </Link>
+                </div>
+
+                {/* Тоглолтын формат */}
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Тоглолтын формат</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline" className="border-border/60">{t.format}</Badge>
+                    <Badge variant="outline" className="border-border/60">
+                      {t.sets_enabled ? `BO${t.first_to} sets · ${t.legs_per_set}L` : `BO${t.first_to}`}
+                    </Badge>
+                    <Badge variant="outline" className="border-border/60">{bracketLabels[t.bracket_type] ?? t.bracket_type}</Badge>
+                    <Badge variant="outline" className="border-border/60">{t.max_players} тоглогч</Badge>
+                  </div>
+                </div>
+
+                {/* Дүрэм */}
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Дүрэм</p>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
+                    <SettingRow label="Захаар гарах" value={t.double_out} />
+                    <SettingRow label="Double in" value={t.double_in} />
+                    <SettingRow label="Loser First" value={t.loser_first} />
+                    {t.limit_rounds && (
+                      <SettingRow label={`Сумны хязгаар (${t.limit_rounds} багц)`} value={true} />
+                    )}
+                    {t.limit_rounds && t.bull_finish_at_limit && (
+                      <SettingRow label="Сумны хязгаарт хүрэхэд Bull-off" value={true} />
+                    )}
+                  </div>
+                </div>
+
+                {/* Оноо тооцоо — RR/Swiss */}
+                {(t.bracket_type === "round_robin" || t.bracket_type === "swiss" || t.bracket_type === "groups_knockout") && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Оноо тооцоо</p>
+                    <div className="flex gap-6 text-sm">
+                      <div className="text-center"><p className="text-muted-foreground text-xs">Хожил</p><p className="font-bold text-lg score-display">{t.point_won}</p></div>
+                      <div className="text-center"><p className="text-muted-foreground text-xs">Тэнцэл</p><p className="font-bold text-lg score-display">{t.point_draw}</p></div>
+                      <div className="text-center"><p className="text-muted-foreground text-xs">Хохирол</p><p className="font-bold text-lg score-display">{t.point_lost}</p></div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Нэмэлт тохиргоо */}
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Нэмэлт тохиргоо</p>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
+                    <SettingRow label="Average харуулах" value={t.show_average} />
+                    <SettingRow label="Автоматаар дуусгах" value={t.auto_complete} />
+                    <SettingRow label="Өрсөлдөгчийг баталгаажуулах" value={t.confirm_opponent} />
+                    <SettingRow label="Оролцогч оноо оруулах" value={t.allow_participant_score} />
+                    <SettingRow label="Жагсаалтад дугаар" value={t.show_index} />
+                    <SettingRow label="Private" value={t.is_private} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   )
@@ -421,6 +501,15 @@ function Stat({ label, value, icon: Icon, valueClass = "" }: { label: string; va
         <Icon className="h-3 w-3" />{label}
       </p>
       <p className={`text-base font-bold score-display ${valueClass}`}>{value}</p>
+    </div>
+  )
+}
+
+function SettingRow({ label, value }: { label: string; value: boolean }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className={cn("h-2 w-2 rounded-full shrink-0", value ? "bg-primary" : "bg-muted-foreground/30")} />
+      <span className={value ? "text-foreground" : "text-muted-foreground/60 line-through"}>{label}</span>
     </div>
   )
 }

@@ -1,11 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Trophy, Play, Eye, Loader2 } from "lucide-react"
+import { Trophy, Loader2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import type { BracketMatch, BracketEntrant } from "@/hooks/useTournamentBracket"
 import { computeStandings } from "@/lib/tournament/standings"
@@ -36,6 +35,7 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
       const res = await fetch(`/api/tournaments/${tournamentId}/start`, { method: "POST" })
       const j = await res.json()
       if (!res.ok) setError(j.error ?? "Алдаа гарлаа")
+      else router.refresh()
     } finally { setBusy(null) }
   }
 
@@ -57,17 +57,16 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
     } finally { setBusy(null) }
   }
 
-  async function startMatch(m: BracketMatch) {
+  const startMatch = useCallback(async (m: BracketMatch) => {
     setBusy(m.id); setError(null)
     try {
-      // Аль хэдийн room-тай бол шууд орно
       if (m.room_id) { router.push(`/play/${m.room_id}`); return }
       const res = await fetch(`/api/tournaments/${tournamentId}/match/${m.id}/start`, { method: "POST" })
       const j = await res.json()
       if (res.ok && j.roomId) router.push(`/play/${j.roomId}`)
       else setError(j.error ?? "Тоглолт эхлүүлэхэд алдаа гарлаа")
     } finally { setBusy(null) }
-  }
+  }, [tournamentId, router])
 
   if (status === "registration" || status === "draft") {
     return (
@@ -93,49 +92,19 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
   }
 
   if (loading) {
-    return <Card className="border-border/50 bg-card/80"><CardContent className="py-16 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></CardContent></Card>
-  }
-
-  const isElimination = bracketType === "single_elimination" || bracketType === "double_elimination"
-  const isGroups = bracketType === "groups_knockout"
-
-  // Нэг match-ийн мөрийг зурна (бүх bracket төрөлд дахин ашиглана)
-  function renderMatch(m: BracketMatch) {
-    const s1 = nameOf(m.side1_entrant_id)
-    const s2 = nameOf(m.side2_entrant_id)
-    const ready = !!m.side1_entrant_id && !!m.side2_entrant_id && m.status === "pending"
-    const mine = myEntrant && (m.side1_entrant_id === myEntrant || m.side2_entrant_id === myEntrant)
-    const win1 = m.winner_entrant_id && m.winner_entrant_id === m.side1_entrant_id
-    const win2 = m.winner_entrant_id && m.winner_entrant_id === m.side2_entrant_id
     return (
-      <div key={m.id} className="flex items-center gap-3 rounded-lg border border-border/40 bg-secondary/20 px-3 py-2">
-        <div className="flex-1 min-w-0 space-y-0.5">
-          <Side name={s1} legs={m.side1_legs} win={!!win1} done={m.status === "completed"} />
-          <Side name={s2} legs={m.side2_legs} win={!!win2} done={m.status === "completed"} />
-        </div>
-        <div className="shrink-0">
-          {m.status === "completed" ? (
-            <Badge variant="outline" className="text-[10px] border-border/60 text-muted-foreground">Дууссан</Badge>
-          ) : m.status === "ongoing" ? (
-            <Button size="sm" variant={mine ? "default" : "outline"} onClick={() => startMatch(m)} disabled={busy === m.id}>
-              {busy === m.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : mine ? <><Play className="h-3.5 w-3.5 mr-1" />Орох</> : <><Eye className="h-3.5 w-3.5 mr-1" />Үзэх</>}
-            </Button>
-          ) : ready && (mine || isOrganizer) ? (
-            <Button size="sm" onClick={() => startMatch(m)} disabled={busy === m.id}>
-              {busy === m.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Play className="h-3.5 w-3.5 mr-1" />Эхлүүлэх</>}
-            </Button>
-          ) : (
-            <Badge variant="outline" className="text-[10px] border-border/60 text-muted-foreground/60">
-              {ready ? "Хүлээж байна" : "Бэлэн биш"}
-            </Badge>
-          )}
-        </div>
-      </div>
+      <Card className="border-border/50 bg-card/80">
+        <CardContent className="py-16 flex justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
     )
   }
 
+  const isElimination = bracketType === "single_elimination" || bracketType === "double_elimination"
+
   // ── Groups + Knockout ────────────────────────────────────────────
-  if (isGroups) {
+  if (bracketType === "groups_knockout") {
     const groupNos = [...new Set(matches.map((m) => m.group_no).filter((g): g is number => g != null))].sort((a, b) => a - b)
     const groupMatches = matches.filter((m) => m.group_no != null)
     const koMatches = matches.filter((m) => m.group_no == null)
@@ -148,28 +117,26 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
     return (
       <div className="space-y-4">
         {error && <p className="text-xs text-destructive">{error}</p>}
-
-        {/* Бүлгүүд */}
         {groupNos.map((gno) => {
           const groupEntrantIds = Object.values(entrants).filter((e) => e.group_no === gno).map((e) => e.id)
-          const groupStanding = computeStandings(groupEntrantIds, groupMatches.filter((m) => m.group_no === gno))
+          const gMatches = groupMatches.filter((m) => m.group_no === gno)
           const gLabel = `Бүлэг ${String.fromCharCode(64 + gno)}`
           return (
             <div key={gno} className="space-y-2">
-              <p className="text-sm font-semibold text-foreground">{gLabel}</p>
-              {groupStanding.length > 0 && (
-                <StandingsTable rows={groupStanding} nameOf={(id) => entrants[id]?.display_name ?? "?"} myEntrant={myEntrant} />
-              )}
-              <Card className="border-border/50 bg-card/80">
-                <CardContent className="p-4 space-y-2">
-                  {groupMatches.filter((m) => m.group_no === gno).sort((a, b) => a.round - b.round || a.match_number - b.match_number).map(renderMatch)}
-                </CardContent>
-              </Card>
+              <SectionHeader title={gLabel} />
+              <OnlineRRGrid
+                entrantIds={groupEntrantIds}
+                matches={gMatches}
+                entrants={entrants}
+                myEntrant={myEntrant}
+                isOrganizer={isOrganizer}
+                busy={busy}
+                onStartMatch={startMatch}
+              />
             </div>
           )
         })}
 
-        {/* Шигшээнд дэвших */}
         {isOrganizer && allGroupDone && !koSeeded && (
           <Card className="border-primary/40 bg-card/80">
             <CardContent className="flex flex-col items-center gap-2 py-5">
@@ -182,17 +149,20 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
           </Card>
         )}
 
-        {/* Шигшээ (KO) */}
-        {koSeeded && koRounds.map((round) => (
-          <Card key={`ko-${round}`} className="border-border/50 bg-card/80">
-            <CardContent className="p-4 space-y-2">
-              <p className="text-xs font-semibold text-muted-foreground mb-1">
-                {round === koMaxRound ? "Финал" : `Шигшээ ${round - koMinRound + 1}`}
-              </p>
-              {koMatches.filter((m) => m.round === round).sort((a, b) => a.match_number - b.match_number).map(renderMatch)}
-            </CardContent>
-          </Card>
-        ))}
+        {koSeeded && (
+          <div className="space-y-2">
+            <SectionHeader title="Шигшээ шат" />
+            <OnlineEliminationBracket
+              matches={koMatches}
+              entrants={entrants}
+              myEntrant={myEntrant}
+              isOrganizer={isOrganizer}
+              busy={busy}
+              onStartMatch={startMatch}
+              maxRound={koMaxRound}
+            />
+          </div>
+        )}
       </div>
     )
   }
@@ -202,57 +172,68 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
     const wbMatches = matches.filter((m) => !m.is_losers_bracket && m.round < 200)
     const lbMatches = matches.filter((m) => m.is_losers_bracket)
     const gfMatches = matches.filter((m) => m.round === 200)
-    const wbRounds = [...new Set(wbMatches.map((m) => m.round))].sort((a, b) => a - b)
-    const wbMaxRound = wbRounds[wbRounds.length - 1]
-    const lbRounds = [...new Set(lbMatches.map((m) => m.round))].sort((a, b) => a - b)
-    const lbMaxRound = lbRounds[lbRounds.length - 1]
-
-    const section = (title: string, key: string, label: (r: number) => string, rs: number[], pool: BracketMatch[]) => (
-      <div key={key} className="space-y-2">
-        <p className="text-sm font-semibold text-foreground">{title}</p>
-        {rs.map((round) => (
-          <Card key={`${key}-${round}`} className="border-border/50 bg-card/80">
-            <CardContent className="p-4 space-y-2">
-              <p className="text-xs font-semibold text-muted-foreground mb-1">{label(round)}</p>
-              {pool.filter((m) => m.round === round).sort((a, b) => a.match_number - b.match_number).map(renderMatch)}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    )
+    const wbMaxRound = wbMatches.length ? Math.max(...wbMatches.map((m) => m.round)) : 0
+    const lbMaxRound = lbMatches.length ? Math.max(...lbMatches.map((m) => m.round)) : 0
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-5">
         {error && <p className="text-xs text-destructive">{error}</p>}
-        {section("Winners bracket", "wb", (r) => (r === wbMaxRound ? "Winners финал" : `Тойрог ${r}`), wbRounds, wbMatches)}
-        {lbRounds.length > 0 && section("Losers bracket", "lb", (r) => (r === lbMaxRound ? "Losers финал" : `Losers ${r - 100}`), lbRounds, lbMatches)}
         <div className="space-y-2">
-          <p className="text-sm font-semibold text-foreground">Их финал</p>
-          <Card className="border-primary/40 bg-card/80">
-            <CardContent className="p-4 space-y-2">{gfMatches.map(renderMatch)}</CardContent>
-          </Card>
+          <SectionHeader title="Winners bracket" />
+          <OnlineEliminationBracket matches={wbMatches} entrants={entrants} myEntrant={myEntrant} isOrganizer={isOrganizer} busy={busy} onStartMatch={startMatch} maxRound={wbMaxRound} />
+        </div>
+        {lbMatches.length > 0 && (
+          <div className="space-y-2">
+            <SectionHeader title="Losers bracket" />
+            <OnlineEliminationBracket matches={lbMatches} entrants={entrants} myEntrant={myEntrant} isOrganizer={isOrganizer} busy={busy} onStartMatch={startMatch} maxRound={lbMaxRound} />
+          </div>
+        )}
+        <div className="space-y-2">
+          <SectionHeader title="Их финал" />
+          <OnlineEliminationBracket matches={gfMatches} entrants={entrants} myEntrant={myEntrant} isOrganizer={isOrganizer} busy={busy} onStartMatch={startMatch} maxRound={200} />
         </div>
       </div>
     )
   }
 
-  // ── Single Elimination / Round Robin / Swiss ─────────────────────
-  // Round-аар бүлэглэх (winners bracket)
-  const rounds = [...new Set(matches.filter((m) => !m.is_losers_bracket).map((m) => m.round))].sort((a, b) => a - b)
-  const maxRound = rounds[rounds.length - 1]
+  // ── Single Elimination ───────────────────────────────────────────
+  if (bracketType === "single_elimination") {
+    const rounds = [...new Set(matches.map((m) => m.round))].sort((a, b) => a - b)
+    const maxRound = rounds[rounds.length - 1]
+    return (
+      <div className="space-y-2">
+        {error && <p className="text-xs text-destructive">{error}</p>}
+        <OnlineEliminationBracket
+          matches={matches}
+          entrants={entrants}
+          myEntrant={myEntrant}
+          isOrganizer={isOrganizer}
+          busy={busy}
+          onStartMatch={startMatch}
+          maxRound={maxRound}
+        />
+      </div>
+    )
+  }
 
-  // Хүснэгт (round_robin / swiss) — дууссан match-аас тооцно
-  const standings = isElimination ? [] : computeStandings(Object.keys(entrants), matches)
-
-  // Swiss: тойрог удирдлага (зохион байгуулагч, бүх match дууссан үед)
+  // ── Round Robin / Swiss ──────────────────────────────────────────
+  const entrantIds = Object.keys(entrants)
+  const standings = computeStandings(entrantIds, matches)
   const swissAllDone = bracketType === "swiss" && matches.length > 0 && matches.every((m) => m.status === "completed")
 
   return (
     <div className="space-y-4">
       {error && <p className="text-xs text-destructive">{error}</p>}
-      {standings.length > 0 && (
-        <StandingsTable rows={standings} nameOf={(id) => entrants[id]?.display_name ?? "?"} myEntrant={myEntrant} />
-      )}
+      <OnlineRRGrid
+        entrantIds={entrantIds}
+        matches={matches}
+        entrants={entrants}
+        myEntrant={myEntrant}
+        isOrganizer={isOrganizer}
+        busy={busy}
+        onStartMatch={startMatch}
+        standings={standings}
+      />
       {isOrganizer && bracketType === "swiss" && status === "ongoing" && swissAllDone && (
         <Card className="border-primary/40 bg-card/80">
           <CardContent className="flex flex-col items-center gap-2 py-5">
@@ -270,75 +251,306 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
           </CardContent>
         </Card>
       )}
-      {rounds.map((round) => (
-        <Card key={round} className="border-border/50 bg-card/80">
-          <CardContent className="p-4 space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground mb-1">
-              {isElimination && round === maxRound ? "Финал" : `Тойрог ${round}`}
-            </p>
-            {matches.filter((m) => !m.is_losers_bracket && m.round === round).sort((a, b) => a.match_number - b.match_number).map(renderMatch)}
-          </CardContent>
-        </Card>
+    </div>
+  )
+}
+
+// ── Round Robin Cross-Table ───────────────────────────────────────────────────
+
+interface RRGridProps {
+  entrantIds: string[]
+  matches: BracketMatch[]
+  entrants: Record<string, BracketEntrant>
+  myEntrant: string | undefined
+  isOrganizer: boolean
+  busy: string | null
+  onStartMatch: (m: BracketMatch) => void
+  standings?: import("@/lib/tournament/standings").EntrantStanding[]
+}
+
+function OnlineRRGrid({ entrantIds, matches, entrants, myEntrant, isOrganizer, busy, onStartMatch, standings: externalStandings }: RRGridProps) {
+  const computedStandings = externalStandings ?? computeStandings(entrantIds, matches)
+
+  const lookup: Record<string, BracketMatch> = {}
+  const matchNumber: Record<string, number> = {}
+  let num = 1
+  matches.forEach((m) => {
+    if (m.side1_entrant_id && m.side2_entrant_id) {
+      lookup[`${m.side1_entrant_id}_${m.side2_entrant_id}`] = m
+      lookup[`${m.side2_entrant_id}_${m.side1_entrant_id}`] = m
+      matchNumber[m.id] = num++
+    }
+  })
+
+  const sorted = computedStandings.map((s) => s.entrantId).filter((id) => entrantIds.includes(id))
+
+  return (
+    <div className="overflow-x-auto rounded-lg border border-border/40 bg-card/80">
+      <table className="border-collapse w-full text-sm">
+        <thead>
+          <tr className="bg-secondary/60">
+            <th className="px-2 py-2 text-left text-[11px] text-muted-foreground font-medium w-6 sticky left-0 z-20 bg-secondary/80">#</th>
+            <th className="px-3 py-2 text-left text-[11px] text-muted-foreground font-medium min-w-[100px] sticky left-6 z-20 bg-secondary/80 border-r border-border/40">Нэр</th>
+            {sorted.map((_, i) => (
+              <th key={i} className="py-2 text-center text-[11px] text-muted-foreground font-medium w-16 min-w-[64px]">{i + 1}</th>
+            ))}
+            <th className="px-2 py-2 text-center text-[11px] text-muted-foreground font-medium w-14">Х-Я</th>
+            <th className="px-2 py-2 text-center text-[11px] text-muted-foreground font-medium w-14">Legs</th>
+            <th className="px-2 py-2 text-center text-[11px] text-muted-foreground font-medium w-8">О</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((pid, rowIdx) => {
+            const st = computedStandings.find((s) => s.entrantId === pid)
+            const isMe = pid === myEntrant
+            return (
+              <tr key={pid} className={cn(
+                "border-t border-border/25 hover:bg-secondary/10 transition-colors group",
+                isMe && "bg-primary/5"
+              )}>
+                <td className="px-2 py-2 text-xs text-muted-foreground text-center sticky left-0 z-10 bg-card group-hover:bg-secondary/20 transition-colors">{rowIdx + 1}</td>
+                <td className="px-3 py-2 font-medium text-sm truncate max-w-[130px] sticky left-6 z-10 bg-card group-hover:bg-secondary/20 transition-colors border-r border-border/40">
+                  {entrants[pid]?.display_name ?? "?"}
+                </td>
+                {sorted.map((cpid) => {
+                  if (pid === cpid) return <td key={cpid} className="bg-secondary/40" />
+                  const m = lookup[`${pid}_${cpid}`]
+                  if (!m) return <td key={cpid} />
+
+                  const isP1 = m.side1_entrant_id === pid
+                  const myLegs  = isP1 ? m.side1_legs : m.side2_legs
+                  const oppLegs = isP1 ? m.side2_legs : m.side1_legs
+                  const iWon  = m.status === "completed" && m.winner_entrant_id === pid
+                  const iLost = m.status === "completed" && m.winner_entrant_id !== null && m.winner_entrant_id !== pid
+                  const isLive = m.status === "ongoing"
+                  const canAct = (isMe || isOrganizer) && m.status === "pending" && !!m.side1_entrant_id && !!m.side2_entrant_id
+
+                  return (
+                    <td key={cpid} className="py-1 text-center min-w-[64px]">
+                      {m.status === "completed" ? (
+                        <div className={cn(
+                          "flex items-center justify-center rounded text-[11px] font-bold px-1.5 py-1 mx-1 min-h-[36px]",
+                          iWon  ? "bg-green-500/15 text-green-400" :
+                          iLost ? "bg-destructive/10 text-destructive/80" :
+                          "text-muted-foreground"
+                        )}>
+                          <span className="score-display text-sm whitespace-nowrap">{myLegs} - {oppLegs}</span>
+                        </div>
+                      ) : isLive ? (
+                        <button onClick={() => m.room_id && onStartMatch(m)}
+                          className="flex items-center justify-center w-9 h-9 rounded-full bg-primary/20 border-2 border-primary pulse-live mx-auto">
+                          <span className="h-2 w-2 rounded-full bg-primary" />
+                        </button>
+                      ) : canAct ? (
+                        <button onClick={() => onStartMatch(m)} disabled={busy === m.id}
+                          className="flex items-center justify-center w-9 h-9 rounded-full border border-primary/50 text-[11px] text-primary hover:bg-primary/10 mx-auto transition-all">
+                          {busy === m.id ? <Loader2 className="h-3 w-3 animate-spin" /> : matchNumber[m.id] ?? "?"}
+                        </button>
+                      ) : (
+                        <div className="flex items-center justify-center w-9 h-9 rounded-full border border-border/50 text-[11px] text-muted-foreground mx-auto">
+                          {matchNumber[m.id] ?? "?"}
+                        </div>
+                      )}
+                    </td>
+                  )
+                })}
+                <td className="px-2 py-2 text-center text-xs font-semibold whitespace-nowrap">
+                  {st ? (
+                    <><span className="text-green-400">{st.won}</span>
+                    <span className="text-muted-foreground"> - </span>
+                    <span className="text-destructive/80">{st.lost}</span></>
+                  ) : ""}
+                </td>
+                <td className="px-2 py-2 text-center text-xs text-muted-foreground score-display whitespace-nowrap">
+                  {st ? `${st.legsWon} - ${st.legsLost}` : ""}
+                </td>
+                <td className="px-2 py-2 text-center text-sm font-bold text-primary">
+                  {st ? st.points : ""}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+// ── Elimination Bracket ───────────────────────────────────────────────────────
+
+interface EliminationProps {
+  matches: BracketMatch[]
+  entrants: Record<string, BracketEntrant>
+  myEntrant: string | undefined
+  isOrganizer: boolean
+  busy: string | null
+  onStartMatch: (m: BracketMatch) => void
+  maxRound: number
+}
+
+function OnlineEliminationBracket({ matches, entrants, myEntrant, isOrganizer, busy, onStartMatch, maxRound }: EliminationProps) {
+  const rounds = [...new Set(matches.map((m) => m.round))].sort((a, b) => a - b)
+  const totalRounds = rounds.length
+
+  function getRoundLabel(idx: number) {
+    const fromEnd = totalRounds - 1 - idx
+    if (fromEnd === 0) return "Финал"
+    if (fromEnd === 1) return "Хагас финал"
+    if (fromEnd === 2) return "Улирал финал"
+    const n = Math.pow(2, fromEnd + 1)
+    return `Round of ${Number.isFinite(n) && n < 1e9 ? n : idx + 1}`
+  }
+
+  const matchH = 72
+
+  return (
+    <div className="overflow-x-auto pb-2">
+      <div className="flex gap-0 min-w-max">
+        {rounds.map((round, roundIdx) => {
+          const roundMatches = matches.filter((m) => m.round === round).sort((a, b) => a.match_number - b.match_number)
+          const isLast = roundIdx === rounds.length - 1
+          const prevCount = roundIdx > 0
+            ? matches.filter((m) => m.round === rounds[roundIdx - 1]).length
+            : roundMatches.length * 2
+          const gap = roundIdx === 0 ? 8 : (prevCount / roundMatches.length - 1) * matchH + 8
+
+          return (
+            <div key={round} className="flex">
+              <div className="flex flex-col" style={{ minWidth: 170 }}>
+                <div className="text-center pb-2 px-2">
+                  <p className="text-xs font-semibold text-foreground/80">{getRoundLabel(roundIdx)}</p>
+                </div>
+                <div className="flex flex-col" style={{ gap }}>
+                  {roundMatches.map((m) => (
+                    <OnlineMatchSlot
+                      key={m.id}
+                      match={m}
+                      entrants={entrants}
+                      myEntrant={myEntrant}
+                      isOrganizer={isOrganizer}
+                      busy={busy}
+                      onStartMatch={onStartMatch}
+                    />
+                  ))}
+                </div>
+              </div>
+              {!isLast && (
+                <BracketConnector
+                  matchCount={roundMatches.length}
+                  matchHeight={matchH}
+                  gap={gap}
+                  nextGap={roundIdx + 1 < rounds.length - 1
+                    ? (roundMatches.length / matches.filter((m) => m.round === rounds[roundIdx + 1]).length - 1) * matchH + 8
+                    : gap}
+                />
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Match Slot ────────────────────────────────────────────────────────────────
+
+function OnlineMatchSlot({ match: m, entrants, myEntrant, isOrganizer, busy, onStartMatch }: {
+  match: BracketMatch
+  entrants: Record<string, BracketEntrant>
+  myEntrant: string | undefined
+  isOrganizer: boolean
+  busy: string | null
+  onStartMatch: (m: BracketMatch) => void
+}) {
+  const name = (id: string | null) => id ? (entrants[id]?.display_name ?? "?") : null
+  const isDone = m.status === "completed"
+  const isLive = m.status === "ongoing"
+  const isTBD  = !m.side1_entrant_id || !m.side2_entrant_id
+  const mine   = myEntrant && (m.side1_entrant_id === myEntrant || m.side2_entrant_id === myEntrant)
+  const canAct = (mine || isOrganizer) && !isDone && !!m.side1_entrant_id && !!m.side2_entrant_id
+
+  const sides = [
+    { id: m.side1_entrant_id, legs: m.side1_legs },
+    { id: m.side2_entrant_id, legs: m.side2_legs },
+  ]
+
+  const card = (
+    <div className={cn(
+      "border-2 rounded-lg overflow-hidden transition-all",
+      isLive ? "border-primary shadow-md shadow-primary/20" :
+      isDone ? "border-green-500/30" :
+      isTBD  ? "border-border/30 opacity-60" :
+      "border-border/50 hover:border-primary/40"
+    )}>
+      {sides.map((p, side) => (
+        <div key={side}>
+          {side === 1 && <div className="h-px bg-border/40" />}
+          <div className={cn(
+            "flex items-center justify-between gap-2 px-2.5 bg-card h-7",
+            isDone && m.winner_entrant_id === p.id ? "bg-green-500/10" : "",
+            isDone && m.winner_entrant_id !== null && m.winner_entrant_id !== p.id ? "opacity-50" : "",
+          )}>
+            <span className={cn(
+              "truncate font-medium text-xs",
+              isDone && m.winner_entrant_id === p.id ? "text-green-400" : "",
+              !p.id ? "text-muted-foreground/50 italic" : ""
+            )}>
+              {name(p.id) ?? "Тодорхойгүй"}
+            </span>
+            {(isLive || isDone) && p.id && (
+              <span className={cn(
+                "font-bold score-display shrink-0 text-xs",
+                isDone && m.winner_entrant_id === p.id ? "text-green-400" : "text-muted-foreground"
+              )}>
+                {p.legs}
+              </span>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+
+  if (!canAct || isTBD) return card
+
+  return (
+    <button onClick={() => onStartMatch(m)} disabled={busy === m.id} className="block w-full text-left">
+      {busy === m.id ? (
+        <div className="flex items-center justify-center h-[58px] border-2 border-primary/40 rounded-lg">
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        </div>
+      ) : card}
+    </button>
+  )
+}
+
+// ── Bracket Connector Lines ───────────────────────────────────────────────────
+
+function BracketConnector({ matchCount, matchHeight, gap, nextGap }: {
+  matchCount: number; matchHeight: number; gap: number; nextGap: number
+}) {
+  const pairs = matchCount / 2
+  const pairHeight = matchHeight * 2 + gap
+  return (
+    <div className="flex flex-col relative" style={{ width: 24 }}>
+      {Array.from({ length: pairs }).map((_, i) => (
+        <div key={i} className="relative" style={{ height: pairHeight, marginBottom: i < pairs - 1 ? nextGap : 0 }}>
+          <div className="absolute right-0 bg-border/60" style={{ width: 2, top: matchHeight / 2, height: (pairHeight - matchHeight) / 2 }} />
+          <div className="absolute right-0 bg-border/60" style={{ width: 2, top: pairHeight / 2, height: (pairHeight - matchHeight) / 2 }} />
+          <div className="absolute bg-border/60" style={{ height: 2, right: 0, left: 0, top: pairHeight / 2 - 1 }} />
+        </div>
       ))}
     </div>
   )
 }
 
-function StandingsTable({
-  rows,
-  nameOf,
-  myEntrant,
-}: {
-  rows: import("@/lib/tournament/standings").EntrantStanding[]
-  nameOf: (id: string) => string
-  myEntrant: string | undefined
-}) {
-  return (
-    <Card className="border-border/50 bg-card/80">
-      <CardContent className="p-4">
-        <p className="text-xs font-semibold text-muted-foreground mb-2">Хүснэгт</p>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-[11px] text-muted-foreground/70 border-b border-border/40">
-                <th className="text-left font-medium py-1.5 pl-1 w-6">#</th>
-                <th className="text-left font-medium py-1.5">Тоглогч</th>
-                <th className="text-center font-medium py-1.5 w-8" title="Тоглосон">Т</th>
-                <th className="text-center font-medium py-1.5 w-12" title="Хож-Хож">Х-Я</th>
-                <th className="text-center font-medium py-1.5 w-12" title="Leg зөрүү">+/-</th>
-                <th className="text-center font-medium py-1.5 w-8 pr-1" title="Оноо">О</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => (
-                <tr
-                  key={r.entrantId}
-                  className={cn(
-                    "border-b border-border/20 last:border-0",
-                    r.entrantId === myEntrant && "bg-primary/5",
-                  )}
-                >
-                  <td className="py-1.5 pl-1 text-muted-foreground tabular-nums">{i + 1}</td>
-                  <td className="py-1.5 truncate font-medium">{nameOf(r.entrantId)}</td>
-                  <td className="py-1.5 text-center tabular-nums text-muted-foreground">{r.played}</td>
-                  <td className="py-1.5 text-center tabular-nums">{r.won}-{r.lost}</td>
-                  <td className="py-1.5 text-center tabular-nums text-muted-foreground">{r.diff > 0 ? `+${r.diff}` : r.diff}</td>
-                  <td className="py-1.5 text-center tabular-nums font-bold pr-1">{r.points}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
+// ── Section Header ────────────────────────────────────────────────────────────
 
-function Side({ name, legs, win, done }: { name: string | null; legs: number; win: boolean; done: boolean }) {
+function SectionHeader({ title }: { title: string }) {
   return (
-    <div className={cn("flex items-center justify-between gap-2 text-sm", win && "font-semibold text-primary")}>
-      <span className={cn("truncate", !name && "text-muted-foreground/50 italic")}>{name ?? "Хүлээгдэж байна"}</span>
-      {done && <span className="score-display text-xs tabular-nums shrink-0">{legs}</span>}
+    <div className="flex items-center gap-2">
+      <h3 className="text-sm font-bold">{title}</h3>
+      <div className="flex-1 h-px bg-border/40" />
     </div>
   )
 }
