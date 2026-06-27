@@ -139,8 +139,8 @@ function RRGrid({ playerIds, matches, standings, playerMap, sessionId }: {
       <table className="border-collapse w-full text-sm">
         <thead>
           <tr className="bg-secondary/60">
-            <th className="px-2 py-2 text-left text-[11px] text-muted-foreground font-medium w-6">#</th>
-            <th className="px-3 py-2 text-left text-[11px] text-muted-foreground font-medium min-w-[100px]">Нэр</th>
+            <th className="px-2 py-2 text-left text-[11px] text-muted-foreground font-medium w-6 sticky left-0 z-20 bg-secondary/80">#</th>
+            <th className="px-3 py-2 text-left text-[11px] text-muted-foreground font-medium min-w-[100px] sticky left-6 z-20 bg-secondary/80 border-r border-border/40">Нэр</th>
             {sorted.map((_, i) => (
               <th key={i} className="py-2 text-center text-[11px] text-muted-foreground font-medium w-16 min-w-[64px]">{i + 1}</th>
             ))}
@@ -154,9 +154,9 @@ function RRGrid({ playerIds, matches, standings, playerMap, sessionId }: {
             const player = playerMap[pid]
             const st = standings[pid]
             return (
-              <tr key={pid} className="border-t border-border/25 hover:bg-secondary/10 transition-colors">
-                <td className="px-2 py-2 text-xs text-muted-foreground text-center">{rowIdx + 1}</td>
-                <td className="px-3 py-2 font-medium text-sm truncate max-w-[130px]">
+              <tr key={pid} className="border-t border-border/25 hover:bg-secondary/10 transition-colors group">
+                <td className="px-2 py-2 text-xs text-muted-foreground text-center sticky left-0 z-10 bg-card group-hover:bg-secondary/20 transition-colors">{rowIdx + 1}</td>
+                <td className="px-3 py-2 font-medium text-sm truncate max-w-[130px] sticky left-6 z-10 bg-card group-hover:bg-secondary/20 transition-colors border-r border-border/40">
                   {player?.name ?? "?"}
                 </td>
                 {sorted.map((cpid) => {

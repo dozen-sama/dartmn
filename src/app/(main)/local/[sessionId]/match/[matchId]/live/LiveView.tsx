@@ -32,6 +32,17 @@ export function LiveView() {
       setSyncStatus("synced")
     }
 
+    // Same-device cross-tab: localStorage-ийн өөрчлөлтийг шууд мэдэгдэнэ
+    function onStorage(e: StorageEvent) {
+      if (e.key !== "dartmn-local-games") return
+      try {
+        const stored = JSON.parse(e.newValue || "{}")
+        const s = stored?.state?.sessions?.[sessionId] as LocalSession | undefined
+        if (s) applyRemote(s)
+      } catch {}
+    }
+    window.addEventListener("storage", onStorage)
+
     // Initial fetch
     fetchRemoteSession(sessionId).then(applyRemote)
 
@@ -41,7 +52,11 @@ export function LiveView() {
     // Polling fallback every 2s
     const poll = setInterval(() => fetchRemoteSession(sessionId).then(applyRemote), 2000)
 
-    return () => { unsub(); clearInterval(poll) }
+    return () => {
+      window.removeEventListener("storage", onStorage)
+      unsub()
+      clearInterval(poll)
+    }
   }, [mounted, sessionId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
