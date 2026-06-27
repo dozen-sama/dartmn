@@ -58,7 +58,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border/50 bg-secondary/20">
-                {["Нэр", "Утас", "Эрх (dashboard)", "Рейтинг", "Тоглолт", ""].map((h) => (
+                {["Нэр", "Утас", "Эрх (dashboard)", "Чансаа", "Тоглолт", ""].map((h) => (
                   <th key={h} className="px-3 py-2.5 text-left text-xs text-muted-foreground font-medium whitespace-nowrap">{h}</th>
                 ))}
               </tr>

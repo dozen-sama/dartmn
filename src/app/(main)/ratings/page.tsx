@@ -2,7 +2,7 @@ import { Metadata } from "next"
 import { createClient } from "@/lib/supabase/server"
 import { RatingsContent } from "./RatingsContent"
 
-export const metadata: Metadata = { title: "Рейтинг" }
+export const metadata: Metadata = { title: "Чансаа" }
 
 export const revalidate = 60
 

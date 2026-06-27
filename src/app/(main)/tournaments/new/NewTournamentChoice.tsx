@@ -130,7 +130,7 @@ export function NewTournamentChoice() {
               {[
                 { label: "Интернэт", online: "Шаардлагатай", local: "Шаардахгүй" },
                 { label: "Тоглогч бүртгэл", online: "Акаунт шаардлагатай", local: "Дурын нэр" },
-                { label: "Рейтинг", online: "✓ ELO шинэчлэгдэнэ", local: "✗ Нөлөөлөхгүй" },
+                { label: "Чансаа", online: "✓ ELO шинэчлэгдэнэ", local: "✗ Нөлөөлөхгүй" },
                 { label: "Хуваалцах", online: "✓ URL-р нэгдэнэ", local: "✗ Зөвхөн нэг төхөөрөмж" },
                 { label: "Онлайн хураамж", online: "✓ Боломжтой", local: "✗ Байхгүй" },
                 { label: "Offline ажиллах", online: "✗", local: "✓ Бүрэн offline" },

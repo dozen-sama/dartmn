@@ -20,9 +20,9 @@ export interface FrameDef {
 
 export const PROFILE_FRAMES: FrameDef[] = [
   { key: "none", name: "Энгийн", scope: "profile", theme: "none", unlock: { type: "free" }, desc: "Бүгдэд нээлттэй" },
-  { key: "bronze", name: "Хүрэл", scope: "profile", theme: "bronze", unlock: { type: "rating", min: 1200 }, desc: "Рейтинг 1200+" },
-  { key: "silver", name: "Мөнгө", scope: "profile", theme: "silver", unlock: { type: "rating", min: 1500 }, desc: "Рейтинг 1500+" },
-  { key: "gold", name: "Алт", scope: "profile", theme: "gold", unlock: { type: "rating", min: 2000 }, desc: "Рейтинг 2000+" },
+  { key: "bronze", name: "Хүрэл", scope: "profile", theme: "bronze", unlock: { type: "rating", min: 1200 }, desc: "Чансаа 1200+" },
+  { key: "silver", name: "Мөнгө", scope: "profile", theme: "silver", unlock: { type: "rating", min: 1500 }, desc: "Чансаа 1500+" },
+  { key: "gold", name: "Алт", scope: "profile", theme: "gold", unlock: { type: "rating", min: 2000 }, desc: "Чансаа 2000+" },
   { key: "electric", name: "Аянга", scope: "profile", theme: "electric", emoji: "⚡", unlock: { type: "subscription" }, desc: "Subscription" },
   { key: "inferno", name: "Инферно", scope: "profile", theme: "inferno", emoji: "🔥", unlock: { type: "subscription" }, desc: "Subscription" },
   { key: "champion", name: "Аварга", scope: "profile", theme: "champion", emoji: "👑", unlock: { type: "subscription" }, desc: "Subscription" },

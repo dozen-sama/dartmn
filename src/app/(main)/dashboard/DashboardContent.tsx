@@ -132,7 +132,7 @@ export function DashboardContent({ profile, todayTournaments, activeTournaments,
             {[
               { label: "Тоглолт", value: profile.matches_played },
               { label: "Хожлын хувь", value: `${winRate}%` },
-              { label: "Хамгийн өндөр финиш", value: profile.highest_checkout || "—" },
+              { label: "Хамгийн өндөр гараа", value: profile.highest_checkout || "—" },
               { label: "180-ийн тоо", value: profile.count_180 },
             ].map((s) => (
               <div key={s.label} className="text-center">
@@ -147,8 +147,8 @@ export function DashboardContent({ profile, todayTournaments, activeTournaments,
       {/* Quick Actions */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <QuickCard href="/tournaments/create" icon={Trophy} label="Тэмцээн үүсгэх" desc="Шинэ тэмцээн зохион байгуулах" color="bg-primary/15 text-primary" />
-        <QuickCard href="/play" icon={Monitor} label="Online тоглолт" desc="Дэлхийн хаанаас ч тоглох" color="bg-blue-500/15 text-blue-400" />
-        <QuickCard href="/ratings" icon={BarChart3} label="Рейтинг" desc="Монголын шилдэг тоглогчид" color="bg-[oklch(0.78_0.16_85)]/15 text-[oklch(0.78_0.16_85)]" />
+        <QuickCard href="/play" icon={Monitor} label="Онлайн тоглолт" desc="Дэлхийн хаанаас ч тоглох" color="bg-blue-500/15 text-blue-400" />
+        <QuickCard href="/ratings" icon={BarChart3} label="Чансаа" desc="Монголын шилдэг тоглогчид" color="bg-[oklch(0.78_0.16_85)]/15 text-[oklch(0.78_0.16_85)]" />
         <QuickCard href="/clubs" icon={Building2} label="Клубууд" desc="Клубт элсэх эсвэл үүсгэх" color="bg-green-500/15 text-green-400" />
       </div>
 

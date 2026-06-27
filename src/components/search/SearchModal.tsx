@@ -221,7 +221,7 @@ export function SearchModal({ open, onClose }: SearchModalProps) {
             <p className="text-xs text-muted-foreground mb-3 uppercase tracking-wide font-medium">Хурдан хандах</p>
             <div className="flex flex-wrap gap-2">
               {[
-                { label: "Рейтинг", href: "/ratings" },
+                { label: "Чансаа", href: "/ratings" },
                 { label: "Тэмцээн", href: "/tournaments" },
                 { label: "Клубууд", href: "/clubs" },
                 { label: "Профайл тохиргоо", href: "/settings/profile" },

@@ -215,7 +215,7 @@ export function ProfileContent({ profile: p, isOwner, organizerRating, clubName,
                 <StatRow label="Match Played" value={formatNumber(p.matches_played)} />
                 <StatRow label="Хожлын хувь" value={`${winRate}%`} accent />
                 <StatRow label="Дундаж" value={formatAverage(p.average_score)} />
-                <StatRow label="Рейтинг оноо" value={formatNumber(p.rating_points)} accent />
+                <StatRow label="Чансааны оноо" value={formatNumber(p.rating_points)} accent />
               </CardContent>
             </Card>
 

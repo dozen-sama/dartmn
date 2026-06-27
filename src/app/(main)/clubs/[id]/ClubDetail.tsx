@@ -294,7 +294,7 @@ export function ClubDetail({ club, members, requests, currentUserId, myRole }: P
           <Card className="border-border/50 bg-card/80 overflow-hidden">
             <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 px-3 py-2 text-[10px] uppercase tracking-wider text-muted-foreground border-b border-border/30">
               <span>Тоглогч</span>
-              <span className="w-12 text-right">Рейтинг</span>
+              <span className="w-12 text-right">Чансаа</span>
               <span className="w-14 text-right">Тоглолт</span>
               <span className="w-10 text-right">180</span>
             </div>

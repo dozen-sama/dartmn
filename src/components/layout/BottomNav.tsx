@@ -12,7 +12,7 @@ const items = [
   { href: "/dashboard",   label: "Нүүр",       icon: LayoutDashboard },
   { href: "/tournaments", label: "Тэмцээн",     icon: Trophy },
   { href: "/play",        label: "Тоглох",      icon: Monitor,  live: true },
-  { href: "/ratings",     label: "Рейтинг",     icon: BarChart3 },
+  { href: "/ratings",     label: "Чансаа",      icon: BarChart3 },
   { href: "/stats",       label: "Стат",        icon: Activity },
   { href: "/clubs",       label: "Клуб",        icon: Building2 },
   { href: "/calendar",    label: "Календарь",   icon: Calendar },

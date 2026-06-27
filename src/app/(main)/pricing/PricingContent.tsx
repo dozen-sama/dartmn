@@ -234,8 +234,8 @@ export function PricingContent({ userId, isPremium, premiumExpires, clubPlan }: 
             <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Үнэгүй vs Premium</p>
             {[
               { label: "Статистик, тоглолтын түүх", free: true, premium: true },
-              { label: "Achievement, рейтингийн түүх", free: true, premium: true },
-              { label: "Рейтингээр нээгдэх хүрээ (Хүрэл/Мөнгө/Алт)", free: true, premium: true },
+              { label: "Achievement, чансааны түүх", free: true, premium: true },
+              { label: "Чансаагаар нээгдэх хүрээ (Хүрэл/Мөнгө/Алт)", free: true, premium: true },
               { label: "Анимэйшн хүрээ (⚡🔥👑✨🏅)", free: false, premium: true },
               { label: "Хөдөлгөөнт нэрний эффект", free: false, premium: true },
               { label: "Premium ✨ badge", free: false, premium: true },

@@ -53,16 +53,16 @@ export default async function StatsPage() {
       stats: [
         { label: "Дундаж", value: formatAverage(profile.average_score), pct: null },
         { label: "180-ийн тоо", value: formatNumber(profile.count_180), pct: null },
-        { label: "Рейтинг оноо", value: formatNumber(profile.rating_points), pct: null },
+        { label: "Чансааны оноо", value: formatNumber(profile.rating_points), pct: null },
         { label: "Тэмцээний ялалт", value: profile.tournament_wins, pct: null },
       ],
     },
     {
-      title: "Финиш",
+      title: "Гараа",
       icon: Target,
       color: "text-green-400",
       stats: [
-        { label: "Хамгийн өндөр финиш", value: profile.highest_checkout || "—", pct: profile.highest_checkout > 0 ? Math.round((profile.highest_checkout / 170) * 100) : 0 },
+        { label: "Хамгийн өндөр гараа", value: profile.highest_checkout || "—", pct: profile.highest_checkout > 0 ? Math.round((profile.highest_checkout / 170) * 100) : 0 },
         { label: "Хамгийн сайн лег", value: profile.best_leg ? `${profile.best_leg} дарт` : "—", pct: profile.best_leg > 0 ? Math.max(0, Math.round(100 - ((profile.best_leg - 9) / 30) * 100)) : 0 },
       ],
     },
@@ -110,7 +110,7 @@ export default async function StatsPage() {
         {[
           { label: "Нийт тоглолт", value: formatNumber(profile.matches_played), icon: "🎯" },
           { label: "Хожлын хувь", value: `${Math.round(winRate)}%`, icon: "📈" },
-          { label: "Хамгийн өндөр финиш", value: profile.highest_checkout || "—", icon: "🎉" },
+          { label: "Хамгийн өндөр гараа", value: profile.highest_checkout || "—", icon: "🎉" },
           { label: "Хамгийн сайн лег", value: profile.best_leg ? `${profile.best_leg}↗` : "—", icon: "⚡" },
         ].map((s) => (
           <Card key={s.label} className="border-border/50 bg-card/80 text-center">
@@ -127,7 +127,7 @@ export default async function StatsPage() {
       {ratingHistory && ratingHistory.length > 0 && (
         <Card className="border-border/50 bg-card/80">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Рейтингийн түүх</CardTitle>
+            <CardTitle className="text-base">Чансааны түүх</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             {ratingHistory.map((entry) => (

@@ -142,7 +142,7 @@ export function RatingsContent({ players, clubs }: Props) {
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <BarChart3 className="h-6 w-6 text-[oklch(0.78_0.16_85)]" />
-          Монголын Рейтинг
+          Монголын Чансаа
         </h1>
         <p className="text-muted-foreground text-sm mt-0.5">ELO рейтинг · Аймгийн чансаа · Клубын чансаа</p>
       </div>
