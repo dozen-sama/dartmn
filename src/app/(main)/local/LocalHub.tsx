@@ -189,9 +189,14 @@ export function LocalHub() {
           </h1>
           <p className="text-muted-foreground text-sm mt-0.5">Офлайн тэмцээн, лиг, тоглолт</p>
         </div>
-        <Link href="/local/new" className={cn(buttonVariants(), "glow-primary shrink-0")}>
-          <Plus className="h-4 w-4 mr-1.5" />Шинэ тоглолт
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/local/ffa/new" className={cn(buttonVariants({ variant: "outline" }), "shrink-0 border-primary/30 text-primary hover:bg-primary/10")}>
+            <Users className="h-4 w-4 mr-1.5" />Зэрэгцэн
+          </Link>
+          <Link href="/local/new" className={cn(buttonVariants(), "glow-primary shrink-0")}>
+            <Plus className="h-4 w-4 mr-1.5" />Тэмцээн
+          </Link>
+        </div>
       </div>
 
       <Tabs defaultValue="mine">
