@@ -40,6 +40,20 @@ export async function deleteRemoteSession(sessionId: string) {
   } catch {}
 }
 
+// joinCode-оор session хайх (нууц үгтэй эсэхээс үл хамааран)
+export async function fetchSessionByJoinCode(joinCode: string): Promise<LocalSession | null> {
+  try {
+    const { data } = await db()
+      .from("local_session_sync")
+      .select("data")
+      .eq("data->>joinCode", joinCode.toUpperCase())
+      .maybeSingle()
+    return (data?.data as LocalSession) ?? null
+  } catch {
+    return null
+  }
+}
+
 // Нээлттэй (нууц үггүй) active session-уудыг татах
 export async function fetchPublicSessions(): Promise<LocalSession[]> {
   try {

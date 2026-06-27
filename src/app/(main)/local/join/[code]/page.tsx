@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { fetchPublicSessions } from "@/lib/local-game/sync"
+import { fetchSessionByJoinCode } from "@/lib/local-game/sync"
 import { useLocalGame } from "@/lib/local-game/store"
 
 export default function JoinByCode() {
@@ -20,11 +20,8 @@ export default function JoinByCode() {
       )
       if (local) { router.replace(`/local/${local.id}`); return }
 
-      // 2. Supabase-с хайна
-      const remote = await fetchPublicSessions()
-      const found = remote.find(
-        (s) => s.joinCode?.toUpperCase() === code.toUpperCase()
-      )
+      // 2. Supabase-с joinCode-оор шууд хайна
+      const found = await fetchSessionByJoinCode(code)
       if (found) { router.replace(`/local/${found.id}`); return }
 
       setStatus("notfound")
