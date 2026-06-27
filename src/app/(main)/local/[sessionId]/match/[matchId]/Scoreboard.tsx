@@ -166,6 +166,20 @@ export function Scoreboard() {
   useEffect(() => { setMounted(true) }, [])
   useEffect(() => { if (mounted && match?.status === "pending") startMatch(sessionId, matchId) }, [mounted])
 
+  // Ongoing match-д буцаж орвол BullOff-г алгасаж, хаана зогссон тэр байдлаар үргэлжлүүлнэ
+  useEffect(() => {
+    if (!mounted || !match || match.status !== "ongoing") return
+    const leg = match.legs[currentLegIndex]
+    const t1 = ((leg?.throws?.[p1Id] ?? []) as LegThrow[]).length
+    const t2 = ((leg?.throws?.[p2Id] ?? []) as LegThrow[]).length
+    setShowBullOff(false)
+    if (t1 > 0 || t2 > 0) {
+      if (t1 > t2) setActivePlayer(1)
+      else if (t2 > t1) setActivePlayer(0)
+      setVisitRound(Math.min(t1, t2) + 1)
+    }
+  }, [mounted]) // eslint-disable-line
+
   // Any scoring device broadcasts session changes to Supabase for live sync
   useEffect(() => {
     if (!mounted || !session) return
