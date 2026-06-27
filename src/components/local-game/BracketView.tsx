@@ -169,29 +169,33 @@ function RRGrid({ playerIds, matches, standings, playerMap, sessionId }: {
                   const isLive  = m.status === "ongoing"
                   const avg     = m.status === "completed" ? matchAvg(m, pid) : ""
 
+                  const cell = m.status === "completed" ? (
+                    <div className={cn(
+                      "flex flex-col items-center justify-center min-h-[40px] rounded text-[11px] font-bold px-1 py-0.5 transition-all cursor-pointer",
+                      iWon  ? "bg-green-500/15 text-green-400 hover:bg-green-500/25" :
+                      iLost ? "bg-destructive/10 text-destructive/80 hover:bg-destructive/15" :
+                      "text-muted-foreground hover:bg-secondary/40"
+                    )}>
+                      <span className="score-display text-sm leading-tight">{myLegs} - {oppLegs}</span>
+                      {avg && <span className="text-[9px] font-normal text-muted-foreground/70 leading-tight">({avg})</span>}
+                    </div>
+                  ) : isLive ? (
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/20 border-2 border-primary pulse-live mx-auto cursor-pointer">
+                      <span className="h-2 w-2 rounded-full bg-primary" />
+                    </div>
+                  ) : (
+                    // Pending — дарахад юу ч болохгүй
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full border border-border/30 text-[11px] text-muted-foreground/40 mx-auto">
+                      {matchNumber[m.id] ?? "?"}
+                    </div>
+                  )
+
                   return (
                     <td key={cpid} className="px-0.5 py-1 text-center w-12">
-                      <Link href={`/local/${sessionId}/match/${m.id}/live`}>
-                        {m.status === "completed" ? (
-                          <div className={cn(
-                            "flex flex-col items-center justify-center min-h-[40px] rounded text-[11px] font-bold px-1 py-0.5 transition-all",
-                            iWon  ? "bg-green-500/15 text-green-400 hover:bg-green-500/25" :
-                            iLost ? "bg-destructive/10 text-destructive/80 hover:bg-destructive/15" :
-                            "text-muted-foreground hover:bg-secondary/40"
-                          )}>
-                            <span className="score-display text-sm leading-tight">{myLegs} - {oppLegs}</span>
-                            {avg && <span className="text-[9px] font-normal text-muted-foreground/70 leading-tight">({avg})</span>}
-                          </div>
-                        ) : isLive ? (
-                          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/20 border-2 border-primary pulse-live mx-auto">
-                            <span className="h-2 w-2 rounded-full bg-primary" />
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-center w-8 h-8 rounded-full border border-border/50 text-[11px] text-muted-foreground hover:border-primary/50 hover:text-primary hover:bg-primary/5 mx-auto transition-all">
-                            {matchNumber[m.id] ?? "?"}
-                          </div>
-                        )}
-                      </Link>
+                      {(m.status === "completed" || isLive)
+                        ? <Link href={`/local/${sessionId}/match/${m.id}/live`}>{cell}</Link>
+                        : cell
+                      }
                     </td>
                   )
                 })}
@@ -374,10 +378,10 @@ function MatchSlot({ match: m, playerMap, sessionId, compact = false }: {
     </div>
   )
 
-  // TBD болон BYE: link байхгүй
-  if (isTBD || isBye) return inner
+  // TBD, BYE, pending: link байхгүй
+  if (isTBD || isBye || m.status === "pending") return inner
 
-  // Бусад бүх match (pending/ongoing/completed): live view
+  // Ongoing / completed: live view
   return (
     <Link href={`/local/${sessionId}/match/${m.id}/live`} className="block">
       {inner}
