@@ -582,7 +582,7 @@ export function CreateTournamentForm({ userId, userProfile }: Props) {
           {/* Double Out / In */}
           {(format === "501" || format === "301") && (
             <div className="flex gap-4 flex-wrap">
-              <CheckRow label="Double Out" checked={doubleOut} onChange={setDoubleOut}
+              <CheckRow label="Захаар гарах" checked={doubleOut} onChange={setDoubleOut}
                 sub="Финиш double-аас байх ёстой" />
               <CheckRow label="Double In" checked={doubleIn} onChange={setDoubleIn}
                 sub="Double-аас тоглолт эхэлнэ" />
@@ -597,15 +597,15 @@ export function CreateTournamentForm({ userId, userProfile }: Props) {
               <div className="flex items-center gap-2">
                 <input type="checkbox" id="limitRounds" checked={limitRoundsEnabled}
                   onChange={(e) => setLimitRoundsEnabled(e.target.checked)} className="accent-primary" />
-                <label htmlFor="limitRounds" className="text-sm font-medium cursor-pointer">Visit хязгаар</label>
+                <label htmlFor="limitRounds" className="text-sm font-medium cursor-pointer">Сумны хязгаар</label>
               </div>
               {limitRoundsEnabled && (
                 <div className="pl-5 space-y-2">
                   <div className="flex items-center gap-3">
                     <Stepper value={limitRounds} onChange={setLimitRounds} min={5} max={99} label="Хамгийн их visit" />
                   </div>
-                  <CheckRow label="Bull-off-оор дуусгах" checked={bullFinishAtLimit} onChange={setBullFinishAtLimit}
-                    sub="Visit хязгаарт хүрэхэд Bull-off хийнэ" />
+                  <CheckRow label="Сумны хязгаарт хүрэхэд дуусгах" checked={bullFinishAtLimit} onChange={setBullFinishAtLimit}
+                    sub="Сумны хязгаарт хүрэхэд Bull-д шидэж дуусгана" />
                 </div>
               )}
             </div>

@@ -90,7 +90,7 @@ export function ProfileSettingsForm({ profile }: Props) {
           </h1>
           <div className="flex items-center gap-2 mt-0.5">
             <TierBadge rating={profile.rating_points} size="sm" />
-            <span className="text-xs text-muted-foreground">{profile.rating_points} pts</span>
+            <span className="text-xs text-muted-foreground">{profile.rating_points}</span>
           </div>
         </div>
       </div>

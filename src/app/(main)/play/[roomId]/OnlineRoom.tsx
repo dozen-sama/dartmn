@@ -360,7 +360,7 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName, t
       <div className="max-w-sm mx-auto space-y-5 py-4">
         <div className="text-center space-y-1">
           <div className="text-4xl">🎯</div>
-          <h1 className="text-xl font-bold">Bull-off</h1>
+          <h1 className="text-xl font-bold">Сумны хязгаарт хүрэхэд</h1>
           <p className="text-sm text-muted-foreground">Баг бүрийн 1-р тоглогч бухенд шидээд оноогоо оруулна. Өндөр (ойр) нь эхэлнэ.</p>
         </div>
         <div className="grid grid-cols-2 gap-3">

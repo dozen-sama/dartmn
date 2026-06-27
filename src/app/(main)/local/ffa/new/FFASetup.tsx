@@ -144,7 +144,7 @@ export function FFASetup() {
             <Label>Дүрэм</Label>
             <div className="flex gap-4">
               {[
-                { label: "Double out", val: doubleOut, set: setDoubleOut },
+                { label: "Захаар гарах", val: doubleOut, set: setDoubleOut },
                 { label: "Double in", val: doubleIn, set: setDoubleIn },
               ].map(({ label, val, set }) => (
                 <label key={label} className="flex items-center gap-2 cursor-pointer">

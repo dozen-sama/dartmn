@@ -67,7 +67,7 @@ export function SearchModal({ open, onClose }: SearchModalProps) {
         type: "player" as const,
         id: p.id,
         title: p.display_name,
-        subtitle: `@${p.username} · ${p.rating_points} pts · ${getTier(p.rating_points).tier}`,
+        subtitle: `@${p.username} · ${p.rating_points} · ${getTier(p.rating_points).tier}`,
         href: `/profile/${p.username}`,
         avatar: p.avatar_url,
         badge: getTier(p.rating_points).icon,

@@ -340,7 +340,7 @@ export function OrganizerPanel({ tournament, registrations }: Props) {
 
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{reg.profiles?.display_name}</p>
-                  <p className="text-xs text-muted-foreground">{reg.profiles?.rating_points} pts</p>
+                  <p className="text-xs text-muted-foreground">{reg.profiles?.rating_points}</p>
                 </div>
 
                 {/* Payment status */}

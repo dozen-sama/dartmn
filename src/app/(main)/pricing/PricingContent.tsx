@@ -157,8 +157,8 @@ export function PricingContent({ userId, isPremium, premiumExpires, clubPlan }: 
             <Badge variant="outline" className="text-[10px] border-border/60">Автомат</Badge>
           </h3>
           <p className="text-sm text-muted-foreground">
-            Тоглогч тэмцээнд бүртгүүлэхэд тэмцээний хураамжаас гадна <strong className="text-foreground">1,000₮</strong> платформын шимтгэл нэмэгдэнэ.
-            Жишээ нь: 20,000₮ тэмцээнд бүртгүүлэхэд нийт <strong className="text-foreground">21,000₮</strong> төлнө.
+            Тоглогч тэмцээнд бүртгүүлэхэд тэмцээний хураамжаас гадна платформын шимтгэл нэмэгдэнэ.
+            Шимтгэлийн хэмжээ нь ашиглаж байгаа төлбөрийн форматаас хамаарч өөр байна.
           </p>
         </div>
       </div>

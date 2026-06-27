@@ -129,7 +129,7 @@ export function Navbar({ profile }: NavbarProps) {
                           <p className="text-xs text-muted-foreground">@{profile.username}</p>
                           <div className="flex items-center gap-1.5 mt-1">
                             <Trophy className="h-3 w-3 text-[oklch(0.78_0.16_85)]" />
-                            <span className="text-xs font-semibold text-[oklch(0.78_0.16_85)]">{profile.rating_points} pts</span>
+                            <span className="text-xs font-semibold text-[oklch(0.78_0.16_85)]">{profile.rating_points}</span>
                             {tier && <span className={cn("text-[10px]", tier.color)}>{tier.icon} {tier.tier}</span>}
                           </div>
                         </div>

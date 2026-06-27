@@ -350,7 +350,7 @@ export function TournamentDetail({ tournament: t, registrations, currentUserId, 
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-semibold text-[oklch(0.78_0.16_85)] score-display">
-                        {reg.profiles?.rating_points} pts
+                        {reg.profiles?.rating_points}
                       </span>
                       <Badge className={`text-[10px] h-4 px-1 ${
                         reg.payment_status === "paid"

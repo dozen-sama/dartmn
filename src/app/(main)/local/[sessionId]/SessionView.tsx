@@ -560,7 +560,7 @@ export function SessionView() {
                   <Label>Дүрэм</Label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {[
-                      { label: "Double out", val: editDoubleOut, set: setEditDoubleOut },
+                      { label: "Захаар гарах", val: editDoubleOut, set: setEditDoubleOut },
                       { label: "Double in", val: editDoubleIn, set: setEditDoubleIn },
                       { label: "Loser First", val: editLoserFirst, set: setEditLoserFirst },
                     ].map(({ label, val, set }) => (

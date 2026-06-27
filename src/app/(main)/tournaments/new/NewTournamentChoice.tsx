@@ -24,7 +24,7 @@ const TYPES = [
     features: [
       { icon: Users, text: "Бүртгэлтэй тоглогчид" },
       { icon: Zap, text: "Онлайн хураамж" },
-      { icon: Target, text: "ELO рейтинг шинэчлэгдэнэ" },
+      { icon: Target, text: "ELO шинэчлэгдэнэ" },
       { icon: Wifi, text: "Realtime bracket" },
     ],
     when: "Ашиглах үе: Олон улсын, нийтийн тэмцээн",
@@ -122,8 +122,8 @@ export function NewTournamentChoice() {
             <thead>
               <tr className="border-b border-border/30">
                 <th className="text-left text-xs text-muted-foreground font-medium px-4 py-2"></th>
-                <th className="text-center text-xs text-primary font-medium px-4 py-2">Online</th>
-                <th className="text-center text-xs text-blue-400 font-medium px-4 py-2">Local</th>
+                <th className="text-center text-xs text-primary font-medium px-4 py-2">Онлайн</th>
+                <th className="text-center text-xs text-blue-400 font-medium px-4 py-2">Локал</th>
               </tr>
             </thead>
             <tbody>

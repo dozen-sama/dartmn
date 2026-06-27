@@ -347,7 +347,7 @@ export function PerDartScoreboard({
           </button>
         )}
         <p className="flex-1 text-center text-xs text-muted-foreground">
-          {startScore} · First to {legsToWin} legs{doubleOut ? " · Double Out" : ""}
+          {startScore} · First to {legsToWin} legs{doubleOut ? " · Захаар гарах" : ""}
         </p>
         <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse shrink-0" />
       </div>

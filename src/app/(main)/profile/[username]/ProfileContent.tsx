@@ -136,7 +136,7 @@ export function ProfileContent({ profile: p, isOwner, organizerRating, clubName,
               )}
               <span className="flex items-center gap-1">
                 <Trophy className="h-3.5 w-3.5 text-[oklch(0.78_0.16_85)]" />
-                <span className="font-semibold text-[oklch(0.78_0.16_85)]">{formatNumber(p.rating_points)} pts</span>
+                <span className="font-semibold text-[oklch(0.78_0.16_85)]">{formatNumber(p.rating_points)}</span>
               </span>
               {organizerRating && organizerRating.count > 0 && (
                 <span className="flex items-center gap-1" title="Зохион байгуулагчийн үнэлгээ">
@@ -167,11 +167,11 @@ export function ProfileContent({ profile: p, isOwner, organizerRating, clubName,
       {/* Tabs */}
       <Tabs defaultValue="stats">
         <TabsList className="bg-secondary/50 flex-wrap h-auto gap-1 p-1">
-          <TabsTrigger value="stats"><BarChart3 className="h-4 w-4 mr-1.5" />Statistics</TabsTrigger>
+          <TabsTrigger value="stats"><BarChart3 className="h-4 w-4 mr-1.5" />Статистик</TabsTrigger>
           {isOwner && <TabsTrigger value="nameplate"><Sparkles className="h-4 w-4 mr-1.5" />Хээ</TabsTrigger>}
-          <TabsTrigger value="card">🪪 Card</TabsTrigger>
-          <TabsTrigger value="matches">Matches</TabsTrigger>
-          <TabsTrigger value="tournaments">Tournaments</TabsTrigger>
+          <TabsTrigger value="card">🪪 Карт</TabsTrigger>
+          <TabsTrigger value="matches">Түүх</TabsTrigger>
+          <TabsTrigger value="tournaments">Тэмцээний түүх</TabsTrigger>
         </TabsList>
 
         {/* Nameplate customize tab (зөвхөн эзэнд) */}

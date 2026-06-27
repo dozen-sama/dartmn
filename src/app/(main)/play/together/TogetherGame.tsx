@@ -341,7 +341,7 @@ export function TogetherGame() {
             className="text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <h1 className="text-lg font-bold">Bull-off</h1>
+          <h1 className="text-lg font-bold">Сумны хязгаарт хүрэхэд</h1>
         </div>
         <Card className="border-border/50 bg-card/80">
           <CardContent className="p-5">
@@ -430,7 +430,7 @@ export function TogetherGame() {
               </div>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={doubleOut} onChange={e => setDoubleOut(e.target.checked)} className="accent-primary" />
-                <span className="text-sm">Double out</span>
+                <span className="text-sm">Захаар гарах</span>
               </label>
             </div>
 

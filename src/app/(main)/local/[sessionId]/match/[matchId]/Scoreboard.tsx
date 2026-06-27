@@ -284,8 +284,8 @@ export function Scoreboard() {
     return (
       <div className="max-w-sm mx-auto pt-8 px-4 space-y-5">
         <div className="text-center space-y-1">
-          <p className="text-xl font-bold">Visit хязгаарт хүрлээ</p>
-          <p className="text-sm text-muted-foreground">{visitRound}/{limitRounds} visit — Хожигчийг сонгоно уу</p>
+          <p className="text-xl font-bold">Сумны хязгаарт хүрлээ</p>
+          <p className="text-sm text-muted-foreground">{visitRound}/{limitRounds} багц сум — Хожигчийг сонгоно уу</p>
         </div>
         <div className="flex flex-col gap-3 pt-2">
           {[{ id: p1Id, player: p1, rem: rem1 }, { id: p2Id, player: p2, rem: rem2 }].map(({ id, player, rem }) => (

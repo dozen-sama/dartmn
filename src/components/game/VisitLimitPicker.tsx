@@ -34,7 +34,7 @@ export function VisitLimitPicker({
         <input type="checkbox" checked={enabled}
           onChange={(e) => { onToggle(e.target.checked); if (!e.target.checked && onBullOffToggle) onBullOffToggle(false) }}
           className="accent-primary" />
-        <span className="text-sm font-medium">Visit хязгаар (Limit Rounds)</span>
+        <span className="text-sm font-medium">Сумны хязгаар</span>
       </label>
 
       {enabled && (
@@ -50,7 +50,7 @@ export function VisitLimitPicker({
               </div>
             ))}
             {value > 8 && (
-              <span className="text-xs text-muted-foreground">... +{value - 8} visit</span>
+              <span className="text-xs text-muted-foreground">... +{value - 8} багц</span>
             )}
           </div>
 
@@ -73,7 +73,7 @@ export function VisitLimitPicker({
 
             {/* Unit info */}
             <div className="text-sm">
-              <span className="font-semibold">{value} visit</span>
+              <span className="font-semibold">{value} багц сум</span>
               <span className="text-muted-foreground mx-1.5">·</span>
               <span className="font-black text-primary">{totalDarts} дарт</span>
               <span className="text-muted-foreground text-xs ml-1">/ тоглогч</span>
@@ -112,9 +112,9 @@ export function VisitLimitPicker({
               <input type="checkbox" checked={bullOff} onChange={(e) => onBullOffToggle(e.target.checked)}
                 className="mt-0.5 accent-primary" />
               <div>
-                <span className="text-sm">🎯 Bull-off (хязгаарт хүрмэгц)</span>
+                <span className="text-sm">🎯 Сумны хязгаарт хүрэхэд</span>
                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                  {value} visit ({totalDarts} дарт) дуусаад хэн ч финишлаагүй бол Bull-д шидэж хамгийн ойр нь leg хожно
+                  {value} багц сум ({totalDarts} дарт) дуусаад хэн ч дуусгаагүй бол Bull-д шидэж хамгийн ойр нь хожно
                 </p>
               </div>
             </label>

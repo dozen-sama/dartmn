@@ -34,9 +34,9 @@ export function PracticeHub() {
 // ── Mode selector ──────────────────────────────────────────────────
 function ModeSelector({ onSelect }: { onSelect: (m: Mode) => void }) {
   const modes = [
-    { key: "501" as Mode, icon: "🎯", title: "501 Solo", desc: "Ганцаараа 501 тоглож дундаж оноогоо шалга" },
+    { key: "501" as Mode, icon: "🎯", title: "501 ганцаарчилсан", desc: "Ганцаараа 501 тоглож дундаж оноогоо шалга" },
     { key: "checkout" as Mode, icon: "✅", title: "Checkout Drill", desc: "Random checkout тоог дадлага хий" },
-    { key: "scoring" as Mode, icon: "💯", title: "Scoring Drill", desc: "10 visit-т хамгийн өндөр оноо авах" },
+    { key: "scoring" as Mode, icon: "💯", title: "Scoring Drill", desc: "10 багц суманд хамгийн өндөр оноо авах" },
     { key: "around" as Mode, icon: "🔄", title: "Around the Board", desc: "1-20 болон Bull-д дараалан оно" },
   ]
 
@@ -229,7 +229,7 @@ function Solo501({ onBack }: { onBack: () => void }) {
           </button>
         </div>
       }
-      subtitle="501 Solo бэлтгэл"
+      subtitle="501 ганцаарчилсан бэлтгэл"
     />
   )
 }

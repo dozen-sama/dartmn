@@ -37,8 +37,8 @@ const MODES = [
   {
     id: "practice" as const,
     icon: Target,
-    label: "Дадлага",
-    desc: "Solo — 501, Checkout drill",
+    label: "Бэлтгэл",
+    desc: "Ганцаарчилсан — 501, Checkout drill",
     color: "text-yellow-400",
     border: "border-yellow-500/30",
     bg: "bg-yellow-500/8",
@@ -247,7 +247,7 @@ export function PlayLobby({ profile, activeRooms }: Props) {
                   <div className="flex items-center gap-3">
                     <Target className="h-4 w-4 text-green-400" />
                     <div className="text-left">
-                      <p className="text-sm font-semibold text-green-400">Дадлага тоглолт</p>
+                      <p className="text-sm font-semibold text-green-400">Бэлтгэл тоглолт</p>
                       <p className="text-[11px] text-muted-foreground">Dart тус бүр оноо + сектор</p>
                     </div>
                   </div>
@@ -373,10 +373,10 @@ export function PlayLobby({ profile, activeRooms }: Props) {
                 <div className="flex flex-wrap items-center gap-4">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" checked={doubleOut} onChange={(e) => setDoubleOut(e.target.checked)} className="accent-primary" />
-                    <span className="text-sm">Double out</span>
+                    <span className="text-sm">Захаар гарах</span>
                   </label>
                   <div className="flex gap-2">
-                    {([["random", "Санамсаргүй"], ["bulloff", "Bull-off"]] as const).map(([v, label]) => (
+                    {([["random", "Санамсаргүй"], ["bulloff", "Сумны хязгаарт хүрэхэд"]] as const).map(([v, label]) => (
                       <button key={v} type="button" onClick={() => setStartMethod(v)}
                         className={cn("px-3 py-1.5 rounded-lg border text-xs font-bold transition-all",
                           startMethod === v ? "border-primary bg-primary/15 text-primary" : "border-border/50 text-muted-foreground hover:border-border")}>

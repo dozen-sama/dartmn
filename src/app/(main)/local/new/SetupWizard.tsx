@@ -445,7 +445,7 @@ export function SetupWizard() {
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{profile.display_name}</p>
-                      <p className="text-xs text-muted-foreground">@{profile.username} · {profile.rating_points} pts</p>
+                      <p className="text-xs text-muted-foreground">@{profile.username} · {profile.rating_points}</p>
                     </div>
                     <span className="text-xs text-primary shrink-0">+ Нэмэх</span>
                   </button>
@@ -518,7 +518,7 @@ export function SetupWizard() {
               <div className="flex gap-3">
                 <label className="flex items-center gap-2 cursor-pointer text-sm">
                   <input type="checkbox" checked={doubleOut} onChange={(e) => setDoubleOut(e.target.checked)} className="accent-primary" />
-                  Double Out
+                  Захаар гарах
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer text-sm">
                   <input type="checkbox" checked={doubleIn} onChange={(e) => setDoubleIn(e.target.checked)} className="accent-primary" />

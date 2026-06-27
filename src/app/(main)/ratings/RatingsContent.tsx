@@ -144,13 +144,13 @@ export function RatingsContent({ players, clubs }: Props) {
           <BarChart3 className="h-6 w-6 text-[oklch(0.78_0.16_85)]" />
           Монголын Чансаа
         </h1>
-        <p className="text-muted-foreground text-sm mt-0.5">ELO рейтинг · Аймгийн чансаа · Клубын чансаа</p>
+        <p className="text-muted-foreground text-sm mt-0.5">ELO · Монгол, аймгийн чансаа · Клубын чансаа</p>
       </div>
 
       <Tabs defaultValue="global">
         <TabsList className="bg-secondary/50">
           <TabsTrigger value="global"><Trophy className="h-4 w-4 mr-1.5" />Монголын чансаа</TabsTrigger>
-          <TabsTrigger value="province"><MapPin className="h-4 w-4 mr-1.5" />Аймгийн чансаа</TabsTrigger>
+          <TabsTrigger value="province"><MapPin className="h-4 w-4 mr-1.5" />Монгол, аймгийн чансаа</TabsTrigger>
           <TabsTrigger value="clubs"><Building2 className="h-4 w-4 mr-1.5" />Клубын чансаа</TabsTrigger>
         </TabsList>
 
@@ -184,7 +184,7 @@ export function RatingsContent({ players, clubs }: Props) {
 
           {/* Province filter */}
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-muted-foreground shrink-0 flex items-center gap-1"><MapPin className="h-3 w-3" /> Аймаг:</span>
+            <span className="text-xs text-muted-foreground shrink-0"><MapPin className="h-3 w-3" /></span>
             <button onClick={() => setSelectedProvince("all")}
               className={cn("px-2.5 py-1 rounded-md text-xs border transition-all",
                 selectedProvince === "all" ? "border-primary bg-primary/15 text-primary" : "border-border/40 text-muted-foreground hover:border-border")}>

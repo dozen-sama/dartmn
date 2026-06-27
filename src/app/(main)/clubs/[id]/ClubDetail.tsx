@@ -450,7 +450,7 @@ export function ClubDetail({ club, members, requests, currentUserId, myRole }: P
                         {m.role === "owner" && <Shield className="h-2.5 w-2.5 mr-1" />}
                         {roleLabel[m.role] ?? m.role}
                       </Badge>
-                      <p className="text-xs text-muted-foreground mt-0.5">{formatNumber(p.rating_points)} pts</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{formatNumber(p.rating_points)}</p>
                     </div>
                   </div>
                 )
