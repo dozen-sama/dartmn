@@ -6,9 +6,8 @@ import { ArrowLeft, Trophy } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { useFFAStore } from "@/lib/local-game/ffa-store"
-import { fetchRemoteFFA, subscribeToFFA } from "@/lib/local-game/ffa-sync"
-import { classifyTurn, getCheckout, isPossibleVisitScore, IMPOSSIBLE_CHECKOUTS } from "@/lib/local-game/checkouts"
-import type { FFAGame } from "@/lib/local-game/ffa-types"
+import { broadcastFFA, fetchRemoteFFA, subscribeToFFA } from "@/lib/local-game/ffa-sync"
+import { classifyTurn, getCheckout, isPossibleVisitScore } from "@/lib/local-game/checkouts"
 import { toast } from "sonner"
 
 const KEYPAD = [[1,2,3],[4,5,6],[7,8,9],["*",0,"DEL"]] as const
@@ -19,7 +18,6 @@ export function FFABoard() {
   const game = useFFAStore((s) => s.games[gameId])
   const recordThrow = useFFAStore((s) => s.recordThrow)
   const completeLeg = useFFAStore((s) => s.completeLeg)
-  const completeGame = useFFAStore((s) => s.completeGame)
   const importGame = useFFAStore((s) => s.importGame)
 
   const [mounted, setMounted] = useState(false)
@@ -28,7 +26,16 @@ export function FFABoard() {
 
   useEffect(() => setMounted(true), [])
 
-  // Sync: viewer polling
+  // Broadcast on mount for newly created games (owner only)
+  useEffect(() => {
+    if (!mounted || !game) return
+    let owned: string[] = []
+    try { owned = JSON.parse(localStorage.getItem("owned-ffa") ?? "[]") } catch {}
+    if (!owned.includes(gameId)) return
+    broadcastFFA(game)
+  }, [mounted]) // eslint-disable-line
+
+  // Viewer: poll + realtime
   useEffect(() => {
     if (!mounted) return
     let owned: string[] = []
@@ -43,30 +50,43 @@ export function FFABoard() {
   const kbInput  = useCallback((d: string) => setInput((p) => { const n = p + d; return parseInt(n) > 180 ? p : n }), [])
   const kbDelete = useCallback(() => setInput((p) => p.slice(0, -1)), [])
 
-  if (!mounted) return <div className="flex items-center justify-center py-20"><div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" /></div>
+  if (!mounted) return (
+    <div className="flex items-center justify-center py-20">
+      <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
+    </div>
+  )
   if (!game) return <div className="text-center py-20 text-muted-foreground">Тоглолт олдсонгүй</div>
 
-  // Current leg
   const legIdx = game.legs.findIndex((l) => !l.winnerId)
   const isGameOver = game.status === "completed"
   const leg = isGameOver ? null : game.legs[legIdx]
   const currentPlayer = leg ? game.players[leg.currentPlayerIndex] : null
+  const legCount = game.legs.filter((l) => l.winnerId).length
 
   function getRemaining(playerId: string): number {
     if (!leg) return game.startScore
-    const throws = leg.throws[playerId] ?? []
-    return game.startScore - throws.reduce((s, t) => s + (t.bust ? 0 : t.score), 0)
+    return game.startScore - (leg.throws[playerId] ?? []).reduce((s, t) => s + (t.bust ? 0 : t.score), 0)
+  }
+
+  function getPlayerAvg(playerId: string): number {
+    let pts = 0, darts = 0
+    for (const l of game.legs) {
+      for (const t of (l.throws[playerId] ?? [])) {
+        if (!t.bust) pts += t.score
+        darts += t.darts
+      }
+    }
+    return darts ? Math.round((pts / darts) * 3) : 0
   }
 
   const remaining = currentPlayer ? getRemaining(currentPlayer.id) : 0
   const inputNum = parseInt(input) || 0
   const afterScore = remaining - inputNum
-  const outcome = input !== "" ? classifyTurn(remaining, inputNum, { doubleOut: game.doubleOut, requireBullFinish: false }) : null
+  const outcome = input ? classifyTurn(remaining, inputNum, { doubleOut: game.doubleOut, requireBullFinish: false }) : null
   const isBust = outcome?.type === "bust"
   const isCheckout = outcome?.type === "checkout"
   const checkoutHint = currentPlayer ? getCheckout(remaining) : null
   const inputHint = input && !isBust && afterScore > 0 ? getCheckout(afterScore) : null
-  const isImpossible = remaining > 1 && IMPOSSIBLE_CHECKOUTS.has(remaining)
 
   function submitScore() {
     if (!currentPlayer || !leg) return
@@ -74,27 +94,19 @@ export function FFABoard() {
     if (isNaN(score) || !isPossibleVisitScore(score)) {
       toast.error("3 дартаар гаргах боломжгүй оноо"); setInput(""); return
     }
-
     recordThrow(gameId, score, dartsUsed, isBust)
-
     if (isCheckout) {
       const newWins = (game.wins[currentPlayer.id] ?? 0) + 1
-      if (newWins >= game.firstTo) {
-        completeLeg(gameId, currentPlayer.id)
-        toast.success(`🏆 ${currentPlayer.name} ялав!`)
-      } else {
-        completeLeg(gameId, currentPlayer.id)
-        toast.success(`Leg ${legIdx + 1} — ${currentPlayer.name} хожлоо!`)
-      }
+      completeLeg(gameId, currentPlayer.id)
+      toast.success(newWins >= game.firstTo ? `🏆 ${currentPlayer.name} ялав!` : `Leg ${legIdx + 1} — ${currentPlayer.name} хожлоо!`)
     } else if (isBust) {
       toast.error("Bust!")
     }
-
     setInput("")
     setDartsUsed(3)
   }
 
-  // ── Game over screen ──
+  // ── Game over ──
   if (isGameOver && game.winnerId) {
     const winner = game.players.find((p) => p.id === game.winnerId)
     return (
@@ -114,9 +126,14 @@ export function FFABoard() {
             <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-3">Эцсийн байдал</p>
             {game.players.map((p) => (
               <div key={p.id} className={cn("flex items-center justify-between py-2 px-3 rounded-lg",
-                p.id === game.winnerId ? "bg-[oklch(0.78_0.16_85)]/10 border border-[oklch(0.78_0.16_85)]/30" : "bg-secondary/30")}>
+                p.id === game.winnerId
+                  ? "bg-[oklch(0.78_0.16_85)]/10 border border-[oklch(0.78_0.16_85)]/30"
+                  : "bg-secondary/30")}>
                 <span className="font-medium text-sm">{p.name}</span>
-                <span className="font-bold score-display text-primary">{game.wins[p.id] ?? 0} leg</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">avg {getPlayerAvg(p.id) || "—"}</span>
+                  <span className="font-bold score-display text-primary">{game.wins[p.id] ?? 0} leg</span>
+                </div>
               </div>
             ))}
           </CardContent>
@@ -125,12 +142,10 @@ export function FFABoard() {
     )
   }
 
-  const legCount = game.legs.filter((l) => l.winnerId).length
-
   return (
-    <div className="max-w-md mx-auto flex flex-col gap-3 pb-4">
+    <div className="max-w-md mx-auto flex flex-col gap-2.5 pb-3 h-[calc(100dvh-120px)]">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border/50 pb-3 pt-1">
+      <div className="flex items-center justify-between border-b border-border/50 pb-2 shrink-0">
         <button onClick={() => router.push("/local")} className="text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-5 w-5" />
         </button>
@@ -141,65 +156,74 @@ export function FFABoard() {
         <div className="w-6" />
       </div>
 
-      {/* Players scores */}
-      <div className={cn(
-        "grid gap-2",
-        game.players.length <= 4 ? "grid-cols-2" : "grid-cols-1"
-      )}>
-        {game.players.map((player, idx) => {
-          const rem = getRemaining(player.id)
-          const wins = game.wins[player.id] ?? 0
-          const isCurrent = leg?.currentPlayerIndex === idx
-          const throws = leg?.throws[player.id] ?? []
-          const lastThrow = throws[throws.length - 1]
+      {/* TV Scoreboard — скроллтой хайрцаг */}
+      <div className="rounded-xl overflow-hidden border border-border/40 flex-1 min-h-0 flex flex-col">
+        <div className="bg-zinc-900 grid grid-cols-[1fr_auto] px-3 py-1 shrink-0">
+          <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Тоглогч</span>
+          <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Үлдсэн</span>
+        </div>
+        <div className="overflow-y-auto flex-1">
+          {game.players.map((player, idx) => {
+            const rem = getRemaining(player.id)
+            const wins = game.wins[player.id] ?? 0
+            const isCurrent = leg?.currentPlayerIndex === idx
+            const throws = leg?.throws[player.id] ?? []
+            const lastThrow = throws[throws.length - 1]
+            const avg = getPlayerAvg(player.id)
 
-          return (
-            <div key={player.id} className={cn(
-              "rounded-xl border p-3 transition-all",
-              isCurrent
-                ? "border-primary/60 bg-primary/8 shadow-[0_0_12px_oklch(0.7_0.22_260/0.15)]"
-                : "border-border/40 bg-card/60"
-            )}>
-              <div className="flex items-center justify-between mb-1">
-                <p className={cn("text-xs font-semibold truncate", isCurrent ? "text-primary" : "text-muted-foreground")}>
-                  {isCurrent && <span className="mr-1">▶</span>}{player.name}
-                </p>
-                <div className="flex gap-0.5">
-                  {Array.from({ length: game.firstTo }).map((_, i) => (
-                    <div key={i} className={cn("h-2 w-2 rounded-full", i < wins ? "bg-primary" : "bg-border/40")} />
-                  ))}
+            return (
+              <div key={player.id} className={cn(
+                "grid grid-cols-[1fr_auto] items-center gap-3 px-3 py-3 border-b border-border/20 transition-all",
+                isCurrent
+                  ? "bg-primary/8 border-l-[3px] border-l-primary"
+                  : "border-l-[3px] border-l-transparent"
+              )}>
+                <div className="min-w-0">
+                  <p className={cn("font-bold text-sm leading-tight truncate",
+                    isCurrent ? "text-primary" : "text-muted-foreground/70")}>
+                    {isCurrent && <span className="mr-1">▶</span>}{player.name}
+                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs text-muted-foreground/50">avg {avg || "—"}</span>
+                    {lastThrow && (
+                      <span className={cn("text-xs", lastThrow.bust ? "text-destructive/60" : "text-muted-foreground/50")}>
+                        {lastThrow.bust ? "Bust" : `−${lastThrow.score}`}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className={cn(
+                    "font-black score-display leading-tight",
+                    isCurrent ? "text-2xl" : "text-xl",
+                    rem <= 32 && rem > 0 ? "text-green-400" : isCurrent ? "text-foreground" : "text-muted-foreground/40"
+                  )}>
+                    {rem}
+                  </p>
+                  <div className="flex gap-0.5 justify-end mt-0.5">
+                    {Array.from({ length: game.firstTo }).map((_, i) => (
+                      <div key={i} className={cn("h-1.5 w-1.5 rounded-full",
+                        i < wins ? "bg-primary" : "bg-border/30")} />
+                    ))}
+                  </div>
                 </div>
               </div>
-              <p className={cn("font-bold score-display leading-none",
-                isCurrent ? "text-3xl text-foreground" : "text-2xl text-muted-foreground/70",
-                rem <= 32 && rem > 0 ? "text-green-400" : ""
-              )}>
-                {rem}
-              </p>
-              {lastThrow && (
-                <p className={cn("text-xs mt-0.5", lastThrow.bust ? "text-destructive" : "text-muted-foreground/60")}>
-                  {lastThrow.bust ? "Bust" : `−${lastThrow.score}`}
-                </p>
-              )}
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
 
       {/* Input display */}
       {currentPlayer && (
-        <div className="rounded-xl border border-border/40 bg-card/80 p-3">
+        <div className="rounded-xl border border-border/40 bg-card/80 px-3 py-2 shrink-0">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs text-muted-foreground">{currentPlayer.name} — ээлж</p>
+              <p className="text-xs font-medium text-muted-foreground">{currentPlayer.name}</p>
               {checkoutHint && !input && (
-                <p className="text-xs text-green-400/80 mt-0.5">{checkoutHint}</p>
+                <p className="text-xs text-green-400/80 mt-0.5">🎯 {checkoutHint}</p>
               )}
               {inputHint && (
                 <p className="text-xs text-primary/70 mt-0.5">{inputHint}</p>
-              )}
-              {isImpossible && !input && (
-                <p className="text-xs text-destructive/70 mt-0.5">Checkout боломжгүй позиц</p>
               )}
             </div>
             <div className="text-right">
@@ -216,20 +240,22 @@ export function FFABoard() {
         </div>
       )}
 
-      {/* Darts used */}
-      <div className="flex items-center gap-2">
-        <p className="text-xs text-muted-foreground">Дарт:</p>
-        {[1, 2, 3].map((n) => (
-          <button key={n} onClick={() => setDartsUsed(n)}
-            className={cn("h-7 w-7 rounded-full border text-xs font-bold transition-colors",
-              dartsUsed === n ? "border-primary bg-primary/20 text-primary" : "border-border/50 text-muted-foreground hover:border-border")}>
-            {n}
-          </button>
-        ))}
-      </div>
+      {/* Dart selector — checkout үед л харагдана */}
+      {isCheckout && (
+        <div className="flex items-center gap-2 shrink-0">
+          <p className="text-xs text-muted-foreground">Дарт:</p>
+          {[1, 2, 3].map((n) => (
+            <button key={n} onClick={() => setDartsUsed(n)}
+              className={cn("h-7 w-7 rounded-full border text-xs font-bold transition-colors",
+                dartsUsed === n ? "border-primary bg-primary/20 text-primary" : "border-border/50 text-muted-foreground hover:border-border")}>
+              {n}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Keypad */}
-      <div className="space-y-1.5">
+      <div className="space-y-1.5 shrink-0">
         {KEYPAD.map((row, ri) => (
           <div key={ri} className="grid grid-cols-3 gap-1.5">
             {row.map((key) => (
@@ -240,7 +266,7 @@ export function FFABoard() {
                   else kbInput(String(key))
                 }}
                 className={cn(
-                  "h-14 rounded-xl font-bold text-lg border transition-all active:scale-95",
+                  "h-12 rounded-xl font-bold text-lg border transition-all active:scale-95",
                   key === "*"
                     ? "border-primary/50 bg-primary/20 text-primary hover:bg-primary/30 glow-primary"
                     : key === "DEL"

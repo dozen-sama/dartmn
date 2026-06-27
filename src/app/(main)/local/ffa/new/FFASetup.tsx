@@ -83,7 +83,7 @@ export function FFASetup() {
         <button onClick={() => router.push("/local")} className="text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <h1 className="font-bold text-lg">Олуулаа тоглох</h1>
+        <h1 className="font-bold text-lg">{name.trim() || "Олуулаа тоглох"}</h1>
       </div>
 
       <Card className="border-border/50 bg-card/80">
