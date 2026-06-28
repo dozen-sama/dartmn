@@ -241,7 +241,7 @@ const STAGE_TYPES: StageType[] = ["group", "elimination", "round_robin", "swiss"
 
 function StageTypePicker({ onPick, onClose }: { onPick: (t: StageType) => void; onClose: () => void }) {
   return (
-    <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-card border border-border/60 rounded-xl shadow-xl overflow-hidden">
+    <div className="absolute z-50 bottom-full mb-1 left-0 right-0 bg-card border border-border/60 rounded-xl shadow-xl overflow-y-auto max-h-72">
       {STAGE_TYPES.map((t) => (
         <button key={t} type="button"
           onClick={() => { onPick(t); onClose() }}
