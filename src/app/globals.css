@@ -365,3 +365,14 @@
 @media (prefers-reduced-motion: reduce) {
   .club-np::before { animation: none; }
 }
+
+/* Number input spinner товчийг нуух */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
