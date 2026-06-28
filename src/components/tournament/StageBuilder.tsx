@@ -1,7 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
-import { createPortal } from "react-dom"
+import { useState } from "react"
 import { Plus, X, ChevronUp, ChevronDown, AlertCircle, ArrowRight } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
@@ -237,33 +236,13 @@ function StageStructureEditor({ stageType, config, onChange }: {
   return null
 }
 
-// ── Stage type picker (portal) ────────────────────────────────────────────────
+// ── Stage type picker ─────────────────────────────────────────────────────────
 const STAGE_TYPES: StageType[] = ["group", "elimination", "round_robin", "swiss", "semifinal", "final"]
 
-interface PickerPos { top: number; left: number; width: number; maxHeight: number }
-
-function StageTypePicker({ onPick, onClose, pos }: {
-  onPick: (t: StageType) => void
-  onClose: () => void
-  pos: PickerPos
-}) {
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    function handleDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose()
-    }
-    document.addEventListener("mousedown", handleDown)
-    return () => document.removeEventListener("mousedown", handleDown)
-  }, [onClose])
-
-  return createPortal(
-    <div
-      ref={ref}
-      style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width, maxHeight: pos.maxHeight, zIndex: 9999 }}
-      className="bg-card border border-border/60 rounded-xl shadow-xl overflow-y-auto overscroll-contain"
-      onWheel={(e) => e.stopPropagation()}
-    >
+function StageTypePicker({ onPick, onClose }: { onPick: (t: StageType) => void; onClose: () => void }) {
+  return (
+    <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-card border border-border/60 rounded-xl shadow-xl overflow-y-auto max-h-72 overscroll-contain"
+      onWheel={(e) => e.stopPropagation()}>
       {STAGE_TYPES.map((t) => (
         <button key={t} type="button"
           onClick={() => { onPick(t); onClose() }}
@@ -272,8 +251,7 @@ function StageTypePicker({ onPick, onClose, pos }: {
           <span className="text-sm font-medium">{STAGE_LABELS[t]}</span>
         </button>
       ))}
-    </div>,
-    document.body
+    </div>
   )
 }
 
@@ -285,15 +263,7 @@ interface Props {
 }
 
 export function StageBuilder({ stages, onChange, initialPlayers }: Props) {
-  const [pickerPos, setPickerPos] = useState<PickerPos | null>(null)
-  const addBtnRef = useRef<HTMLButtonElement>(null)
-
-  function openPicker() {
-    if (!addBtnRef.current) return
-    const r = addBtnRef.current.getBoundingClientRect()
-    const spaceBelow = window.innerHeight - r.bottom - 8
-    setPickerPos({ top: r.bottom + 4, left: r.left, width: r.width, maxHeight: Math.min(spaceBelow, 320) })
-  }
+  const [showPicker, setShowPicker] = useState(false)
 
   const flow = calculatePlayerFlow(stages, initialPlayers)
   const errors = validatePipeline(stages, initialPlayers)
@@ -411,19 +381,16 @@ export function StageBuilder({ stages, onChange, initialPlayers }: Props) {
       })}
 
       {/* Add stage */}
-      <button ref={addBtnRef} type="button" onClick={openPicker}
-        className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border-2 border-dashed border-border/50 text-sm text-muted-foreground hover:border-primary/50 hover:text-primary hover:bg-primary/5 transition-all">
-        <Plus className="h-4 w-4" />
-        Шат нэмэх
-      </button>
-
-      {pickerPos && (
-        <StageTypePicker
-          pos={pickerPos}
-          onPick={addStage}
-          onClose={() => setPickerPos(null)}
-        />
-      )}
+      <div className="relative">
+        <button type="button" onClick={() => setShowPicker(!showPicker)}
+          className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border-2 border-dashed border-border/50 text-sm text-muted-foreground hover:border-primary/50 hover:text-primary hover:bg-primary/5 transition-all">
+          <Plus className="h-4 w-4" />
+          Шат нэмэх
+        </button>
+        {showPicker && (
+          <StageTypePicker onPick={addStage} onClose={() => setShowPicker(false)} />
+        )}
+      </div>
     </div>
   )
 }

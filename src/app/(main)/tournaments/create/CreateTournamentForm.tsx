@@ -36,7 +36,7 @@ function generateCode() {
 function Section({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <Card className="border-border/50 bg-card/80">
+    <Card className="border-border/50 bg-card/80 overflow-visible">
       <button
         type="button"
         onClick={() => setOpen(!open)}
