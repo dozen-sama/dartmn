@@ -3,42 +3,68 @@
 
 export type StageType = "group" | "elimination" | "round_robin" | "swiss" | "rescue"
 
-// ── Stage config types ────────────────────────────────────────────────────────
+export type GameFormat = "501" | "301" | "170"
 
-export interface GroupStageConfig {
-  groups_count: number       // бүлгийн тоо (2–16)
-  players_per_group: number  // бүлэг бүрт хэдэн тоглогч (3–16)
-  advance_count: number      // бүлгээс гарах тоглогчийн тоо (1–players_per_group-1)
-  rr_first_to: number        // бүлгийн доторх тоглолт (first to N legs)
+// ── Нийтлэг тоглолтын дүрэм (шат бүрт тусдаа) ───────────────────────────────
+
+export interface GameRules {
+  format: GameFormat
+  start_score: number
+  double_out: boolean
+  double_in: boolean
+  loser_first: boolean
+  limit_rounds: number | null
+  bull_finish_at_limit: boolean
 }
 
-export interface EliminationStageConfig {
+const DEFAULT_GAME_RULES: GameRules = {
+  format: "501",
+  start_score: 501,
+  double_out: true,
+  double_in: false,
+  loser_first: false,
+  limit_rounds: null,
+  bull_finish_at_limit: false,
+}
+
+// ── Stage config types ────────────────────────────────────────────────────────
+
+export interface GroupStageConfig extends GameRules {
+  groups_count: number       // бүлгийн тоо (2–16)
+  players_per_group: number  // бүлэг бүрт хэдэн тоглогч (3–16)
+  advance_count: number      // бүлгээс гарах тоглогчийн тоо
+  rr_first_to: number        // бүлгийн доторх тоглолт (first to N legs)
+  enable_draw: boolean
+}
+
+export interface EliminationStageConfig extends GameRules {
   max_losses: number         // хэдэн хожигдоод хасагдах (1=SE, 2=DE, 3+)
-  has_third_place: boolean   // 3-р байрны тоглолт байх эсэх
-  first_to: number           // first to N legs/sets
+  has_third_place: boolean
+  first_to: number
   sets_enabled: boolean
   legs_per_set: number
 }
 
-export interface RoundRobinStageConfig {
+export interface RoundRobinStageConfig extends GameRules {
   first_to: number
   sets_enabled: boolean
   legs_per_set: number
   point_won: number
   point_draw: number
   point_lost: number
-  advance_count: number      // дараагийн шатанд гарах тоглогчийн тоо (0 = бүгд, тэмцээн дуусна)
+  advance_count: number      // 0 = тэмцээн дуусна (финал)
+  enable_draw: boolean
 }
 
-export interface SwissStageConfig {
-  rounds_count: number       // Swiss тойргийн тоо
+export interface SwissStageConfig extends GameRules {
+  rounds_count: number
   first_to: number
-  advance_count: number      // дараагийн шатанд гарах тоглогчийн тоо (0 = бүгд)
+  advance_count: number      // 0 = тэмцээн дуусна
 }
 
-export interface RescueStageConfig {
+export interface RescueStageConfig extends GameRules {
   player_count: number       // өмнөх шатнаас авах хасагдсан тоглогчийн тоо
-  advance_count: number      // rescue-аас үндсэн bracket руу гарах тоо
+  advance_count: number
   first_to: number
 }
 
@@ -64,12 +90,15 @@ export interface TournamentStage {
 
 export const DEFAULT_CONFIGS: Record<StageType, StageConfig> = {
   group: {
+    ...DEFAULT_GAME_RULES,
     groups_count: 4,
     players_per_group: 4,
     advance_count: 2,
     rr_first_to: 2,
+    enable_draw: false,
   } satisfies GroupStageConfig,
   elimination: {
+    ...DEFAULT_GAME_RULES,
     max_losses: 1,
     has_third_place: false,
     first_to: 2,
@@ -77,6 +106,7 @@ export const DEFAULT_CONFIGS: Record<StageType, StageConfig> = {
     legs_per_set: 3,
   } satisfies EliminationStageConfig,
   round_robin: {
+    ...DEFAULT_GAME_RULES,
     first_to: 2,
     sets_enabled: false,
     legs_per_set: 3,
@@ -84,13 +114,16 @@ export const DEFAULT_CONFIGS: Record<StageType, StageConfig> = {
     point_draw: 1,
     point_lost: 0,
     advance_count: 0,
+    enable_draw: false,
   } satisfies RoundRobinStageConfig,
   swiss: {
+    ...DEFAULT_GAME_RULES,
     rounds_count: 4,
     first_to: 2,
     advance_count: 0,
   } satisfies SwissStageConfig,
   rescue: {
+    ...DEFAULT_GAME_RULES,
     player_count: 4,
     advance_count: 2,
     first_to: 2,
@@ -114,18 +147,19 @@ export const STAGE_ICONS: Record<StageType, string> = {
 }
 
 // ── Player flow calculator ────────────────────────────────────────────────────
-// Шат бүрт хэдэн тоглогч ирж, хэдэн тоглогч дэвших тооцоолно.
-// UI-д "8 тоглогч → 4 дэвших" гэж харуулахад ашиглана.
 
 export interface StageFlow {
   stageType: StageType
   playersIn: number
   playersOut: number   // 0 = тэмцээн дуусна (финал)
-  matchCount: number   // ойролцоо match тоо
+  matchCount: number
   description: string
 }
 
-export function calculatePlayerFlow(stages: { stage_type: StageType; config: StageConfig }[], initialPlayers: number): StageFlow[] {
+export function calculatePlayerFlow(
+  stages: { stage_type: StageType; config: StageConfig }[],
+  initialPlayers: number
+): StageFlow[] {
   let current = initialPlayers
   return stages.map(({ stage_type, config }) => {
     let out = 0
@@ -211,7 +245,6 @@ export function validatePipeline(
       if (c.advance_count >= c.player_count) errors.push({ stageIndex: i, message: "Дэвших тоо нь аварагдах тоглогчийн тооноос бага байх ёстой" })
     }
 
-    // Сүүлийн шатнаас бусад: гарах тоглогч 0 байвал анхааруулга
     if (i < stages.length - 1 && flow[i].playersOut === 0) {
       errors.push({ stageIndex: i, message: "Энэ шатнаас дэвших тоглогч 0 байна — дараагийн шатанд хүн байхгүй" })
     }

@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils"
 import {
   StageType,
   StageConfig,
+  GameFormat,
+  GameRules,
   GroupStageConfig,
   EliminationStageConfig,
   RoundRobinStageConfig,
@@ -36,22 +38,13 @@ function Stepper({
     <div className="flex flex-col gap-1">
       {label && <Label className="text-[11px] text-muted-foreground whitespace-nowrap">{label}</Label>}
       <div className="flex items-center">
-        <button
-          type="button"
-          onClick={() => onChange(Math.max(min, value - 1))}
-          className="h-7 w-7 border border-border/60 rounded-l-md flex items-center justify-center hover:bg-secondary transition-colors text-sm"
-        >−</button>
-        <input
-          type="number"
-          value={value}
+        <button type="button" onClick={() => onChange(Math.max(min, value - 1))}
+          className="h-7 w-7 border border-border/60 rounded-l-md flex items-center justify-center hover:bg-secondary transition-colors text-sm">−</button>
+        <input type="number" value={value}
           onChange={(e) => onChange(Math.min(max, Math.max(min, parseInt(e.target.value) || min)))}
-          className="h-7 w-10 text-center text-sm font-bold border-y border-border/60 bg-secondary/50 focus:outline-none"
-        />
-        <button
-          type="button"
-          onClick={() => onChange(Math.min(max, value + 1))}
-          className="h-7 w-7 border border-border/60 rounded-r-md flex items-center justify-center hover:bg-secondary transition-colors text-sm"
-        >+</button>
+          className="h-7 w-10 text-center text-sm font-bold border-y border-border/60 bg-secondary/50 focus:outline-none" />
+        <button type="button" onClick={() => onChange(Math.min(max, value + 1))}
+          className="h-7 w-7 border border-border/60 rounded-r-md flex items-center justify-center hover:bg-secondary transition-colors text-sm">+</button>
       </div>
     </div>
   )
@@ -61,21 +54,88 @@ function Stepper({
 function CheckRow({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <label className="flex items-center gap-2 cursor-pointer">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="rounded accent-primary"
-      />
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="rounded accent-primary" />
       <span className="text-xs">{label}</span>
     </label>
   )
 }
 
-// ── Stage config editor ───────────────────────────────────────────────────────
-function StageConfigEditor({
-  stageType, config, onChange,
-}: {
+// ── Game rules editor (шат бүрт) ──────────────────────────────────────────────
+const START_SCORE_OPTIONS: Record<GameFormat, number[]> = {
+  "501": [501, 301, 170, 121],
+  "301": [301, 170, 121],
+  "170": [],
+}
+
+function GameRulesEditor({ config, onChange }: {
+  config: GameRules
+  onChange: (patch: Partial<GameRules>) => void
+}) {
+  const scoreOptions = START_SCORE_OPTIONS[config.format]
+  return (
+    <div className="space-y-2 pt-2 mt-2 border-t border-border/30">
+      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Тоглолтын тохиргоо</p>
+
+      {/* Format */}
+      <div className="flex gap-1.5">
+        {(["501", "301", "170"] as GameFormat[]).map((f) => (
+          <button key={f} type="button"
+            onClick={() => onChange({ format: f, start_score: f === "170" ? 170 : f === "301" ? 301 : 501 })}
+            className={cn("px-3 py-1 rounded-md border-2 text-sm font-bold transition-all",
+              config.format === f
+                ? "border-primary bg-primary/15 text-primary"
+                : "border-border/40 text-muted-foreground hover:border-border")}>
+            {f}
+          </button>
+        ))}
+      </div>
+
+      {/* Start Score */}
+      {scoreOptions.length > 1 && (
+        <div className="flex gap-1.5 flex-wrap">
+          <span className="text-[11px] text-muted-foreground self-center mr-1">Start:</span>
+          {scoreOptions.map((s) => (
+            <button key={s} type="button"
+              onClick={() => onChange({ start_score: s })}
+              className={cn("px-2 py-0.5 rounded border text-xs font-semibold transition-all",
+                config.start_score === s
+                  ? "border-primary bg-primary/15 text-primary"
+                  : "border-border/40 text-muted-foreground hover:border-border")}>
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Double Out / In / Loser First */}
+      <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+        <CheckRow label="Захаар гарах" checked={config.double_out} onChange={(v) => onChange({ double_out: v })} />
+        <CheckRow label="Double In" checked={config.double_in} onChange={(v) => onChange({ double_in: v })} />
+        <CheckRow label="Loser First" checked={config.loser_first} onChange={(v) => onChange({ loser_first: v })} />
+      </div>
+
+      {/* Limit rounds */}
+      <div className="flex flex-wrap items-center gap-3">
+        <CheckRow
+          label="Сумны хязгаар"
+          checked={config.limit_rounds !== null}
+          onChange={(v) => onChange({ limit_rounds: v ? 15 : null, bull_finish_at_limit: false })}
+        />
+        {config.limit_rounds !== null && (
+          <>
+            <Stepper value={config.limit_rounds} onChange={(v) => onChange({ limit_rounds: v })} min={5} max={99} label="Visit" />
+            <div className="mt-4">
+              <CheckRow label="Bull-д дуусгах" checked={config.bull_finish_at_limit} onChange={(v) => onChange({ bull_finish_at_limit: v })} />
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Stage-specific structural config ──────────────────────────────────────────
+function StageStructureEditor({ stageType, config, onChange }: {
   stageType: StageType
   config: StageConfig
   onChange: (patch: Partial<StageConfig>) => void
@@ -83,19 +143,21 @@ function StageConfigEditor({
   if (stageType === "group") {
     const c = config as GroupStageConfig
     return (
-      <div className="flex flex-wrap gap-3 pt-1">
-        <Stepper value={c.groups_count} onChange={(v) => onChange({ groups_count: v })} min={2} max={16} label="Бүлгийн тоо" />
-        <Stepper value={c.players_per_group} onChange={(v) => onChange({ players_per_group: v })} min={2} max={20} label="Бүлгийн хүн" />
-        <Stepper
-          value={c.advance_count}
-          onChange={(v) => onChange({ advance_count: Math.min(v, c.players_per_group - 1) })}
-          min={1}
-          max={Math.max(1, c.players_per_group - 1)}
-          label="Гарах тоо"
-        />
-        <Stepper value={c.rr_first_to} onChange={(v) => onChange({ rr_first_to: v })} min={1} max={11} label="1st to" />
-        <div className="self-end pb-0.5 text-[11px] text-primary/80 font-medium whitespace-nowrap">
-          = {c.groups_count * c.players_per_group} нийт · {c.groups_count * c.advance_count} дэвших
+      <div className="space-y-2">
+        <div className="flex flex-wrap gap-3">
+          <Stepper value={c.groups_count} onChange={(v) => onChange({ groups_count: v })} min={2} max={16} label="Бүлгийн тоо" />
+          <Stepper value={c.players_per_group} onChange={(v) => onChange({ players_per_group: v })} min={2} max={20} label="Бүлгийн хүн" />
+          <Stepper
+            value={c.advance_count}
+            onChange={(v) => onChange({ advance_count: Math.min(v, c.players_per_group - 1) })}
+            min={1} max={Math.max(1, c.players_per_group - 1)} label="Гарах тоо" />
+          <Stepper value={c.rr_first_to} onChange={(v) => onChange({ rr_first_to: v })} min={1} max={11} label="1st to" />
+        </div>
+        <div className="flex items-center gap-3">
+          <CheckRow label="Тэнцэл зөвшөөрөх" checked={c.enable_draw} onChange={(v) => onChange({ enable_draw: v })} />
+          <span className="text-[11px] text-primary/80 font-medium">
+            = {c.groups_count * c.players_per_group} нийт · {c.groups_count * c.advance_count} дэвших
+          </span>
         </div>
       </div>
     )
@@ -105,7 +167,7 @@ function StageConfigEditor({
     const c = config as EliminationStageConfig
     const modeLabel = c.max_losses === 1 ? "Single" : c.max_losses === 2 ? "Double" : `×${c.max_losses}`
     return (
-      <div className="space-y-2 pt-1">
+      <div className="space-y-2">
         <div className="flex flex-wrap gap-3">
           <Stepper value={c.max_losses} onChange={(v) => onChange({ max_losses: v })} min={1} max={5} label="Хасагдах алдаа" />
           <Stepper value={c.first_to} onChange={(v) => onChange({ first_to: v })} min={1} max={11} label="1st to" />
@@ -127,7 +189,7 @@ function StageConfigEditor({
   if (stageType === "round_robin") {
     const c = config as RoundRobinStageConfig
     return (
-      <div className="space-y-2 pt-1">
+      <div className="space-y-2">
         <div className="flex flex-wrap gap-3">
           <Stepper value={c.first_to} onChange={(v) => onChange({ first_to: v })} min={1} max={11} label="1st to" />
           {c.sets_enabled && (
@@ -137,6 +199,7 @@ function StageConfigEditor({
         </div>
         <div className="flex flex-wrap gap-3">
           <CheckRow label="Sets" checked={c.sets_enabled} onChange={(v) => onChange({ sets_enabled: v })} />
+          <CheckRow label="Тэнцэл зөвшөөрөх" checked={c.enable_draw} onChange={(v) => onChange({ enable_draw: v })} />
         </div>
         <div className="flex flex-wrap gap-2">
           <Stepper value={c.point_won} onChange={(v) => onChange({ point_won: v })} min={0} max={10} label="Хожил" />
@@ -150,7 +213,7 @@ function StageConfigEditor({
   if (stageType === "swiss") {
     const c = config as SwissStageConfig
     return (
-      <div className="flex flex-wrap gap-3 pt-1">
+      <div className="flex flex-wrap gap-3">
         <Stepper value={c.rounds_count} onChange={(v) => onChange({ rounds_count: v })} min={2} max={20} label="Тойргийн тоо" />
         <Stepper value={c.first_to} onChange={(v) => onChange({ first_to: v })} min={1} max={11} label="1st to" />
         <Stepper value={c.advance_count} onChange={(v) => onChange({ advance_count: v })} min={0} max={128} label="Дэвших тоо" />
@@ -161,15 +224,12 @@ function StageConfigEditor({
   if (stageType === "rescue") {
     const c = config as RescueStageConfig
     return (
-      <div className="flex flex-wrap gap-3 pt-1">
+      <div className="flex flex-wrap gap-3">
         <Stepper value={c.player_count} onChange={(v) => onChange({ player_count: v })} min={2} max={64} label="Аварагдах тоо" />
         <Stepper
           value={c.advance_count}
           onChange={(v) => onChange({ advance_count: Math.min(v, c.player_count - 1) })}
-          min={1}
-          max={Math.max(1, c.player_count - 1)}
-          label="Дэвших тоо"
-        />
+          min={1} max={Math.max(1, c.player_count - 1)} label="Дэвших тоо" />
         <Stepper value={c.first_to} onChange={(v) => onChange({ first_to: v })} min={1} max={11} label="1st to" />
       </div>
     )
@@ -185,16 +245,11 @@ function StageTypePicker({ onPick, onClose }: { onPick: (t: StageType) => void; 
   return (
     <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-card border border-border/60 rounded-xl shadow-xl overflow-hidden">
       {STAGE_TYPES.map((t) => (
-        <button
-          key={t}
-          type="button"
+        <button key={t} type="button"
           onClick={() => { onPick(t); onClose() }}
-          className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-secondary/60 transition-colors text-left"
-        >
+          className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-secondary/60 transition-colors text-left">
           <span className="text-lg">{STAGE_ICONS[t]}</span>
-          <div>
-            <p className="text-sm font-medium">{STAGE_LABELS[t]}</p>
-          </div>
+          <span className="text-sm font-medium">{STAGE_LABELS[t]}</span>
         </button>
       ))}
     </div>
@@ -238,7 +293,7 @@ export function StageBuilder({ stages, onChange, initialPlayers }: Props) {
 
   return (
     <div className="space-y-2">
-      {/* Pipeline flow header */}
+      {/* Pipeline flow preview */}
       {stages.length > 0 && (
         <div className="flex items-center gap-1.5 flex-wrap text-xs text-muted-foreground px-1">
           <span className="font-semibold text-foreground">{initialPlayers}</span>
@@ -268,55 +323,45 @@ export function StageBuilder({ stages, onChange, initialPlayers }: Props) {
         const stageErrors = errors.filter((e) => e.stageIndex === idx)
         const f = flow[idx]
         return (
-          <div
-            key={s._id}
-            className={cn(
-              "rounded-xl border bg-secondary/20 p-3 space-y-2 transition-colors",
-              stageErrors.length > 0 ? "border-destructive/40" : "border-border/50"
-            )}
-          >
+          <div key={s._id} className={cn(
+            "rounded-xl border bg-secondary/20 p-3 space-y-2 transition-colors",
+            stageErrors.length > 0 ? "border-destructive/40" : "border-border/50"
+          )}>
             {/* Card header */}
             <div className="flex items-center gap-2">
               <span className="text-lg select-none">{STAGE_ICONS[s.stage_type]}</span>
               <span className="text-sm font-semibold flex-1">{STAGE_LABELS[s.stage_type]}</span>
-              {/* Flow summary */}
               {f && (
                 <span className="text-[11px] text-muted-foreground mr-1">
                   {f.playersIn} → {f.playersOut > 0 ? `${f.playersOut} дэвших` : "🏆 финал"}
                 </span>
               )}
-              {/* Move buttons */}
               <div className="flex gap-0.5">
-                <button
-                  type="button"
-                  onClick={() => moveStage(idx, -1)}
-                  disabled={idx === 0}
-                  className="h-6 w-6 flex items-center justify-center rounded hover:bg-secondary disabled:opacity-30 transition-colors"
-                >
+                <button type="button" onClick={() => moveStage(idx, -1)} disabled={idx === 0}
+                  className="h-6 w-6 flex items-center justify-center rounded hover:bg-secondary disabled:opacity-30 transition-colors">
                   <ChevronUp className="h-3.5 w-3.5" />
                 </button>
-                <button
-                  type="button"
-                  onClick={() => moveStage(idx, 1)}
-                  disabled={idx === stages.length - 1}
-                  className="h-6 w-6 flex items-center justify-center rounded hover:bg-secondary disabled:opacity-30 transition-colors"
-                >
+                <button type="button" onClick={() => moveStage(idx, 1)} disabled={idx === stages.length - 1}
+                  className="h-6 w-6 flex items-center justify-center rounded hover:bg-secondary disabled:opacity-30 transition-colors">
                   <ChevronDown className="h-3.5 w-3.5" />
                 </button>
               </div>
-              <button
-                type="button"
-                onClick={() => removeStage(idx)}
-                className="h-6 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-              >
+              <button type="button" onClick={() => removeStage(idx)}
+                className="h-6 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>
 
-            {/* Config editor */}
-            <StageConfigEditor
+            {/* Structural config (first_to, groups_count, etc.) */}
+            <StageStructureEditor
               stageType={s.stage_type}
               config={s.config}
+              onChange={(patch) => updateConfig(idx, patch)}
+            />
+
+            {/* Game rules (format, double_out, limit_rounds, etc.) */}
+            <GameRulesEditor
+              config={s.config as GameRules}
               onChange={(patch) => updateConfig(idx, patch)}
             />
 
@@ -336,21 +381,15 @@ export function StageBuilder({ stages, onChange, initialPlayers }: Props) {
         )
       })}
 
-      {/* Add stage button */}
+      {/* Add stage */}
       <div className="relative">
-        <button
-          type="button"
-          onClick={() => setShowPicker(!showPicker)}
-          className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border-2 border-dashed border-border/50 text-sm text-muted-foreground hover:border-primary/50 hover:text-primary hover:bg-primary/5 transition-all"
-        >
+        <button type="button" onClick={() => setShowPicker(!showPicker)}
+          className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border-2 border-dashed border-border/50 text-sm text-muted-foreground hover:border-primary/50 hover:text-primary hover:bg-primary/5 transition-all">
           <Plus className="h-4 w-4" />
           Шат нэмэх
         </button>
         {showPicker && (
-          <StageTypePicker
-            onPick={addStage}
-            onClose={() => setShowPicker(false)}
-          />
+          <StageTypePicker onPick={addStage} onClose={() => setShowPicker(false)} />
         )}
       </div>
     </div>

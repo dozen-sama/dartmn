@@ -516,8 +516,8 @@ export function CreateTournamentForm({ userId, userProfile }: Props) {
           </div>
         </Section>
 
-        {/* ── GAME SETTING ── */}
-        <Section title="Game Setting">
+        {/* ── GAME SETTING ── (олон шат горимд нуугдана — шат бүрт тусдаа тохируулна) */}
+        {!usesStages && <Section title="Game Setting">
           {/* Format */}
           <div className="space-y-1.5">
             <Label>Тоглолтын төрөл</Label>
@@ -636,7 +636,7 @@ export function CreateTournamentForm({ userId, userProfile }: Props) {
               )}
             </div>
           )}
-        </Section>
+        </Section>}
 
         {/* ── BRACKET TYPE ── */}
         <Section title="Bracket төрөл">
@@ -773,8 +773,8 @@ export function CreateTournamentForm({ userId, userProfile }: Props) {
           )}
         </Section>
 
-        {/* ── POINT SYSTEM (RR/Swiss) ── */}
-        {(bracketType === "round_robin" || bracketType === "swiss") && (
+        {/* ── POINT SYSTEM (RR/Swiss, зөвхөн энгийн горимд) ── */}
+        {!usesStages && (bracketType === "round_robin" || bracketType === "swiss") && (
           <Section title="Оноо тооцоо">
             <div className="grid grid-cols-3 gap-4">
               <Stepper value={pointWon} onChange={setPointWon} min={0} max={10} label="Хожил" />
