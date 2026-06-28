@@ -19,6 +19,8 @@ import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
 import { computePlatformFee } from "@/lib/tournament/platform-fee"
+import { StageBuilder, LocalStage } from "@/components/tournament/StageBuilder"
+import { DEFAULT_CONFIGS } from "@/lib/tournament/stage-types"
 import Link from "next/link"
 
 interface Props {
@@ -178,6 +180,12 @@ export function CreateTournamentForm({ userId, userProfile }: Props) {
   const isRR = bracketType === "round_robin" || bracketType === "swiss" || bracketType === "groups_knockout"
   const platformFee = computePlatformFee(bracketType, maxPlayers)
 
+  // Multi-stage pipeline
+  const [usesStages, setUsesStages] = useState(false)
+  const [stages, setStages] = useState<LocalStage[]>([
+    { _id: "s0", stage_type: "elimination", config: { ...DEFAULT_CONFIGS.elimination } },
+  ])
+
   const BRACKET_OPTIONS = [
     { value: "single_elimination", label: "Single Elimination", desc: "Нэг алдлаар унана" },
     { value: "double_elimination", label: "Double Elimination", desc: "Хоёр алдлаар унана" },
@@ -294,6 +302,7 @@ export function CreateTournamentForm({ userId, userProfile }: Props) {
         point_draw: pointDraw,
         point_lost: pointLost,
         win_points_are_legs: winPointsAreLegs,
+        uses_stages: usesStages,
       })
       .select("id")
       .single()
@@ -302,6 +311,23 @@ export function CreateTournamentForm({ userId, userProfile }: Props) {
       toast.error("Тэмцээн үүсгэхэд алдаа гарлаа")
       setLoading(false)
       return
+    }
+
+    // Multi-stage pipeline үүсгэх
+    if (usesStages && stages.length > 0) {
+      const stageRows = stages.map((s, i) => ({
+        tournament_id: data.id,
+        order_no: i,
+        stage_type: s.stage_type,
+        config: s.config as unknown as Record<string, unknown>,
+        status: "pending" as const,
+      }))
+      const { error: stageErr } = await supabase.from("tournament_stages").insert(stageRows)
+      if (stageErr) {
+        toast.error("Шатуудыг хадгалахад алдаа гарлаа")
+        setLoading(false)
+        return
+      }
     }
 
     toast.success("Тэмцээн амжилттай үүслээ!")
@@ -614,23 +640,53 @@ export function CreateTournamentForm({ userId, userProfile }: Props) {
 
         {/* ── BRACKET TYPE ── */}
         <Section title="Bracket төрөл">
-          <div className="space-y-2">
-            {BRACKET_OPTIONS.map((bt) => (
-              <label key={bt.value} className={cn(
-                "flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all",
-                bracketType === bt.value ? "border-primary bg-primary/10" : "border-border/40 hover:border-border bg-secondary/20"
-              )}>
-                <input type="radio" name="bracket" value={bt.value}
-                  checked={bracketType === bt.value}
-                  onChange={() => setBracketType(bt.value)}
-                  className="accent-primary" />
-                <div>
-                  <p className={cn("text-sm font-semibold", bracketType === bt.value && "text-primary")}>{bt.label}</p>
-                  <p className="text-xs text-muted-foreground">{bt.desc}</p>
-                </div>
-              </label>
-            ))}
+          {/* Classic vs multi-stage toggle */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setUsesStages(false)}
+              className={cn(
+                "flex-1 py-2 text-sm font-medium rounded-lg border-2 transition-all",
+                !usesStages ? "border-primary bg-primary/15 text-primary" : "border-border/40 text-muted-foreground hover:border-border"
+              )}
+            >
+              Энгийн
+            </button>
+            <button
+              type="button"
+              onClick={() => setUsesStages(true)}
+              className={cn(
+                "flex-1 py-2 text-sm font-medium rounded-lg border-2 transition-all",
+                usesStages ? "border-primary bg-primary/15 text-primary" : "border-border/40 text-muted-foreground hover:border-border"
+              )}
+            >
+              Олон шат ✨
+            </button>
           </div>
+
+          {!usesStages && (
+            <div className="space-y-2">
+              {BRACKET_OPTIONS.map((bt) => (
+                <label key={bt.value} className={cn(
+                  "flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all",
+                  bracketType === bt.value ? "border-primary bg-primary/10" : "border-border/40 hover:border-border bg-secondary/20"
+                )}>
+                  <input type="radio" name="bracket" value={bt.value}
+                    checked={bracketType === bt.value}
+                    onChange={() => setBracketType(bt.value)}
+                    className="accent-primary" />
+                  <div>
+                    <p className={cn("text-sm font-semibold", bracketType === bt.value && "text-primary")}>{bt.label}</p>
+                    <p className="text-xs text-muted-foreground">{bt.desc}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          )}
+
+          {usesStages && (
+            <StageBuilder stages={stages} onChange={setStages} initialPlayers={maxPlayers} />
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
