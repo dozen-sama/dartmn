@@ -1,7 +1,7 @@
 // Multi-stage tournament pipeline types.
 // Шат бүрийн тохиргоо, pipeline validation, player flow тооцоо.
 
-export type StageType = "group" | "elimination" | "round_robin" | "swiss" | "rescue"
+export type StageType = "group" | "elimination" | "round_robin" | "swiss" | "semifinal" | "final"
 
 export type GameFormat = "501" | "301" | "170"
 
@@ -62,10 +62,17 @@ export interface SwissStageConfig extends GameRules {
   advance_count: number      // 0 = тэмцээн дуусна
 }
 
-export interface RescueStageConfig extends GameRules {
-  player_count: number       // өмнөх шатнаас авах хасагдсан тоглогчийн тоо
-  advance_count: number
+export interface SemiFinalStageConfig extends GameRules {
   first_to: number
+  sets_enabled: boolean
+  legs_per_set: number
+  has_third_place: boolean   // 3-р байрны тоглолт (default: true)
+}
+
+export interface FinalStageConfig extends GameRules {
+  first_to: number
+  sets_enabled: boolean
+  legs_per_set: number
 }
 
 export type StageConfig =
@@ -73,7 +80,8 @@ export type StageConfig =
   | EliminationStageConfig
   | RoundRobinStageConfig
   | SwissStageConfig
-  | RescueStageConfig
+  | SemiFinalStageConfig
+  | FinalStageConfig
 
 // ── Stage definition ─────────────────────────────────────────────────────────
 
@@ -122,20 +130,28 @@ export const DEFAULT_CONFIGS: Record<StageType, StageConfig> = {
     first_to: 2,
     advance_count: 0,
   } satisfies SwissStageConfig,
-  rescue: {
+  semifinal: {
     ...DEFAULT_GAME_RULES,
-    player_count: 4,
-    advance_count: 2,
     first_to: 2,
-  } satisfies RescueStageConfig,
+    sets_enabled: false,
+    legs_per_set: 3,
+    has_third_place: true,
+  } satisfies SemiFinalStageConfig,
+  final: {
+    ...DEFAULT_GAME_RULES,
+    first_to: 3,
+    sets_enabled: false,
+    legs_per_set: 3,
+  } satisfies FinalStageConfig,
 }
 
 export const STAGE_LABELS: Record<StageType, string> = {
-  group:         "Хэсгийн шат",
-  elimination:   "Хасагдах шат",
-  round_robin:   "Тойрог",
-  swiss:         "Свисс",
-  rescue:        "Аврагийн тоглолт",
+  group:       "Хэсгийн шат",
+  elimination: "Хасагдах шат",
+  round_robin: "Тойрог",
+  swiss:       "Свисс",
+  semifinal:   "Хагас финал",
+  final:       "Финал",
 }
 
 export const STAGE_ICONS: Record<StageType, string> = {
@@ -143,7 +159,8 @@ export const STAGE_ICONS: Record<StageType, string> = {
   elimination: "⚔️",
   round_robin: "🔄",
   swiss:       "🇨🇭",
-  rescue:      "🛟",
+  semifinal:   "4️⃣",
+  final:       "🏆",
 }
 
 // ── Player flow calculator ────────────────────────────────────────────────────
@@ -194,11 +211,15 @@ export function calculatePlayerFlow(
       out = c.advance_count || 0
       matches = current * c.rounds_count / 2
       desc = `${c.rounds_count} Swiss тойрог${c.advance_count > 0 ? `, дээрээс ${c.advance_count} дэвших` : ""}`
-    } else if (stage_type === "rescue") {
-      const c = config as RescueStageConfig
-      out = c.advance_count
-      matches = c.player_count - c.advance_count
-      desc = `${c.player_count} аварагдах тоглогч, ${c.advance_count} дэвших`
+    } else if (stage_type === "semifinal") {
+      const c = config as SemiFinalStageConfig
+      out = 1
+      matches = 2 + 1 + (c.has_third_place ? 1 : 0) // 2 хагас финал + 1 финал + 3-р байр
+      desc = `4 тоглогч → 2 хагас финал → финал${c.has_third_place ? " + 3-р байр" : ""}`
+    } else if (stage_type === "final") {
+      out = 1
+      matches = 1
+      desc = "2 тоглогч → финал"
     }
 
     const flow: StageFlow = { stageType: stage_type, playersIn: current, playersOut: out, matchCount: matches, description: desc }
@@ -240,9 +261,11 @@ export function validatePipeline(
     if (stage_type === "round_robin" || stage_type === "swiss") {
       if (playersIn < 2) errors.push({ stageIndex: i, message: "Хамгийн багадаа 2 тоглогч хэрэгтэй" })
     }
-    if (stage_type === "rescue") {
-      const c = config as RescueStageConfig
-      if (c.advance_count >= c.player_count) errors.push({ stageIndex: i, message: "Дэвших тоо нь аварагдах тоглогчийн тооноос бага байх ёстой" })
+    if (stage_type === "semifinal") {
+      if (playersIn !== 4) errors.push({ stageIndex: i, message: "Хагас финалд яг 4 тоглогч хэрэгтэй" })
+    }
+    if (stage_type === "final") {
+      if (playersIn !== 2) errors.push({ stageIndex: i, message: "Финалд яг 2 тоглогч хэрэгтэй" })
     }
 
     if (i < stages.length - 1 && flow[i].playersOut === 0) {

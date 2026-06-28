@@ -13,7 +13,8 @@ import {
   EliminationStageConfig,
   RoundRobinStageConfig,
   SwissStageConfig,
-  RescueStageConfig,
+  SemiFinalStageConfig,
+  FinalStageConfig,
   DEFAULT_CONFIGS,
   STAGE_LABELS,
   STAGE_ICONS,
@@ -197,16 +198,37 @@ function StageStructureEditor({ stageType, config, onChange }: {
     )
   }
 
-  if (stageType === "rescue") {
-    const c = config as RescueStageConfig
+  if (stageType === "semifinal") {
+    const c = config as SemiFinalStageConfig
     return (
-      <div className="flex flex-wrap gap-3">
-        <Stepper value={c.player_count} onChange={(v) => onChange({ player_count: v })} min={2} max={64} label="Аварагдах тоо" />
-        <Stepper
-          value={c.advance_count}
-          onChange={(v) => onChange({ advance_count: Math.min(v, c.player_count - 1) })}
-          min={1} max={Math.max(1, c.player_count - 1)} label="Дэвших тоо" />
-        <Stepper value={c.first_to} onChange={(v) => onChange({ first_to: v })} min={1} max={11} label="1st to" />
+      <div className="space-y-2">
+        <div className="flex flex-wrap gap-3">
+          <Stepper value={c.first_to} onChange={(v) => onChange({ first_to: v })} min={1} max={11} label="1st to" />
+          {c.sets_enabled && (
+            <Stepper value={c.legs_per_set} onChange={(v) => onChange({ legs_per_set: v })} min={1} max={11} label="Legs/set" />
+          )}
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <CheckRow label="Sets" checked={c.sets_enabled} onChange={(v) => onChange({ sets_enabled: v })} />
+          <CheckRow label="3-р байрны тоглолт" checked={c.has_third_place} onChange={(v) => onChange({ has_third_place: v })} />
+        </div>
+        <p className="text-[11px] text-muted-foreground">4 тоглогч → 2 хагас финал → финал{c.has_third_place ? " + 3-р байр" : ""}</p>
+      </div>
+    )
+  }
+
+  if (stageType === "final") {
+    const c = config as FinalStageConfig
+    return (
+      <div className="space-y-2">
+        <div className="flex flex-wrap gap-3">
+          <Stepper value={c.first_to} onChange={(v) => onChange({ first_to: v })} min={1} max={11} label="1st to" />
+          {c.sets_enabled && (
+            <Stepper value={c.legs_per_set} onChange={(v) => onChange({ legs_per_set: v })} min={1} max={11} label="Legs/set" />
+          )}
+        </div>
+        <CheckRow label="Sets" checked={c.sets_enabled} onChange={(v) => onChange({ sets_enabled: v })} />
+        <p className="text-[11px] text-muted-foreground">2 тоглогч → 1 тоглолт → аварга</p>
       </div>
     )
   }
@@ -215,7 +237,7 @@ function StageStructureEditor({ stageType, config, onChange }: {
 }
 
 // ── Stage type picker ─────────────────────────────────────────────────────────
-const STAGE_TYPES: StageType[] = ["group", "elimination", "round_robin", "swiss", "rescue"]
+const STAGE_TYPES: StageType[] = ["group", "elimination", "round_robin", "swiss", "semifinal", "final"]
 
 function StageTypePicker({ onPick, onClose }: { onPick: (t: StageType) => void; onClose: () => void }) {
   return (

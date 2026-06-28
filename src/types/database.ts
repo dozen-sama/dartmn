@@ -516,7 +516,7 @@ export interface Database {
           id: string
           tournament_id: string
           order_no: number
-          stage_type: "group" | "elimination" | "round_robin" | "swiss" | "rescue"
+          stage_type: "group" | "elimination" | "round_robin" | "swiss" | "semifinal" | "final"
           config: Record<string, unknown>
           status: "pending" | "active" | "completed"
           created_at: string
@@ -525,13 +525,13 @@ export interface Database {
           id?: string
           tournament_id: string
           order_no: number
-          stage_type: "group" | "elimination" | "round_robin" | "swiss" | "rescue"
+          stage_type: "group" | "elimination" | "round_robin" | "swiss" | "semifinal" | "final"
           config?: Record<string, unknown>
           status?: "pending" | "active" | "completed"
         }
         Update: {
           order_no?: number
-          stage_type?: "group" | "elimination" | "round_robin" | "swiss" | "rescue"
+          stage_type?: "group" | "elimination" | "round_robin" | "swiss" | "semifinal" | "final"
           config?: Record<string, unknown>
           status?: "pending" | "active" | "completed"
         }
