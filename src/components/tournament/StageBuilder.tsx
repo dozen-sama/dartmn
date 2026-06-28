@@ -61,17 +61,10 @@ function CheckRow({ label, checked, onChange }: { label: string; checked: boolea
 }
 
 // ── Game rules editor (шат бүрт) ──────────────────────────────────────────────
-const START_SCORE_OPTIONS: Record<GameFormat, number[]> = {
-  "501": [501, 301, 170, 121],
-  "301": [301, 170, 121],
-  "170": [],
-}
-
 function GameRulesEditor({ config, onChange }: {
   config: GameRules
   onChange: (patch: Partial<GameRules>) => void
 }) {
-  const scoreOptions = START_SCORE_OPTIONS[config.format]
   return (
     <div className="space-y-2 pt-2 mt-2 border-t border-border/30">
       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Тоглолтын тохиргоо</p>
@@ -89,23 +82,6 @@ function GameRulesEditor({ config, onChange }: {
           </button>
         ))}
       </div>
-
-      {/* Start Score */}
-      {scoreOptions.length > 1 && (
-        <div className="flex gap-1.5 flex-wrap">
-          <span className="text-[11px] text-muted-foreground self-center mr-1">Start:</span>
-          {scoreOptions.map((s) => (
-            <button key={s} type="button"
-              onClick={() => onChange({ start_score: s })}
-              className={cn("px-2 py-0.5 rounded border text-xs font-semibold transition-all",
-                config.start_score === s
-                  ? "border-primary bg-primary/15 text-primary"
-                  : "border-border/40 text-muted-foreground hover:border-border")}>
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* Double Out / In / Loser First */}
       <div className="flex flex-wrap gap-x-3 gap-y-1.5">
