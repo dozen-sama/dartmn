@@ -197,11 +197,11 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName, t
   async function respondInvite(action: "accept" | "decline") {
     if (!invite) return
     const ok = await post(`/api/play/room/invite/${invite.id}`, { action })
-    if (ok && action === "decline") router.push("/play")
+    if (ok && action === "decline") router.push(tournamentId ? `/tournaments/${tournamentId}` : "/play")
   }
   async function leave() {
     await fetch(`/api/play/room/${room.id}/leave`, { method: "POST" }).catch(() => {})
-    router.push("/play")
+    router.push(tournamentId ? `/tournaments/${tournamentId}` : "/play")
   }
 
   async function submitTurn(points: number, darts: number) {
@@ -703,7 +703,7 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName, t
   return (
     <div className="max-w-xl mx-auto space-y-5">
       <div className="flex items-center gap-3">
-        <Link href="/play" className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-8 w-8")}>
+        <Link href={tournamentId ? `/tournaments/${tournamentId}` : "/play"} className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-8 w-8")}>
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div className="flex-1">
