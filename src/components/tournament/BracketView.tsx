@@ -573,7 +573,7 @@ function OnlineRRGrid({ entrantIds, matches, entrants, myEntrant, isOrganizer, b
                           ? <Link href={`/play/${m.room_id}`}>{scoreCell}</Link>
                           : scoreCell
                       ) : isLive ? (
-                        <button onClick={() => m.room_id && onStartMatch(m)}
+                        <button onClick={() => onStartMatch(m)}
                           className="flex items-center justify-center w-9 h-9 rounded-full bg-primary/20 border-2 border-primary pulse-live mx-auto">
                           <span className="h-2 w-2 rounded-full bg-primary" />
                         </button>
@@ -748,7 +748,7 @@ function OnlineMatchSlot({ match: m, entrants, myEntrant, isOrganizer, busy, onS
   )
 
   // Live match: spectators can also navigate to the room to watch
-  const canOpen = canAct || (isLive && !!m.room_id)
+  const canOpen = canAct || isLive
   if (!canOpen || isTBD) return card
 
   return (
