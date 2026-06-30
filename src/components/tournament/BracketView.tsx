@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Trophy, Loader2, Eye, Swords } from "lucide-react"
+import { Trophy, Loader2, Eye, Swords, Tv2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -12,6 +12,7 @@ import type { BracketMatch, BracketEntrant } from "@/hooks/useTournamentBracket"
 import { computeStandings } from "@/lib/tournament/standings"
 import type { TournamentStageInfo } from "@/app/(main)/tournaments/[id]/TournamentDetail"
 import { STAGE_LABELS } from "@/lib/tournament/stage-types"
+import { MatchLiveView } from "./MatchLiveView"
 
 interface Props {
   tournamentId: string
@@ -32,6 +33,7 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [selectedMatch, setSelectedMatch] = useState<BracketMatch | null>(null)
+  const [showLive, setShowLive] = useState(false)
 
   const myEntrant = currentUserId ? playerEntrant[currentUserId] : undefined
   const nameOf = (id: string | null) => (id ? entrants[id]?.display_name ?? "?" : null)
@@ -77,6 +79,7 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
   // Match дарахад popup нээнэ
   const handleMatchClick = useCallback((m: BracketMatch) => {
     setSelectedMatch(m)
+    setShowLive(false)
     setError(null)
   }, [])
 
@@ -102,47 +105,71 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
   }
 
   const matchDialog = selectedMatch && (
-    <Dialog open onOpenChange={(open) => { if (!open) setSelectedMatch(null) }}>
+    <Dialog open onOpenChange={(open) => { if (!open) { setSelectedMatch(null); setShowLive(false) } }}>
       <DialogContent className="max-w-xs">
         <DialogHeader>
-          <DialogTitle className="text-base">Тоглолт</DialogTitle>
+          <DialogTitle className="text-base">
+            {showLive ? "Live" : "Тоглолт"}
+          </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-1">
-          <div className="flex items-center gap-2 bg-secondary/40 rounded-lg px-3 py-2.5">
-            <span className="flex-1 text-sm font-medium truncate">{nameOf(selectedMatch.side1_entrant_id) ?? "Тодорхойгүй"}</span>
-            <span className="text-[11px] font-bold text-muted-foreground shrink-0">VS</span>
-            <span className="flex-1 text-sm font-medium truncate text-right">{nameOf(selectedMatch.side2_entrant_id) ?? "Тодорхойгүй"}</span>
-          </div>
+          {showLive && selectedMatch.room_id ? (
+            <>
+              <MatchLiveView
+                roomId={selectedMatch.room_id}
+                side1EntrantId={selectedMatch.side1_entrant_id}
+                side2EntrantId={selectedMatch.side2_entrant_id}
+                entrants={entrants}
+              />
+              <Button variant="ghost" size="sm" className="w-full" onClick={() => setShowLive(false)}>
+                ← Буцах
+              </Button>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 bg-secondary/40 rounded-lg px-3 py-2.5">
+                <span className="flex-1 text-sm font-medium truncate">{nameOf(selectedMatch.side1_entrant_id) ?? "Тодорхойгүй"}</span>
+                <span className="text-[11px] font-bold text-muted-foreground shrink-0">VS</span>
+                <span className="flex-1 text-sm font-medium truncate text-right">{nameOf(selectedMatch.side2_entrant_id) ?? "Тодорхойгүй"}</span>
+              </div>
 
-          {selectedMatch.status === "ongoing" && (
-            <div className="flex items-center gap-1.5 text-xs text-primary">
-              <span className="h-2 w-2 rounded-full bg-primary animate-pulse shrink-0" />
-              Тоглолт явагдаж байна
-            </div>
+              {selectedMatch.status === "ongoing" && (
+                <div className="flex items-center gap-1.5 text-xs text-primary">
+                  <span className="h-2 w-2 rounded-full bg-primary animate-pulse shrink-0" />
+                  Тоглолт явагдаж байна
+                </div>
+              )}
+              {error && <p className="text-xs text-destructive">{error}</p>}
+
+              <div className="flex flex-col gap-2">
+                {canJoinMatch(selectedMatch) && (
+                  <Button onClick={() => joinMatch(selectedMatch)} disabled={busy === selectedMatch.id} className="w-full">
+                    {busy === selectedMatch.id
+                      ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                      : <Swords className="h-4 w-4 mr-1.5" />
+                    }
+                    {selectedMatch.status === "ongoing" ? "Тоглолт руу орох" : "Тоглолт эхлүүлэх"}
+                  </Button>
+                )}
+                {selectedMatch.status === "ongoing" && selectedMatch.room_id && (
+                  <Button variant="outline" className="w-full" onClick={() => setShowLive(true)}>
+                    <Tv2 className="h-4 w-4 mr-1.5" />
+                    Live харах
+                  </Button>
+                )}
+                {selectedMatch.room_id && (
+                  <Button variant="outline" className="w-full"
+                    onClick={() => { setSelectedMatch(null); router.push(`/play/${selectedMatch.room_id}`) }}>
+                    <Eye className="h-4 w-4 mr-1.5" />
+                    Үзэх
+                  </Button>
+                )}
+                <Button variant="ghost" className="w-full" onClick={() => setSelectedMatch(null)}>
+                  Хаах
+                </Button>
+              </div>
+            </>
           )}
-          {error && <p className="text-xs text-destructive">{error}</p>}
-
-          <div className="flex flex-col gap-2">
-            {canJoinMatch(selectedMatch) && (
-              <Button onClick={() => joinMatch(selectedMatch)} disabled={busy === selectedMatch.id} className="w-full">
-                {busy === selectedMatch.id
-                  ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                  : <Swords className="h-4 w-4 mr-1.5" />
-                }
-                {selectedMatch.status === "ongoing" ? "Тоглолт руу орох" : "Тоглолт эхлүүлэх"}
-              </Button>
-            )}
-            {selectedMatch.room_id && (
-              <Button variant="outline" className="w-full"
-                onClick={() => { setSelectedMatch(null); router.push(`/play/${selectedMatch.room_id}`) }}>
-                <Eye className="h-4 w-4 mr-1.5" />
-                Үзэх
-              </Button>
-            )}
-            <Button variant="ghost" className="w-full" onClick={() => setSelectedMatch(null)}>
-              Хаах
-            </Button>
-          </div>
         </div>
       </DialogContent>
     </Dialog>
