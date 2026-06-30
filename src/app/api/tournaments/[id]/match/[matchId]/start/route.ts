@@ -26,8 +26,34 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   if (!m || m.tournament_id !== tournamentId) return NextResponse.json({ error: "Match олдсонгүй" }, { status: 404 })
   if (!m.side1_entrant_id || !m.side2_entrant_id) return NextResponse.json({ error: "Хоёр тал бүрэн тодороогүй байна" }, { status: 409 })
 
-  // Аль хэдийн room-тай бол түүнийг буцаана (idempotent)
-  if (m.room_id) return NextResponse.json({ ok: true, roomId: m.room_id })
+  // Аль хэдийн room-тай бол шалгана: room байвал тоглогчийг дахин нэмж буцаана,
+  // room устгагдсан бол match-г reset хийж доор шинэ room үүсгэнэ
+  if (m.room_id) {
+    const { data: existingRoom } = await admin.from("online_rooms")
+      .select("id, status").eq("id", m.room_id).maybeSingle()
+    if (existingRoom) {
+      // Тоглогч room-аас гарсан тохиолдолд дахин нэмнэ
+      const { data: inRoom } = await admin.from("room_players")
+        .select("player_id").eq("room_id", m.room_id).eq("player_id", user.id).maybeSingle()
+      if (!inRoom) {
+        const { data: myEp } = await admin.from("tournament_entrant_players")
+          .select("entrant_id, player_id")
+          .in("entrant_id", [m.side1_entrant_id, m.side2_entrant_id])
+          .eq("player_id", user.id).maybeSingle()
+        if (myEp) {
+          const team = myEp.entrant_id === m.side1_entrant_id ? 0 : 1
+          await admin.from("room_players").upsert(
+            { room_id: m.room_id, player_id: user.id, team, slot: 0, is_ready: false },
+            { onConflict: "room_id,player_id" }
+          )
+        }
+      }
+      return NextResponse.json({ ok: true, roomId: m.room_id })
+    }
+    // Room устгагдсан — match reset хийж доор шинэ үүсгэнэ
+    await admin.from("tournament_matches")
+      .update({ status: "pending", room_id: null }).eq("id", matchId)
+  }
 
   // Талуудын тоглогчид (team 0 = side1, team 1 = side2)
   const { data: eps } = await admin.from("tournament_entrant_players")

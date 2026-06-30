@@ -3,9 +3,10 @@
 import Link from "next/link"
 import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Trophy, Loader2 } from "lucide-react"
+import { Trophy, Loader2, Eye, Swords } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import type { BracketMatch, BracketEntrant } from "@/hooks/useTournamentBracket"
 import { computeStandings } from "@/lib/tournament/standings"
@@ -30,6 +31,7 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
   const router = useRouter()
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [selectedMatch, setSelectedMatch] = useState<BracketMatch | null>(null)
 
   const myEntrant = currentUserId ? playerEntrant[currentUserId] : undefined
   const nameOf = (id: string | null) => (id ? entrants[id]?.display_name ?? "?" : null)
@@ -72,16 +74,79 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
     } finally { setBusy(null) }
   }
 
-  const startMatch = useCallback(async (m: BracketMatch) => {
+  // Match дарахад popup нээнэ
+  const handleMatchClick = useCallback((m: BracketMatch) => {
+    setSelectedMatch(m)
+    setError(null)
+  }, [])
+
+  // Popup-аас "Орох/Эхлүүлэх" дарахад API дуудаж navigate хийнэ
+  const joinMatch = useCallback(async (m: BracketMatch) => {
     setBusy(m.id); setError(null)
     try {
-      if (m.room_id) { router.push(`/play/${m.room_id}`); return }
       const res = await fetch(`/api/tournaments/${tournamentId}/match/${m.id}/start`, { method: "POST" })
       const j = await res.json()
-      if (res.ok && j.roomId) router.push(`/play/${j.roomId}`)
-      else setError(j.error ?? "Тоглолт эхлүүлэхэд алдаа гарлаа")
+      if (res.ok && j.roomId) {
+        setSelectedMatch(null)
+        router.push(`/play/${j.roomId}`)
+      } else {
+        setError(j.error ?? "Тоглолт эхлүүлэхэд алдаа гарлаа")
+      }
     } finally { setBusy(null) }
   }, [tournamentId, router])
+
+  // ── Match action popup ───────────────────────────────────────────────────────
+  const canJoinMatch = (m: BracketMatch) => {
+    const isMine = !!(myEntrant && (m.side1_entrant_id === myEntrant || m.side2_entrant_id === myEntrant))
+    return (isMine || isOrganizer) && m.status !== "completed" && !!m.side1_entrant_id && !!m.side2_entrant_id
+  }
+
+  const matchDialog = selectedMatch && (
+    <Dialog open onOpenChange={(open) => { if (!open) setSelectedMatch(null) }}>
+      <DialogContent className="max-w-xs">
+        <DialogHeader>
+          <DialogTitle className="text-base">Тоглолт</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 pt-1">
+          <div className="flex items-center gap-2 bg-secondary/40 rounded-lg px-3 py-2.5">
+            <span className="flex-1 text-sm font-medium truncate">{nameOf(selectedMatch.side1_entrant_id) ?? "Тодорхойгүй"}</span>
+            <span className="text-[11px] font-bold text-muted-foreground shrink-0">VS</span>
+            <span className="flex-1 text-sm font-medium truncate text-right">{nameOf(selectedMatch.side2_entrant_id) ?? "Тодорхойгүй"}</span>
+          </div>
+
+          {selectedMatch.status === "ongoing" && (
+            <div className="flex items-center gap-1.5 text-xs text-primary">
+              <span className="h-2 w-2 rounded-full bg-primary animate-pulse shrink-0" />
+              Тоглолт явагдаж байна
+            </div>
+          )}
+          {error && <p className="text-xs text-destructive">{error}</p>}
+
+          <div className="flex flex-col gap-2">
+            {canJoinMatch(selectedMatch) && (
+              <Button onClick={() => joinMatch(selectedMatch)} disabled={busy === selectedMatch.id} className="w-full">
+                {busy === selectedMatch.id
+                  ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  : <Swords className="h-4 w-4 mr-1.5" />
+                }
+                {selectedMatch.status === "ongoing" ? "Тоглолт руу орох" : "Тоглолт эхлүүлэх"}
+              </Button>
+            )}
+            {selectedMatch.room_id && (
+              <Button variant="outline" className="w-full"
+                onClick={() => { setSelectedMatch(null); router.push(`/play/${selectedMatch.room_id}`) }}>
+                <Eye className="h-4 w-4 mr-1.5" />
+                Үзэх
+              </Button>
+            )}
+            <Button variant="ghost" className="w-full" onClick={() => setSelectedMatch(null)}>
+              Хаах
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
 
   if (status === "registration" || status === "draft") {
     return (
@@ -125,6 +190,7 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
 
     return (
       <div className="space-y-4">
+        {matchDialog}
         {error && <p className="text-xs text-destructive">{error}</p>}
 
         {/* Stage timeline */}
@@ -171,7 +237,7 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
                           myEntrant={myEntrant}
                           isOrganizer={isOrganizer}
                           busy={busy}
-                          onStartMatch={startMatch}
+                          onStartMatch={handleMatchClick}
                         />
                       </div>
                     )
@@ -191,7 +257,7 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
                   myEntrant={myEntrant}
                   isOrganizer={isOrganizer}
                   busy={busy}
-                  onStartMatch={startMatch}
+                  onStartMatch={handleMatchClick}
                   standings={standings}
                 />
               )
@@ -207,18 +273,18 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <SectionHeader title="Winners bracket" />
-                      <OnlineEliminationBracket matches={wbMatches} entrants={entrants} myEntrant={myEntrant} isOrganizer={isOrganizer} busy={busy} onStartMatch={startMatch} maxRound={Math.max(...wbMatches.map((m) => m.round))} />
+                      <OnlineEliminationBracket matches={wbMatches} entrants={entrants} myEntrant={myEntrant} isOrganizer={isOrganizer} busy={busy} onStartMatch={handleMatchClick} maxRound={Math.max(...wbMatches.map((m) => m.round))} />
                     </div>
                     {lbMatches.length > 0 && (
                       <div className="space-y-2">
                         <SectionHeader title="Losers bracket" />
-                        <OnlineEliminationBracket matches={lbMatches} entrants={entrants} myEntrant={myEntrant} isOrganizer={isOrganizer} busy={busy} onStartMatch={startMatch} maxRound={Math.max(...lbMatches.map((m) => m.round))} />
+                        <OnlineEliminationBracket matches={lbMatches} entrants={entrants} myEntrant={myEntrant} isOrganizer={isOrganizer} busy={busy} onStartMatch={handleMatchClick} maxRound={Math.max(...lbMatches.map((m) => m.round))} />
                       </div>
                     )}
                     {gfMatches.length > 0 && (
                       <div className="space-y-2">
                         <SectionHeader title="Их финал" />
-                        <OnlineEliminationBracket matches={gfMatches} entrants={entrants} myEntrant={myEntrant} isOrganizer={isOrganizer} busy={busy} onStartMatch={startMatch} maxRound={200} />
+                        <OnlineEliminationBracket matches={gfMatches} entrants={entrants} myEntrant={myEntrant} isOrganizer={isOrganizer} busy={busy} onStartMatch={handleMatchClick} maxRound={200} />
                       </div>
                     )}
                   </div>
@@ -230,11 +296,11 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
               const maxRound = mainMatches.length ? Math.max(...mainMatches.map((m) => m.round)) : 1
               return (
                 <div className="space-y-4">
-                  <OnlineEliminationBracket matches={mainMatches} entrants={entrants} myEntrant={myEntrant} isOrganizer={isOrganizer} busy={busy} onStartMatch={startMatch} maxRound={maxRound} />
+                  <OnlineEliminationBracket matches={mainMatches} entrants={entrants} myEntrant={myEntrant} isOrganizer={isOrganizer} busy={busy} onStartMatch={handleMatchClick} maxRound={maxRound} />
                   {thirdPlaceMatches.length > 0 && (
                     <div className="space-y-2">
                       <SectionHeader title="3-р байрны тоглолт" />
-                      <OnlineEliminationBracket matches={thirdPlaceMatches} entrants={entrants} myEntrant={myEntrant} isOrganizer={isOrganizer} busy={busy} onStartMatch={startMatch} maxRound={998} />
+                      <OnlineEliminationBracket matches={thirdPlaceMatches} entrants={entrants} myEntrant={myEntrant} isOrganizer={isOrganizer} busy={busy} onStartMatch={handleMatchClick} maxRound={998} />
                     </div>
                   )}
                 </div>
@@ -276,6 +342,7 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
 
     return (
       <div className="space-y-4">
+        {matchDialog}
         {error && <p className="text-xs text-destructive">{error}</p>}
         {groupNos.map((gno) => {
           const groupEntrantIds = Object.values(entrants).filter((e) => e.group_no === gno).map((e) => e.id)
@@ -291,7 +358,7 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
                 myEntrant={myEntrant}
                 isOrganizer={isOrganizer}
                 busy={busy}
-                onStartMatch={startMatch}
+                onStartMatch={handleMatchClick}
               />
             </div>
           )
@@ -318,7 +385,7 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
               myEntrant={myEntrant}
               isOrganizer={isOrganizer}
               busy={busy}
-              onStartMatch={startMatch}
+              onStartMatch={handleMatchClick}
               maxRound={koMaxRound}
             />
           </div>
@@ -337,20 +404,21 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
 
     return (
       <div className="space-y-5">
+        {matchDialog}
         {error && <p className="text-xs text-destructive">{error}</p>}
         <div className="space-y-2">
           <SectionHeader title="Winners bracket" />
-          <OnlineEliminationBracket matches={wbMatches} entrants={entrants} myEntrant={myEntrant} isOrganizer={isOrganizer} busy={busy} onStartMatch={startMatch} maxRound={wbMaxRound} />
+          <OnlineEliminationBracket matches={wbMatches} entrants={entrants} myEntrant={myEntrant} isOrganizer={isOrganizer} busy={busy} onStartMatch={handleMatchClick} maxRound={wbMaxRound} />
         </div>
         {lbMatches.length > 0 && (
           <div className="space-y-2">
             <SectionHeader title="Losers bracket" />
-            <OnlineEliminationBracket matches={lbMatches} entrants={entrants} myEntrant={myEntrant} isOrganizer={isOrganizer} busy={busy} onStartMatch={startMatch} maxRound={lbMaxRound} />
+            <OnlineEliminationBracket matches={lbMatches} entrants={entrants} myEntrant={myEntrant} isOrganizer={isOrganizer} busy={busy} onStartMatch={handleMatchClick} maxRound={lbMaxRound} />
           </div>
         )}
         <div className="space-y-2">
           <SectionHeader title="Их финал" />
-          <OnlineEliminationBracket matches={gfMatches} entrants={entrants} myEntrant={myEntrant} isOrganizer={isOrganizer} busy={busy} onStartMatch={startMatch} maxRound={200} />
+          <OnlineEliminationBracket matches={gfMatches} entrants={entrants} myEntrant={myEntrant} isOrganizer={isOrganizer} busy={busy} onStartMatch={handleMatchClick} maxRound={200} />
         </div>
       </div>
     )
@@ -362,6 +430,7 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
     const maxRound = rounds[rounds.length - 1]
     return (
       <div className="space-y-2">
+        {matchDialog}
         {error && <p className="text-xs text-destructive">{error}</p>}
         <OnlineEliminationBracket
           matches={matches}
@@ -369,7 +438,7 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
           myEntrant={myEntrant}
           isOrganizer={isOrganizer}
           busy={busy}
-          onStartMatch={startMatch}
+          onStartMatch={handleMatchClick}
           maxRound={maxRound}
         />
       </div>
@@ -383,6 +452,7 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
 
   return (
     <div className="space-y-4">
+      {matchDialog}
       {error && <p className="text-xs text-destructive">{error}</p>}
       <OnlineRRGrid
         entrantIds={entrantIds}
@@ -391,7 +461,7 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
         myEntrant={myEntrant}
         isOrganizer={isOrganizer}
         busy={busy}
-        onStartMatch={startMatch}
+        onStartMatch={handleMatchClick}
         standings={standings}
       />
       {isOrganizer && bracketType === "swiss" && status === "ongoing" && swissAllDone && (
