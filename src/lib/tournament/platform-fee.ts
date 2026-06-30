@@ -1,3 +1,19 @@
+import type { StageType, StageConfig, EliminationStageConfig } from "./stage-types"
+
+export function computeMultiStageFee(
+  stages: { stage_type: StageType; config: StageConfig }[],
+  maxPlayers: number,
+): number {
+  if (stages.some((s) => s.stage_type === "group")) return 10000
+  if (stages.some((s) => s.stage_type === "round_robin")) return 8000
+  if (stages.some((s) => s.stage_type === "swiss")) return 8000
+  if (stages.some((s) => s.stage_type === "elimination" && (s.config as EliminationStageConfig).max_losses >= 2)) return 8000
+  // SE / semifinal / final only
+  if (maxPlayers <= 8) return 0
+  if (maxPlayers <= 16) return 5000
+  return 8000
+}
+
 export function computePlatformFee(bracketType: string, maxPlayers: number): number {
   if (bracketType === "single_elimination") {
     if (maxPlayers <= 8) return 0

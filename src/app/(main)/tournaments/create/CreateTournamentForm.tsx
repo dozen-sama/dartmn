@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
-import { computePlatformFee } from "@/lib/tournament/platform-fee"
+import { computePlatformFee, computeMultiStageFee } from "@/lib/tournament/platform-fee"
 import { StageBuilder, LocalStage } from "@/components/tournament/StageBuilder"
 import { DEFAULT_CONFIGS } from "@/lib/tournament/stage-types"
 import Link from "next/link"
@@ -178,13 +178,16 @@ export function CreateTournamentForm({ userId, userProfile }: Props) {
   const [accountHolder, setAccountHolder] = useState("")
 
   const isRR = bracketType === "round_robin" || bracketType === "swiss" || bracketType === "groups_knockout"
-  const platformFee = computePlatformFee(bracketType, maxPlayers)
 
   // Multi-stage pipeline
   const [usesStages, setUsesStages] = useState(false)
   const [stages, setStages] = useState<LocalStage[]>([
     { _id: "s0", stage_type: "elimination", config: { ...DEFAULT_CONFIGS.elimination } },
   ])
+
+  const platformFee = usesStages
+    ? computeMultiStageFee(stages, maxPlayers)
+    : computePlatformFee(bracketType, maxPlayers)
 
   const BRACKET_OPTIONS = [
     { value: "single_elimination", label: "Single Elimination", desc: "Нэг алдлаар унана" },

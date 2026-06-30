@@ -18,6 +18,7 @@ export interface BracketMatch {
   status: "pending" | "ongoing" | "completed"
   next_match_id: string | null
   room_id: string | null
+  stage_id: string | null
 }
 
 export interface BracketEntrant {
@@ -40,7 +41,7 @@ export function useTournamentBracket(tournamentId: string) {
     const supabase = createClient()
     const [mRes, eRes] = await Promise.all([
       supabase.from("tournament_matches")
-        .select("id,round,match_number,is_losers_bracket,group_no,side1_entrant_id,side2_entrant_id,side1_legs,side2_legs,winner_entrant_id,loser_entrant_id,status,next_match_id,room_id")
+        .select("id,round,match_number,is_losers_bracket,group_no,side1_entrant_id,side2_entrant_id,side1_legs,side2_legs,winner_entrant_id,loser_entrant_id,status,next_match_id,room_id,stage_id")
         .eq("tournament_id", tournamentId)
         .order("round").order("match_number"),
       supabase.from("tournament_entrants")

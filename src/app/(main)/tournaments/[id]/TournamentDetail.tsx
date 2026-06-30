@@ -57,15 +57,23 @@ const bracketLabels: Record<string, string> = {
   swiss: "Swiss",
 }
 
+export interface TournamentStageInfo {
+  id: string
+  order_no: number
+  stage_type: string
+  status: string
+}
+
 interface Props {
   tournament: TournamentWithRelations
   registrations: RegistrationWithProfile[]
   currentUserId: string | null
   isRegistered: boolean
   currentUserName?: string | null
+  stages?: TournamentStageInfo[]
 }
 
-export function TournamentDetail({ tournament: t, registrations, currentUserId, isRegistered, currentUserName = null }: Props) {
+export function TournamentDetail({ tournament: t, registrations, currentUserId, isRegistered, currentUserName = null, stages = [] }: Props) {
   const [loading, setLoading] = useState(false)
   const [registered, setRegistered] = useState(isRegistered)
   const [playerCount, setPlayerCount] = useState(t.current_players)
@@ -387,6 +395,8 @@ export function TournamentDetail({ tournament: t, registrations, currentUserId, 
             isOrganizer={isOrganizer}
             currentUserId={currentUserId}
             bracketType={t.bracket_type}
+            usesStages={t.uses_stages ?? false}
+            stages={stages}
             matches={bracket.matches}
             entrants={bracket.entrants}
             playerEntrant={bracket.playerEntrant}

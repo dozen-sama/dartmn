@@ -27,7 +27,7 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const [{ data: tournament }, { data: registrations }] = await Promise.all([
+  const [{ data: tournament }, { data: registrations }, { data: stages }] = await Promise.all([
     supabase
       .from("tournaments")
       .select(`
@@ -42,6 +42,11 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
       .select("*, profiles(id, display_name, username, avatar_url, rating_points, equipped_frame, name_effect, name_color, name_font, name_animated)")
       .eq("tournament_id", id)
       .order("seed", { ascending: true }),
+    supabase
+      .from("tournament_stages")
+      .select("id, order_no, stage_type, status")
+      .eq("tournament_id", id)
+      .order("order_no", { ascending: true }),
   ])
 
   if (!tournament) notFound()
@@ -64,6 +69,7 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
       currentUserId={user?.id ?? null}
       isRegistered={isRegistered}
       currentUserName={currentUserName}
+      stages={stages ?? []}
     />
   )
 }

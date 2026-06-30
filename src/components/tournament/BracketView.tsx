@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import type { BracketMatch, BracketEntrant } from "@/hooks/useTournamentBracket"
 import { computeStandings } from "@/lib/tournament/standings"
+import type { TournamentStageInfo } from "@/app/(main)/tournaments/[id]/TournamentDetail"
+import { STAGE_LABELS } from "@/lib/tournament/stage-types"
 
 interface Props {
   tournamentId: string
@@ -16,13 +18,15 @@ interface Props {
   isOrganizer: boolean
   currentUserId: string | null
   bracketType: string
+  usesStages?: boolean
+  stages?: TournamentStageInfo[]
   matches: BracketMatch[]
   entrants: Record<string, BracketEntrant>
   playerEntrant: Record<string, string>
   loading: boolean
 }
 
-export function BracketView({ tournamentId, status, isOrganizer, currentUserId, bracketType, matches, entrants, playerEntrant, loading }: Props) {
+export function BracketView({ tournamentId, status, isOrganizer, currentUserId, bracketType, usesStages = false, stages = [], matches, entrants, playerEntrant, loading }: Props) {
   const router = useRouter()
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -55,6 +59,16 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
       const res = await fetch(`/api/tournaments/${tournamentId}/${action}`, { method: "POST" })
       const j = await res.json()
       if (!res.ok) setError(j.error ?? "Алдаа гарлаа")
+    } finally { setBusy(null) }
+  }
+
+  async function advanceStage() {
+    setBusy("advance"); setError(null)
+    try {
+      const res = await fetch(`/api/tournaments/${tournamentId}/advance-stage`, { method: "POST" })
+      const j = await res.json()
+      if (!res.ok) setError(j.error ?? "Алдаа гарлаа")
+      else router.refresh()
     } finally { setBusy(null) }
   }
 
@@ -99,6 +113,151 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </CardContent>
       </Card>
+    )
+  }
+
+  // ── Multi-stage pipeline ─────────────────────────────────────────
+  if (usesStages && stages.length > 0) {
+    const activeStage = stages.find((s) => s.status === "active") ?? stages[0]
+    const stageMatches = matches.filter((m) => m.stage_id === activeStage.id)
+    const allStageDone = stageMatches.length > 0 && stageMatches.every((m) => m.status === "completed")
+    const hasNextStage = stages.findIndex((s) => s.id === activeStage.id) < stages.length - 1
+
+    return (
+      <div className="space-y-4">
+        {error && <p className="text-xs text-destructive">{error}</p>}
+
+        {/* Stage timeline */}
+        <div className="flex items-center gap-1 flex-wrap">
+          {stages.map((s, i) => (
+            <div key={s.id} className="flex items-center gap-1">
+              <span className={cn(
+                "px-2.5 py-1 rounded-full text-xs font-medium border",
+                s.status === "active" ? "bg-primary/15 text-primary border-primary/40" :
+                s.status === "completed" ? "bg-green-500/15 text-green-400 border-green-500/30" :
+                "bg-muted/40 text-muted-foreground border-border/40"
+              )}>
+                {STAGE_LABELS[s.stage_type as keyof typeof STAGE_LABELS] ?? s.stage_type}
+              </span>
+              {i < stages.length - 1 && <span className="text-muted-foreground/40 text-xs">→</span>}
+            </div>
+          ))}
+        </div>
+
+        {/* Active stage content */}
+        <div className="space-y-2">
+          <SectionHeader title={STAGE_LABELS[activeStage.stage_type as keyof typeof STAGE_LABELS] ?? activeStage.stage_type} />
+          {stageMatches.length === 0 ? (
+            <Card className="border-border/50 bg-card/80">
+              <CardContent className="py-10 flex justify-center">
+                <p className="text-sm text-muted-foreground/60">Тоглолтууд үүсгэгдэж байна...</p>
+              </CardContent>
+            </Card>
+          ) : activeStage.stage_type === "group" ? (
+            (() => {
+              const groupNos = [...new Set(stageMatches.map((m) => m.group_no).filter((g): g is number => g != null))].sort((a, b) => a - b)
+              return (
+                <div className="space-y-4">
+                  {groupNos.map((gno) => {
+                    const groupEntrantIds = Object.values(entrants).filter((e) => e.group_no === gno).map((e) => e.id)
+                    const gMatches = stageMatches.filter((m) => m.group_no === gno)
+                    return (
+                      <div key={gno} className="space-y-2">
+                        <SectionHeader title={`Бүлэг ${String.fromCharCode(64 + gno)}`} />
+                        <OnlineRRGrid
+                          entrantIds={groupEntrantIds}
+                          matches={gMatches}
+                          entrants={entrants}
+                          myEntrant={myEntrant}
+                          isOrganizer={isOrganizer}
+                          busy={busy}
+                          onStartMatch={startMatch}
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })()
+          ) : activeStage.stage_type === "round_robin" || activeStage.stage_type === "swiss" ? (
+            (() => {
+              const entrantIds = Object.keys(entrants)
+              const standings = computeStandings(entrantIds, stageMatches)
+              return (
+                <OnlineRRGrid
+                  entrantIds={entrantIds}
+                  matches={stageMatches}
+                  entrants={entrants}
+                  myEntrant={myEntrant}
+                  isOrganizer={isOrganizer}
+                  busy={busy}
+                  onStartMatch={startMatch}
+                  standings={standings}
+                />
+              )
+            })()
+          ) : (
+            (() => {
+              const hasLosers = stageMatches.some((m) => m.is_losers_bracket)
+              if (hasLosers) {
+                const wbMatches = stageMatches.filter((m) => !m.is_losers_bracket && m.round < 200)
+                const lbMatches = stageMatches.filter((m) => m.is_losers_bracket)
+                const gfMatches = stageMatches.filter((m) => m.round === 200)
+                return (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <SectionHeader title="Winners bracket" />
+                      <OnlineEliminationBracket matches={wbMatches} entrants={entrants} myEntrant={myEntrant} isOrganizer={isOrganizer} busy={busy} onStartMatch={startMatch} maxRound={Math.max(...wbMatches.map((m) => m.round))} />
+                    </div>
+                    {lbMatches.length > 0 && (
+                      <div className="space-y-2">
+                        <SectionHeader title="Losers bracket" />
+                        <OnlineEliminationBracket matches={lbMatches} entrants={entrants} myEntrant={myEntrant} isOrganizer={isOrganizer} busy={busy} onStartMatch={startMatch} maxRound={Math.max(...lbMatches.map((m) => m.round))} />
+                      </div>
+                    )}
+                    {gfMatches.length > 0 && (
+                      <div className="space-y-2">
+                        <SectionHeader title="Их финал" />
+                        <OnlineEliminationBracket matches={gfMatches} entrants={entrants} myEntrant={myEntrant} isOrganizer={isOrganizer} busy={busy} onStartMatch={startMatch} maxRound={200} />
+                      </div>
+                    )}
+                  </div>
+                )
+              }
+              // SE / semifinal / final
+              const thirdPlaceMatches = stageMatches.filter((m) => m.round === 998)
+              const mainMatches = stageMatches.filter((m) => m.round !== 998)
+              const maxRound = mainMatches.length ? Math.max(...mainMatches.map((m) => m.round)) : 1
+              return (
+                <div className="space-y-4">
+                  <OnlineEliminationBracket matches={mainMatches} entrants={entrants} myEntrant={myEntrant} isOrganizer={isOrganizer} busy={busy} onStartMatch={startMatch} maxRound={maxRound} />
+                  {thirdPlaceMatches.length > 0 && (
+                    <div className="space-y-2">
+                      <SectionHeader title="3-р байрны тоглолт" />
+                      <OnlineEliminationBracket matches={thirdPlaceMatches} entrants={entrants} myEntrant={myEntrant} isOrganizer={isOrganizer} busy={busy} onStartMatch={startMatch} maxRound={998} />
+                    </div>
+                  )}
+                </div>
+              )
+            })()
+          )}
+        </div>
+
+        {/* Advance stage button */}
+        {isOrganizer && allStageDone && hasNextStage && (
+          <Card className="border-primary/40 bg-card/80">
+            <CardContent className="flex flex-col items-center gap-2 py-5">
+              <p className="text-sm text-muted-foreground">
+                {STAGE_LABELS[activeStage.stage_type as keyof typeof STAGE_LABELS]} дууслаа
+              </p>
+              <Button onClick={advanceStage} disabled={busy === "advance"}>
+                {busy === "advance" && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+                Дараагийн шатанд шилжих
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     )
   }
 
