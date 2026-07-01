@@ -137,46 +137,71 @@ export function MatchLiveView({ roomId, side1EntrantId, side2EntrantId, entrants
             const legs = game.legs[team]
             const avg = teamAvg[team]
 
+            const dot = (
+              <span className={cn(
+                "rounded-full shrink-0 transition-colors duration-300",
+                large ? "h-4 w-4" : "h-2.5 w-2.5",
+                isActive ? "bg-red-500 shadow-[0_0_6px_2px_rgba(239,68,68,0.5)]" : "bg-muted-foreground/20"
+              )} />
+            )
+            const arrow = (
+              <span className={cn(
+                "shrink-0 transition-colors duration-300",
+                large ? "text-2xl" : "text-base",
+                isActive ? "text-pink-400" : "text-muted-foreground/20"
+              )}>
+                ▶
+              </span>
+            )
+
+            // Fullscreen горимд нэрийг тусдаа мөрөнд гаргаж, ямар ч урттай нэр
+            // legs/score/сум-ын өргөнтэй өрсөлдөхгүйгээр бүрэн харагдана
+            if (large) {
+              return (
+                <div key={team} ref={(el) => { rowRefs.current[team] = el }} className="flex flex-col gap-2 px-4 py-4 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    {dot}
+                    <span className="flex-1 min-w-0 truncate text-xl font-medium">{names[team]}</span>
+                    <span className="shrink-0 text-sm text-muted-foreground font-normal">
+                      ({avg > 0 ? avg.toFixed(2) : "—"})
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 pl-6">
+                    <span className="font-bold text-2xl w-8 text-center shrink-0">{legs}</span>
+                    <span className="flex-1 font-bold text-4xl text-center rounded px-1 bg-blue-500/20 text-blue-300">
+                      {remaining}
+                    </span>
+                    {arrow}
+                  </div>
+                </div>
+              )
+            }
+
             return (
               <div
                 key={team}
                 ref={(el) => { rowRefs.current[team] = el }}
-                className={cn("flex items-center gap-2 rounded-lg", large ? "px-4 py-4" : "px-3 py-2.5")}
+                className="flex items-center gap-2 rounded-lg px-3 py-2.5"
               >
-                {/* Active indicator */}
-                <span className={cn(
-                  "rounded-full shrink-0 transition-colors duration-300",
-                  large ? "h-4 w-4" : "h-2.5 w-2.5",
-                  isActive ? "bg-red-500 shadow-[0_0_6px_2px_rgba(239,68,68,0.5)]" : "bg-muted-foreground/20"
-                )} />
+                {dot}
 
                 {/* Name + avg */}
-                <span className={cn("flex-1 min-w-0 font-medium truncate", large ? "text-xl" : "text-sm")}>
+                <span className="flex-1 min-w-0 font-medium truncate text-sm">
                   {names[team]}
-                  <span className={cn("text-muted-foreground ml-1 font-normal", large ? "text-sm" : "text-[11px]")}>
+                  <span className="text-muted-foreground ml-1 font-normal text-[11px]">
                     ({avg > 0 ? avg.toFixed(2) : "—"})
                   </span>
                 </span>
 
                 {/* Legs won */}
-                <span className={cn("font-bold text-center shrink-0", large ? "text-2xl w-8" : "text-sm w-5")}>{legs}</span>
+                <span className="font-bold text-center shrink-0 text-sm w-5">{legs}</span>
 
                 {/* Remaining score */}
-                <span className={cn(
-                  "font-bold text-center rounded px-1 bg-blue-500/20 text-blue-300 shrink-0",
-                  large ? "text-4xl w-24" : "text-lg w-14"
-                )}>
+                <span className="font-bold text-center rounded px-1 bg-blue-500/20 text-blue-300 shrink-0 text-lg w-14">
                   {remaining}
                 </span>
 
-                {/* Arrow */}
-                <span className={cn(
-                  "shrink-0 transition-colors duration-300",
-                  large ? "text-2xl" : "text-base",
-                  isActive ? "text-pink-400" : "text-muted-foreground/20"
-                )}>
-                  ▶
-                </span>
+                {arrow}
               </div>
             )
           })}
