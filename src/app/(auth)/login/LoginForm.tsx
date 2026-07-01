@@ -73,14 +73,19 @@ export function LoginForm() {
 
   async function handleOAuth(provider: "google") {
     setOauthLoading(provider)
-    const supabase = createClient()
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: { redirectTo: `${window.location.origin}/auth/callback?redirect=${redirectTo}` },
-    })
-    if (error) {
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo: `${window.location.origin}/auth/callback?redirect=${redirectTo}` },
+      })
+      if (error) {
+        setOauthLoading(null)
+        toast.error(error.message)
+      }
+    } catch (e) {
       setOauthLoading(null)
-      toast.error(error.message)
+      toast.error(e instanceof Error ? e.message : "Google-ээр нэвтрэхэд алдаа гарлаа")
     }
   }
 
