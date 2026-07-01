@@ -26,14 +26,20 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
   const winnerTeam = me.team === 0 ? 1 : 0  // өрсөлдөгч баг ялна
   const ts = teamSize(room.mode as RoomMode)
+  const legsToWin = Math.ceil(room.best_of / 2)
   const visits: X01Visit[] = (rv ?? []).map((v) =>
     v.points === -1 ? { points: 0, darts: 0, decide: v.team } : { points: v.points, darts: v.darts })
   const state = deriveX01(visits, {
     startScore: parseInt(room.format) || 501, doubleOut: room.double_out,
-    legsToWin: Math.ceil(room.best_of / 2), starterTeam: room.starter_team ?? 0,
+    legsToWin, starterTeam: room.starter_team ?? 0,
     teamSizes: [ts, ts], limitRoundsEnabled: room.limit_rounds != null,
     limitRounds: room.limit_rounds ?? undefined, bullFinishAtLimit: room.bull_finish,
   })
+  // Бууж өгөхийг стандарт walkover-оор тооцно: ялагчийг legsToWin хүртэл
+  // хожсон гэж bracket-д бичнэ (бодит тоглогдсон leg-ээс үл хамааран) —
+  // эс бөгөөс group/RR standings-ийн leg diff тэнцвэргүй болно (тоглогч
+  // өрсөлдөгчийн бууж өгсний улмаас дутуу leg-тэй "хожигч" болдог байсан).
+  if (state.legs[winnerTeam] < legsToWin) state.legs[winnerTeam] = legsToWin
   await finishOnlineRoom(admin, id, state, winnerTeam, players, visits, room.mode)
   return NextResponse.json({ ok: true })
 }
