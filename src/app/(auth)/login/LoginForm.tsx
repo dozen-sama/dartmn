@@ -69,10 +69,14 @@ export function LoginForm() {
   async function handleOAuth(provider: "google") {
     setOauthLoading(provider)
     const supabase = createClient()
-    await supabase.auth.signInWithOAuth({
+    const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: { redirectTo: `${window.location.origin}/auth/callback?redirect=${redirectTo}` },
     })
+    if (error) {
+      setOauthLoading(null)
+      toast.error(error.message)
+    }
   }
 
   return (
