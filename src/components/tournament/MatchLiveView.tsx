@@ -23,6 +23,7 @@ interface RoomSnap {
   limit_rounds: number | null
   bull_finish: boolean
   status: string
+  winner_team: number | null
 }
 
 interface Visit {
@@ -41,7 +42,7 @@ export function MatchLiveView({ roomId, side1EntrantId, side2EntrantId, entrants
 
   useEffect(() => {
     supabase.from("online_rooms")
-      .select("format, best_of, double_out, starter_team, limit_rounds, bull_finish, status")
+      .select("format, best_of, double_out, starter_team, limit_rounds, bull_finish, status, winner_team")
       .eq("id", roomId).maybeSingle()
       .then(({ data }) => { if (data) setRoom(data as RoomSnap) })
 
@@ -111,6 +112,12 @@ export function MatchLiveView({ roomId, side1EntrantId, side2EntrantId, entrants
   const activeLegView = game.legsView[game.legsView.length - 1] ?? []
   const recentVisits = activeLegView.slice(-3).reverse()
 
+  // room дуусаад ч visits-ээс тооцоолсон game.winner null байвал (legs
+  // legsToWin хүрээгүй) — бууж өгснөөр дуусгасан гэсэн үг
+  const isForfeit = room.status === "completed" && game.winner === null && room.winner_team !== null
+  const forfeitWinner = isForfeit ? room.winner_team : null
+  const matchOver = game.winner !== null || isForfeit
+
   return (
     <div className={cn("space-y-3", large && "space-y-6 max-w-md mx-auto w-full")}>
       {/* Header */}
@@ -127,12 +134,12 @@ export function MatchLiveView({ roomId, side1EntrantId, side2EntrantId, entrants
           style={{
             transform: `translateY(${highlight.top}px)`,
             height: highlight.height || undefined,
-            opacity: game.winner !== null ? 0 : 1,
+            opacity: matchOver ? 0 : 1,
           }}
         />
         <div className={cn("relative space-y-3", large && "space-y-6")}>
           {[0, 1].map((team) => {
-            const isActive = !game.winner && game.activeTeam === team
+            const isActive = !matchOver && game.activeTeam === team
             const remaining = game.scores[team]
             const legs = game.legs[team]
             const avg = teamAvg[team]
@@ -208,7 +215,15 @@ export function MatchLiveView({ roomId, side1EntrantId, side2EntrantId, entrants
         </div>
       </div>
 
-      {game.winner !== null && (
+      {isForfeit && forfeitWinner !== null && (
+        <p className={cn("text-center", large ? "text-lg" : "text-sm")}>
+          <span className="text-muted-foreground">{names[1 - forfeitWinner]} бууж өглөө —</span>{" "}
+          <span className="font-medium text-foreground">{names[forfeitWinner]}</span>{" "}
+          <span className="text-muted-foreground">ялалт байгуулав</span>
+        </p>
+      )}
+
+      {!isForfeit && game.winner !== null && (
         <p className={cn("text-center text-muted-foreground", large ? "text-lg" : "text-sm")}>
           <span className="font-medium text-foreground">{names[game.winner]}</span> ялалт байгуулав
         </p>
