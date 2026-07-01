@@ -53,6 +53,11 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     // Room устгагдсан — match reset хийж доор шинэ үүсгэнэ
     await admin.from("tournament_matches")
       .update({ status: "pending", room_id: null }).eq("id", matchId)
+  } else if (m.status === "ongoing") {
+    // room_id-гүйгээр "ongoing" болсон (өрөө хэзээ ч зөв тохируулагдаагүй) —
+    // тасарсан төлөв, pending болгож доор шинэ өрөө үүсгэнэ
+    await admin.from("tournament_matches")
+      .update({ status: "pending" }).eq("id", matchId)
   }
 
   // Талуудын тоглогчид (team 0 = side1, team 1 = side2)
