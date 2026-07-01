@@ -12,6 +12,7 @@ interface Props {
   side1EntrantId: string | null
   side2EntrantId: string | null
   entrants: Record<string, BracketEntrant>
+  large?: boolean
 }
 
 interface RoomSnap {
@@ -31,7 +32,7 @@ interface Visit {
   darts: number
 }
 
-export function MatchLiveView({ roomId, side1EntrantId, side2EntrantId, entrants }: Props) {
+export function MatchLiveView({ roomId, side1EntrantId, side2EntrantId, entrants, large = false }: Props) {
   const [supabase] = useState(() => createClient())
   const [room, setRoom] = useState<RoomSnap | null>(null)
   const [visits, setVisits] = useState<Visit[]>([])
@@ -98,10 +99,14 @@ export function MatchLiveView({ roomId, side1EntrantId, side2EntrantId, entrants
   const names = entrantIds.map((id) => id ? (entrants[id]?.display_name ?? "?") : "?")
   const currentLeg = game.legs[0] + game.legs[1] + 1
 
+  // Одоогийн leg-ийн сүүлийн 3 ээлж (шинэ нь эхэнд)
+  const activeLegView = game.legsView[game.legsView.length - 1] ?? []
+  const recentVisits = activeLegView.slice(-3).reverse()
+
   return (
-    <div className="space-y-3">
+    <div className={cn("space-y-3", large && "space-y-6 max-w-md mx-auto w-full")}>
       {/* Header */}
-      <div className="flex items-center justify-between text-[11px] text-muted-foreground px-1">
+      <div className={cn("flex items-center justify-between text-muted-foreground px-1", large ? "text-sm" : "text-[11px]")}>
         <span>First to {legsToWin} Legs</span>
         <span className="font-medium">Legs</span>
         <span className="text-foreground/60">({currentLeg})</span>
@@ -116,33 +121,38 @@ export function MatchLiveView({ roomId, side1EntrantId, side2EntrantId, entrants
 
         return (
           <div key={team} className={cn(
-            "flex items-center gap-2 rounded-lg px-3 py-2.5",
+            "flex items-center gap-2 rounded-lg",
+            large ? "px-4 py-4" : "px-3 py-2.5",
             isActive ? "bg-primary/10 border border-primary/20" : "bg-secondary/30"
           )}>
             {/* Active indicator */}
             <span className={cn(
-              "h-2.5 w-2.5 rounded-full shrink-0",
+              "rounded-full shrink-0",
+              large ? "h-4 w-4" : "h-2.5 w-2.5",
               isActive ? "bg-red-500 shadow-[0_0_6px_2px_rgba(239,68,68,0.5)]" : "bg-muted-foreground/20"
             )} />
 
             {/* Name + avg */}
-            <span className="flex-1 min-w-0 text-sm font-medium truncate">
+            <span className={cn("flex-1 min-w-0 font-medium truncate", large ? "text-xl" : "text-sm")}>
               {names[team]}
-              <span className="text-muted-foreground text-[11px] ml-1 font-normal">
+              <span className={cn("text-muted-foreground ml-1 font-normal", large ? "text-sm" : "text-[11px]")}>
                 ({avg > 0 ? avg.toFixed(2) : "—"})
               </span>
             </span>
 
             {/* Legs won */}
-            <span className="text-sm font-bold w-5 text-center shrink-0">{legs}</span>
+            <span className={cn("font-bold text-center shrink-0", large ? "text-2xl w-8" : "text-sm w-5")}>{legs}</span>
 
             {/* Remaining score */}
-            <span className="text-lg font-bold w-14 text-center rounded px-1 bg-blue-500/20 text-blue-300 shrink-0">
+            <span className={cn(
+              "font-bold text-center rounded px-1 bg-blue-500/20 text-blue-300 shrink-0",
+              large ? "text-4xl w-24" : "text-lg w-14"
+            )}>
               {remaining}
             </span>
 
             {/* Arrow */}
-            <span className={cn("text-base shrink-0", isActive ? "text-pink-400" : "text-muted-foreground/20")}>
+            <span className={cn(large ? "text-2xl" : "text-base", "shrink-0", isActive ? "text-pink-400" : "text-muted-foreground/20")}>
               ▶
             </span>
           </div>
@@ -150,9 +160,35 @@ export function MatchLiveView({ roomId, side1EntrantId, side2EntrantId, entrants
       })}
 
       {game.winner !== null && (
-        <p className="text-center text-sm text-muted-foreground">
+        <p className={cn("text-center text-muted-foreground", large ? "text-lg" : "text-sm")}>
           <span className="font-medium text-foreground">{names[game.winner]}</span> ялалт байгуулав
         </p>
+      )}
+
+      {/* Сүүлийн 3 ээлжийн оноо */}
+      {recentVisits.length > 0 && (
+        <div className={cn("space-y-1", large && "pt-2")}>
+          <p className={cn("text-muted-foreground uppercase tracking-wide px-1", large ? "text-xs" : "text-[10px]")}>
+            Сүүлийн ээлжүүд
+          </p>
+          <div className={cn("flex gap-2", large ? "flex-row" : "flex-col")}>
+            {recentVisits.map((v) => (
+              <div key={v.idx} className={cn(
+                "flex items-center justify-between rounded bg-secondary/20",
+                large ? "flex-1 flex-col gap-1 px-3 py-3" : "px-2 py-1 text-xs"
+              )}>
+                <span className={cn("truncate text-muted-foreground", large ? "text-sm" : "")}>{names[v.team]}</span>
+                <span className={cn(
+                  "font-bold score-display",
+                  large ? "text-2xl" : "",
+                  v.bust ? "text-destructive" : v.checkout ? "text-green-400" : "text-foreground"
+                )}>
+                  {v.bust ? "BUST" : v.points}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   )

@@ -1,9 +1,9 @@
 "use client"
 
 import Link from "next/link"
-import { useState, useCallback } from "react"
+import { useState, useCallback, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Trophy, Loader2, Eye, Swords, Tv2 } from "lucide-react"
+import { Trophy, Loader2, Swords, Tv2, Maximize2, Minimize2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -34,6 +34,22 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
   const [error, setError] = useState<string | null>(null)
   const [selectedMatch, setSelectedMatch] = useState<BracketMatch | null>(null)
   const [showLive, setShowLive] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const liveContainerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const onFsChange = () => setIsFullscreen(document.fullscreenElement === liveContainerRef.current)
+    document.addEventListener("fullscreenchange", onFsChange)
+    return () => document.removeEventListener("fullscreenchange", onFsChange)
+  }, [])
+
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen()
+    } else {
+      liveContainerRef.current?.requestFullscreen()
+    }
+  }, [])
 
   const myEntrant = currentUserId ? playerEntrant[currentUserId] : undefined
   const nameOf = (id: string | null) => (id ? entrants[id]?.display_name ?? "?" : null)
@@ -105,7 +121,12 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
   }
 
   const matchDialog = selectedMatch && (
-    <Dialog open onOpenChange={(open) => { if (!open) { setSelectedMatch(null); setShowLive(false) } }}>
+    <Dialog open onOpenChange={(open) => {
+      if (!open) {
+        if (document.fullscreenElement) document.exitFullscreen()
+        setSelectedMatch(null); setShowLive(false)
+      }
+    }}>
       <DialogContent className="max-w-xs">
         <DialogHeader>
           <DialogTitle className="text-base">
@@ -114,17 +135,31 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
         </DialogHeader>
         <div className="space-y-4 pt-1">
           {showLive && selectedMatch.room_id ? (
-            <>
+            <div
+              ref={liveContainerRef}
+              className={cn(
+                "space-y-3",
+                isFullscreen && "fixed inset-0 z-50 bg-background flex flex-col justify-center px-6 py-10 overflow-auto"
+              )}
+            >
+              <div className="flex items-center justify-end">
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={toggleFullscreen}>
+                  {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                </Button>
+              </div>
               <MatchLiveView
                 roomId={selectedMatch.room_id}
                 side1EntrantId={selectedMatch.side1_entrant_id}
                 side2EntrantId={selectedMatch.side2_entrant_id}
                 entrants={entrants}
+                large={isFullscreen}
               />
-              <Button variant="ghost" size="sm" className="w-full" onClick={() => setShowLive(false)}>
-                ← Буцах
-              </Button>
-            </>
+              {!isFullscreen && (
+                <Button variant="ghost" size="sm" className="w-full" onClick={() => setShowLive(false)}>
+                  ← Буцах
+                </Button>
+              )}
+            </div>
           ) : (
             <>
               <div className="flex items-center gap-2 bg-secondary/40 rounded-lg px-3 py-2.5">
@@ -155,13 +190,6 @@ export function BracketView({ tournamentId, status, isOrganizer, currentUserId, 
                   <Button variant="outline" className="w-full" onClick={() => setShowLive(true)}>
                     <Tv2 className="h-4 w-4 mr-1.5" />
                     Live харах
-                  </Button>
-                )}
-                {selectedMatch.room_id && (
-                  <Button variant="outline" className="w-full"
-                    onClick={() => { setSelectedMatch(null); router.push(`/play/${selectedMatch.room_id}`) }}>
-                    <Eye className="h-4 w-4 mr-1.5" />
-                    Үзэх
                   </Button>
                 )}
                 <Button variant="ghost" className="w-full" onClick={() => setSelectedMatch(null)}>
