@@ -9,12 +9,17 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   if (!user) return NextResponse.json({ error: "Нэвтрээгүй байна" }, { status: 401 })
 
   const admin = await createAdminClient()
-  const { data: room } = await admin.from("online_rooms").select("id, host_id, status").eq("id", id).maybeSingle()
+  const { data: room } = await admin.from("online_rooms").select("id, host_id, status, tournament_match_id").eq("id", id).maybeSingle()
   if (!room) return NextResponse.json({ ok: true })  // аль хэдийн алга
   if (room.status === "ongoing") return NextResponse.json({ error: "Тоглолт явагдаж байна" }, { status: 409 })
 
   if (room.host_id === user.id) {
     await admin.from("online_rooms").delete().eq("id", id)  // room_players/invites cascade
+    // room_id FK-ийн ON DELETE SET NULL-ээс болж match "ongoing" төлөвтэйгээ room-гүй
+    // үлдэхээс сэргийлж, тэмцээний match-ыг дахин эхлүүлж болохоор pending болгоно
+    if (room.tournament_match_id) {
+      await admin.from("tournament_matches").update({ status: "pending" }).eq("id", room.tournament_match_id)
+    }
   } else {
     await admin.from("room_players").delete().eq("room_id", id).eq("player_id", user.id)
   }
