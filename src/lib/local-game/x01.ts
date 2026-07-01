@@ -21,17 +21,19 @@ export interface X01VisitView {
 export interface X01Config {
   startScore: number
   doubleOut: boolean
-  legsToWin: number
+  legsToWin: number  // sets горимд: 1 SET хожихын тулд шаардагдах leg тоо
   starterTeam: number
   teamSizes: [number, number]  // баг тус бүрийн тоглогчийн тоо
   limitRoundsEnabled?: boolean
   limitRounds?: number
   bullFinishAtLimit?: boolean
+  setsToWin?: number  // заасан бол sets горим: legsToWin-д хүрэхэд SET шилжинэ
 }
 
 export interface X01State {
   scores: [number, number]
-  legs: [number, number]
+  legs: [number, number]  // ОДООГИЙН SET-ийн leg тоо (sets горимд set бүрт reset хийгдэнэ)
+  sets: [number, number]  // нийт хожсон SET (sets горимгүй үед ашиглагдахгүй, [0,0])
   currentPlayer: [number, number]  // идэвхтэй slot баг тус бүрд
   activeTeam: number
   winner: number | null
@@ -41,13 +43,24 @@ export interface X01State {
   legAtLimit: boolean
 }
 
+// online_rooms.best_of/legs_per_set-ээс deriveX01-д дамжуулах legsToWin/setsToWin-г
+// тооцоолно. legs_per_set байвал sets горим идэвхжинэ: best_of нь "хэдэн SET хожвол",
+// legs_per_set нь "SET дотор хэдэн leg хожвол" — хоёуланд нь ижил Math.ceil(x/2) томьёо.
+export function x01LegsConfig(room: { best_of: number; legs_per_set: number | null }): { legsToWin: number; setsToWin?: number } {
+  if (room.legs_per_set) {
+    return { legsToWin: Math.ceil(room.legs_per_set / 2), setsToWin: Math.ceil(room.best_of / 2) }
+  }
+  return { legsToWin: Math.ceil(room.best_of / 2) }
+}
+
 export function deriveX01(visits: X01Visit[], cfg: X01Config): X01State {
-  const { startScore, doubleOut, legsToWin, starterTeam, teamSizes } = cfg
+  const { startScore, doubleOut, legsToWin, starterTeam, teamSizes, setsToWin } = cfg
   const limitEnabled = !!cfg.limitRoundsEnabled && cfg.limitRounds !== undefined && cfg.limitRounds > 0
   const limit = cfg.limitRounds ?? 0
   const bullFinish = !!cfg.bullFinishAtLimit
   const sc: [number, number] = [startScore, startScore]
   const lg: [number, number] = [0, 0]
+  const st: [number, number] = [0, 0]
   const cp: [number, number] = [0, 0]
   let legStarter = starterTeam
   let active = starterTeam
@@ -73,7 +86,16 @@ export function deriveX01(visits: X01Visit[], cfg: X01Config): X01State {
   // Leg-ийг багт олгож, матч дуусвал true
   function awardLeg(team: number): boolean {
     lg[team]++
-    if (lg[team] >= legsToWin) { winner = team; return true }
+    if (lg[team] >= legsToWin) {
+      if (setsToWin) {
+        st[team]++
+        if (st[team] >= setsToWin) { winner = team; return true }
+        lg[0] = 0; lg[1] = 0
+        advanceLeg()
+        return false
+      }
+      winner = team; return true
+    }
     advanceLeg()
     return false
   }
@@ -108,5 +130,5 @@ export function deriveX01(visits: X01Visit[], cfg: X01Config): X01State {
   }
 
   const currentRound = Math.floor(curLeg.length / 2) + 1
-  return { scores: sc, legs: lg, currentPlayer: cp, activeTeam: active, winner, legsView, currentRound, legAtLimit }
+  return { scores: sc, legs: lg, sets: st, currentPlayer: cp, activeTeam: active, winner, legsView, currentRound, legAtLimit }
 }

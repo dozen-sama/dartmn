@@ -1,5 +1,5 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server"
-import { deriveX01, type X01Visit } from "@/lib/local-game/x01"
+import { deriveX01, x01LegsConfig, type X01Visit } from "@/lib/local-game/x01"
 import { teamSize, type RoomMode } from "@/lib/local-game/room"
 import { finishOnlineRoom } from "@/lib/local-game/room-finish"
 import { NextRequest, NextResponse } from "next/server"
@@ -26,20 +26,25 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
   const winnerTeam = me.team === 0 ? 1 : 0  // өрсөлдөгч баг ялна
   const ts = teamSize(room.mode as RoomMode)
-  const legsToWin = Math.ceil(room.best_of / 2)
+  const { legsToWin, setsToWin } = x01LegsConfig(room)
   const visits: X01Visit[] = (rv ?? []).map((v) =>
     v.points === -1 ? { points: 0, darts: 0, decide: v.team } : { points: v.points, darts: v.darts })
   const state = deriveX01(visits, {
     startScore: parseInt(room.format) || 501, doubleOut: room.double_out,
-    legsToWin, starterTeam: room.starter_team ?? 0,
+    legsToWin, setsToWin, starterTeam: room.starter_team ?? 0,
     teamSizes: [ts, ts], limitRoundsEnabled: room.limit_rounds != null,
     limitRounds: room.limit_rounds ?? undefined, bullFinishAtLimit: room.bull_finish,
   })
-  // Бууж өгөхийг стандарт walkover-оор тооцно: ялагчийг legsToWin хүртэл
-  // хожсон гэж bracket-д бичнэ (бодит тоглогдсон leg-ээс үл хамааран) —
-  // эс бөгөөс group/RR standings-ийн leg diff тэнцвэргүй болно (тоглогч
-  // өрсөлдөгчийн бууж өгсний улмаас дутуу leg-тэй "хожигч" болдог байсан).
-  if (state.legs[winnerTeam] < legsToWin) state.legs[winnerTeam] = legsToWin
+  // Бууж өгөхийг стандарт walkover-оор тооцно: ялагчийг (sets горимд setsToWin,
+  // эс бөгөөс legsToWin) хүртэл хожсон гэж bracket-д бичнэ (бодит тоглогдсон
+  // leg/set-ээс үл хамааран) — эс бөгөөс group/RR standings-ийн leg/set diff
+  // тэнцвэргүй болно (тоглогч өрсөлдөгчийн бууж өгсний улмаас дутуу оноотой
+  // "хожигч" болдог байсан).
+  if (setsToWin) {
+    if (state.sets[winnerTeam] < setsToWin) state.sets[winnerTeam] = setsToWin
+  } else {
+    if (state.legs[winnerTeam] < legsToWin) state.legs[winnerTeam] = legsToWin
+  }
   await finishOnlineRoom(admin, id, state, winnerTeam, players, visits, room.mode)
   return NextResponse.json({ ok: true })
 }

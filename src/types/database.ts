@@ -999,6 +999,7 @@ export interface Database {
           winner_team: number | null
           match_id: string | null
           tournament_match_id: string | null
+          legs_per_set: number | null
           created_at: string
         }
         Insert: {
@@ -1018,6 +1019,7 @@ export interface Database {
           winner_team?: number | null
           match_id?: string | null
           tournament_match_id?: string | null
+          legs_per_set?: number | null
         }
         Update: {
           guest_id?: string | null
@@ -1025,6 +1027,7 @@ export interface Database {
           starter_team?: number | null
           winner_team?: number | null
           match_id?: string | null
+          legs_per_set?: number | null
         }
         Relationships: []
       }

@@ -16,12 +16,12 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   const admin: any = await createAdminClient()
 
   const { data: t } = await admin.from("tournaments")
-    .select("id, organizer_id, format, first_to, rr_first_to, bracket_type, double_out, limit_rounds, bull_finish_at_limit, type")
+    .select("id, organizer_id, format, first_to, rr_first_to, bracket_type, double_out, limit_rounds, bull_finish_at_limit, type, sets_enabled, legs_per_set, rr_sets_enabled, rr_legs_per_set")
     .eq("id", tournamentId).single()
   if (!t) return NextResponse.json({ error: "Тэмцээн олдсонгүй" }, { status: 404 })
 
   const { data: m } = await admin.from("tournament_matches")
-    .select("id, tournament_id, status, room_id, side1_entrant_id, side2_entrant_id, group_no")
+    .select("id, tournament_id, status, room_id, side1_entrant_id, side2_entrant_id, group_no, stage_id")
     .eq("id", matchId).single()
   if (!m || m.tournament_id !== tournamentId) return NextResponse.json({ error: "Match олдсонгүй" }, { status: 404 })
   if (!m.side1_entrant_id || !m.side2_entrant_id) return NextResponse.json({ error: "Хоёр тал бүрэн тодороогүй байна" }, { status: 409 })
@@ -77,10 +77,32 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     eps.filter((e: { entrant_id: string }) => e.entrant_id === m.side2_entrant_id).length,
   )
   const mode = perSide >= 3 ? "3v3" : perSide === 2 ? "2v2" : "1v1"
-  // Round Robin ба бүлэг+шигшээний бүлгийн RR матч (group_no != null) нь өөрийн
-  // rr_first_to тохиргоотой; шигшээ (KO) матч энгийн first_to ашиглана.
-  const usesRrFirstTo = t.bracket_type === "round_robin" || (t.bracket_type === "groups_knockout" && m.group_no != null)
-  const firstTo = usesRrFirstTo ? (t.rr_first_to ?? t.first_to ?? 2) : (t.first_to ?? 2)
+
+  // Матчийн формат (first_to/sets): олон шатны тэмцээнд шатныхаа config-оос
+  // (group/swiss — sets хэзээ ч байхгүй, зөвхөн legs), эс бөгөөс flat тэмцээний
+  // талбараас (Round Robin ба бүлэг+шигшээний бүлгийн RR матч нь rr_* талбар,
+  // шигшээ матч энгийн талбар ашиглана — өмнөх first_to/rr_first_to сонголттой ижил).
+  let firstTo: number, setsEnabled: boolean, legsPerSet: number
+  if (m.stage_id) {
+    const { data: stage } = await admin.from("tournament_stages")
+      .select("stage_type, config").eq("id", m.stage_id).single()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const c: any = stage?.config ?? {}
+    if (stage?.stage_type === "group") {
+      firstTo = c.rr_first_to ?? 2; setsEnabled = false; legsPerSet = 3
+    } else if (stage?.stage_type === "swiss") {
+      firstTo = c.first_to ?? 2; setsEnabled = false; legsPerSet = 3
+    } else {
+      firstTo = c.first_to ?? 2; setsEnabled = !!c.sets_enabled; legsPerSet = c.legs_per_set ?? 3
+    }
+  } else {
+    // Round Robin ба бүлэг+шигшээний бүлгийн RR матч (group_no != null) нь өөрийн
+    // rr_first_to тохиргоотой; шигшээ (KO) матч энгийн first_to ашиглана.
+    const usesRrFirstTo = t.bracket_type === "round_robin" || (t.bracket_type === "groups_knockout" && m.group_no != null)
+    firstTo = usesRrFirstTo ? (t.rr_first_to ?? t.first_to ?? 2) : (t.first_to ?? 2)
+    setsEnabled = usesRrFirstTo ? !!t.rr_sets_enabled : !!t.sets_enabled
+    legsPerSet = (usesRrFirstTo ? t.rr_legs_per_set : t.legs_per_set) ?? 3
+  }
   const bestOf = Math.max(1, firstTo * 2 - 1)
 
   // Room үүсгэх (давхцахгүй код)
@@ -100,6 +122,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       start_method: "bulloff",
       status: "waiting",
       tournament_match_id: matchId,
+      legs_per_set: setsEnabled ? legsPerSet : null,
     }).select("id").single()
     if (data && !error) roomId = data.id
   }

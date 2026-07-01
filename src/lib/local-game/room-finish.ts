@@ -37,13 +37,16 @@ export async function finishOnlineRoom(
   // Тэмцээний match бол ялагчийг bracket-ийн дараагийн шатанд дэвшүүлнэ (атомик).
   // team 0 = side1, team 1 = side2 (match-start route-ийн суулгацтай нийцнэ).
   const { data: room } = await admin.from("online_rooms")
-    .select("tournament_match_id").eq("id", roomId).single()
+    .select("tournament_match_id, legs_per_set").eq("id", roomId).single()
   if (room?.tournament_match_id) {
+    // sets горимд bracket-д хожсон SET тоог бичнэ (legs биш) — group/RR
+    // standings-ийн diff тооцоолол sets горимд ч тохирсон утга авах ёстой
+    const usesSets = room.legs_per_set != null
     await admin.rpc("advance_tournament_match", {
       p_match_id: room.tournament_match_id,
       p_winning_side: winnerTeam + 1,
-      p_side1_legs: state.legs[0],
-      p_side2_legs: state.legs[1],
+      p_side1_legs: usesSets ? state.sets[0] : state.legs[0],
+      p_side2_legs: usesSets ? state.sets[1] : state.legs[1],
     })
   }
   return true

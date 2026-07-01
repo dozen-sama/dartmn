@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { Loader2 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
-import { deriveX01 } from "@/lib/local-game/x01"
+import { deriveX01, x01LegsConfig } from "@/lib/local-game/x01"
 import { cn } from "@/lib/utils"
 import type { BracketEntrant } from "@/hooks/useTournamentBracket"
 
@@ -24,6 +24,7 @@ interface RoomSnap {
   bull_finish: boolean
   status: string
   winner_team: number | null
+  legs_per_set: number | null
 }
 
 interface Visit {
@@ -42,7 +43,7 @@ export function MatchLiveView({ roomId, side1EntrantId, side2EntrantId, entrants
 
   useEffect(() => {
     supabase.from("online_rooms")
-      .select("format, best_of, double_out, starter_team, limit_rounds, bull_finish, status, winner_team")
+      .select("format, best_of, double_out, starter_team, limit_rounds, bull_finish, status, winner_team, legs_per_set")
       .eq("id", roomId).maybeSingle()
       .then(({ data }) => { if (data) setRoom(data as RoomSnap) })
 
@@ -73,7 +74,7 @@ export function MatchLiveView({ roomId, side1EntrantId, side2EntrantId, entrants
     {
       startScore: parseInt(room.format) || 501,
       doubleOut: room.double_out,
-      legsToWin: Math.ceil(room.best_of / 2),
+      ...x01LegsConfig(room),
       starterTeam: room.starter_team ?? 0,
       teamSizes: [1, 1],
       limitRoundsEnabled: room.limit_rounds != null,
@@ -93,7 +94,7 @@ export function MatchLiveView({ roomId, side1EntrantId, side2EntrantId, entrants
     return <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
   }
 
-  const legsToWin = Math.ceil(room.best_of / 2)
+  const { legsToWin, setsToWin } = x01LegsConfig(room)
 
   // Per-team average: bust visits score 0 but darts count; cross-ref with raw visits via idx
   const allViews = game.legsView.flat()
@@ -122,10 +123,18 @@ export function MatchLiveView({ roomId, side1EntrantId, side2EntrantId, entrants
     <div className={cn("space-y-3", large && "space-y-6 max-w-md mx-auto w-full")}>
       {/* Header */}
       <div className={cn("flex items-center justify-between text-muted-foreground px-1", large ? "text-sm" : "text-[11px]")}>
-        <span>First to {legsToWin} Legs</span>
+        <span>First to {setsToWin ?? legsToWin} {setsToWin ? "Sets" : "Legs"}</span>
         <span className="font-medium">Legs</span>
         <span className="text-foreground/60">({currentLeg})</span>
       </div>
+
+      {setsToWin && (
+        <div className={cn("flex items-center justify-center gap-3 text-muted-foreground", large ? "text-sm" : "text-xs")}>
+          <span className={cn("font-bold tabular-nums", game.activeTeam === 0 && !matchOver ? "text-primary" : "text-foreground")}>{game.sets[0]}</span>
+          <span className="uppercase tracking-widest text-muted-foreground/60 text-[10px]">Sets</span>
+          <span className={cn("font-bold tabular-nums", game.activeTeam === 1 && !matchOver ? "text-primary" : "text-foreground")}>{game.sets[1]}</span>
+        </div>
+      )}
 
       {/* Player rows — идэвхтэй тоглогчийн highlight мөрүүдийн хооронд зөөлөн шилжинэ */}
       <div className="relative">

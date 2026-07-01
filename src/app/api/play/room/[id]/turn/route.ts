@@ -1,5 +1,5 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server"
-import { deriveX01, type X01Visit } from "@/lib/local-game/x01"
+import { deriveX01, x01LegsConfig, type X01Visit } from "@/lib/local-game/x01"
 import { isPossibleVisitScore } from "@/lib/local-game/checkouts"
 import { teamSize, type RoomMode } from "@/lib/local-game/room"
 import { finishOnlineRoom } from "@/lib/local-game/room-finish"
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const cfg = {
     startScore: parseInt(room.format) || 501,
     doubleOut: room.double_out,
-    legsToWin: Math.ceil(room.best_of / 2),
+    ...x01LegsConfig(room),
     starterTeam: room.starter_team ?? 0,
     teamSizes: [ts, ts] as [number, number],
     limitRoundsEnabled: room.limit_rounds != null,

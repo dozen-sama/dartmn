@@ -13,7 +13,7 @@ import { CameraGrid } from "@/components/game/CameraGrid"
 import { createClient } from "@/lib/supabase/client"
 import { getTier } from "@/lib/rating"
 import { teamSize, totalPlayers, type RoomMode } from "@/lib/local-game/room"
-import { deriveX01 } from "@/lib/local-game/x01"
+import { deriveX01, x01LegsConfig } from "@/lib/local-game/x01"
 import { classifyTurn, getCheckout, isPossibleVisitScore } from "@/lib/local-game/checkouts"
 import { useScoreboardKeyboard } from "@/hooks/useScoreboardKeyboard"
 import { useWebRTCCamera } from "@/hooks/useWebRTCCamera"
@@ -302,11 +302,11 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName, t
 
   // ── Тоглоомын төлөв (хоосон visits-д ч аюулгүй; keyboard hook-д хэрэгтэй) ──
   const gameStart = parseInt(liveRoom.format) || 501
-  const legsToWin = Math.ceil(liveRoom.best_of / 2)
+  const { legsToWin, setsToWin } = x01LegsConfig(liveRoom)
   const sortedVisits = [...visits].sort((a, b) => a.seq - b.seq)
   const game = deriveX01(sortedVisits.map((v) =>
     v.points === -1 ? { points: 0, darts: 0, decide: v.team } : { points: v.points, darts: v.darts }), {
-    startScore: gameStart, doubleOut: liveRoom.double_out, legsToWin,
+    startScore: gameStart, doubleOut: liveRoom.double_out, legsToWin, setsToWin,
     starterTeam: liveRoom.starter_team ?? 0, teamSizes: [n, n],
     limitRoundsEnabled: liveRoom.limit_rounds != null,
     limitRounds: liveRoom.limit_rounds ?? undefined,
@@ -453,7 +453,9 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName, t
             <ArrowLeft className="h-5 w-5" />
           </button>
           <p className="flex-1 text-center text-xs text-muted-foreground">
-            {mode} · {liveRoom.format} · BO{liveRoom.best_of} · {legsToWin} leg
+            {mode} · {liveRoom.format} · {setsToWin
+              ? <>BO{liveRoom.best_of} sets · BO{liveRoom.legs_per_set} legs</>
+              : <>BO{liveRoom.best_of} · {legsToWin} leg</>}
             {!liveRoom.double_out && " · SO"}
             {liveRoom.limit_rounds != null && (
               <span className={cn("ml-1", game.currentRound >= liveRoom.limit_rounds ? "text-destructive" : "")}>
@@ -520,7 +522,9 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName, t
           <div className="text-center py-4 rounded-xl bg-[oklch(0.78_0.16_85)]/10 border border-[oklch(0.78_0.16_85)]/30">
             <div className="text-4xl mb-1">🏆</div>
             <p className="text-lg font-black text-[oklch(0.78_0.16_85)]">{bigName(winnerTeam)} хожлоо!</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{d.legs[0]} — {d.legs[1]}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {setsToWin ? <>{d.sets[0]} — {d.sets[1]} sets</> : <>{d.legs[0]} — {d.legs[1]}</>}
+            </p>
           </div>
         )}
 
@@ -550,6 +554,13 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName, t
               )
             })}
           </div>
+          {setsToWin && (
+            <div className="flex items-center justify-center gap-3 bg-secondary/60 py-1 text-xs shrink-0 border-b border-border/30">
+              <span className={cn("font-black tabular-nums", activeTeam === 0 ? "text-primary" : "text-muted-foreground")}>{d.sets[0]}</span>
+              <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60">Sets</span>
+              <span className={cn("font-black tabular-nums", activeTeam === 1 ? "text-blue-400" : "text-muted-foreground")}>{d.sets[1]}</span>
+            </div>
+          )}
           <div className="flex items-center justify-center gap-3 bg-secondary/40 py-1 text-xs shrink-0">
             <span className={cn("font-black tabular-nums", activeTeam === 0 ? "text-primary" : "text-muted-foreground")}>{d.legs[0]}</span>
             <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60">Legs</span>
@@ -711,7 +722,9 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName, t
           <div className="flex items-center gap-2 mt-0.5">
             <Badge variant="outline" className="text-xs border-border/60">{mode}</Badge>
             <Badge variant="outline" className="text-xs border-border/60">{liveRoom.format}</Badge>
-            <Badge variant="outline" className="text-xs border-border/60">BO{liveRoom.best_of}</Badge>
+            <Badge variant="outline" className="text-xs border-border/60">
+              {setsToWin ? <>BO{liveRoom.best_of} sets · BO{liveRoom.legs_per_set} legs</> : <>BO{liveRoom.best_of}</>}
+            </Badge>
             <Badge className="text-xs bg-yellow-500/15 text-yellow-400 border-yellow-500/30 pulse-live">
               Хүлээж байна {filled}/{need}
             </Badge>
