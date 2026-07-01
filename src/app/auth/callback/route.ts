@@ -7,9 +7,14 @@ export async function GET(request: NextRequest) {
   const redirect = searchParams.get("redirect") || "/dashboard"
   const origin = new URL(request.url).origin
 
-  if (code) {
-    const supabase = await createClient()
-    await supabase.auth.exchangeCodeForSession(code)
+  if (!code) {
+    return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent("Нэвтрэх код олдсонгүй")}`)
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase.auth.exchangeCodeForSession(code)
+  if (error) {
+    return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(error.message)}`)
   }
 
   return NextResponse.redirect(`${origin}${redirect}`)

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
@@ -25,6 +25,11 @@ export function LoginForm() {
   const [oauthLoading, setOauthLoading] = useState<string | null>(null)
   const [unconfirmed, setUnconfirmed] = useState(false)
   const [resendLoading, setResendLoading] = useState(false)
+
+  useEffect(() => {
+    const oauthError = searchParams.get("error")
+    if (oauthError) toast.error(oauthError)
+  }, [searchParams])
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
