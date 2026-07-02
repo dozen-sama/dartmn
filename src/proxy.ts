@@ -35,7 +35,6 @@ export async function proxy(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/play") ||
     request.nextUrl.pathname.startsWith("/clubs") ||
     request.nextUrl.pathname.startsWith("/profile") ||
-    request.nextUrl.pathname.startsWith("/local") ||
     request.nextUrl.pathname.startsWith("/stats") ||
     request.nextUrl.pathname.startsWith("/ratings") ||
     request.nextUrl.pathname.startsWith("/admin")

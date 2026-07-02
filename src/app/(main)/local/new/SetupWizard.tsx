@@ -17,6 +17,8 @@ import { useLocalGame } from "@/lib/local-game/store"
 import { BracketType } from "@/lib/local-game/types"
 import { BracketEditor } from "@/components/local-game/BracketEditor"
 import { VisitLimitPicker } from "@/components/game/VisitLimitPicker"
+import { StageBuilder, type LocalStage } from "@/components/tournament/StageBuilder"
+import { validatePipeline, type TournamentStage } from "@/lib/tournament/stage-types"
 import { createClient } from "@/lib/supabase/client"
 import Link from "next/link"
 import { toast } from "sonner"
@@ -77,6 +79,10 @@ export function SetupWizard() {
   const [firstTo, setFirstTo] = useState(2)
   const [setsEnabled, setSetsEnabled] = useState(false)
   const [legsPerSet, setLegsPerSet] = useState(3)
+
+  // Multi-stage (олон шат) горим
+  const [multiStage, setMultiStage] = useState(false)
+  const [stages, setStages] = useState<LocalStage[]>([])
 
   // Advanced settings
   const [joinPassword, setJoinPassword] = useState("")
@@ -156,6 +162,42 @@ export function SetupWizard() {
   function handleCreate() {
     if (!name.trim()) { toast.error("Тэмцээний нэр оруулна уу"); return }
     if (validPlayers.length < 2) { toast.error("Дор хаяж 2 тоглогч хэрэгтэй"); return }
+
+    if (multiStage) {
+      if (stages.length === 0) { toast.error("Хамгийн багадаа нэг шат нэмнэ үү"); return }
+      const errors = validatePipeline(stages, validPlayers.length)
+      if (errors.length > 0) { toast.error(errors[0].message); return }
+
+      const tournamentStages: TournamentStage[] = stages.map((s, i) => ({
+        id: s._id,
+        tournament_id: "",
+        order_no: i,
+        stage_type: s.stage_type,
+        config: s.config,
+        status: i === 0 ? "active" : "pending",
+      }))
+
+      const id = createSession({
+        name: name.trim(),
+        joinPassword,
+        joinCode,
+        description: "",
+        format: "501",
+        startScore: 501,
+        rrFirstTo: 2, rrSetsEnabled: false, rrLegsPerSet: 3, rrEnableDraw: false,
+        firstTo: 2, setsEnabled: false, legsPerSet: 3,
+        doubleOut: true, doubleIn: false, loserFirst: false, thirdPlaceMatch: false,
+        limitRounds: null, bullFinishAtLimit: false, enableDraw: false,
+        showAverage: true, autoComplete: true, allowParticipantScore: false, showIndex: true,
+        pointWon: 2, pointDraw: 1, pointLost: 0, winPointsAreLegs: false,
+        bracketType: "single_elimination",
+        playersPerGroup: validPlayers.length, groupsCount: 1, groupAdvance: 1,
+        players: validPlayers,
+        stages: tournamentStages,
+      })
+      router.push(`/local/${id}`)
+      return
+    }
 
     const groupsCount = bracketType === "groups_knockout" ? rrGroups : 1
     const ppg = bracketType === "groups_knockout" ? Math.ceil(validPlayers.length / rrGroups) : validPlayers.length
@@ -289,45 +331,75 @@ export function SetupWizard() {
           className="bg-secondary/50 border-border/60 h-11 text-base" autoFocus />
       </div>
 
-      {/* Format */}
+      {/* Горим сонголт */}
       <div className="space-y-2">
-        <Label className="text-sm font-medium">Тэмцээний хэлбэр</Label>
-        <div className="grid grid-cols-3 gap-2">
-          {FORMAT_OPTIONS.map((f) => (
-            <button key={f.value} type="button" onClick={() => setBracketType(f.value)}
-              className={cn("flex flex-col items-center py-3 px-2 rounded-xl border-2 text-center transition-all",
-                bracketType === f.value
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border/40 text-muted-foreground hover:border-border/70 hover:text-foreground")}>
-              <span className="text-sm font-semibold">{f.label}</span>
-              <span className="text-[10px] mt-0.5 opacity-70">{f.sub}</span>
-            </button>
-          ))}
+        <Label className="text-sm font-medium">Тэмцээний горим</Label>
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={() => setMultiStage(false)}
+            className={cn("flex flex-col items-center py-3 px-2 rounded-xl border-2 text-center transition-all",
+              !multiStage ? "border-primary bg-primary/10 text-primary" : "border-border/40 text-muted-foreground hover:border-border/70 hover:text-foreground")}>
+            <span className="text-sm font-semibold">Ганц bracket</span>
+            <span className="text-[10px] mt-0.5 opacity-70">Нэг л шат</span>
+          </button>
+          <button type="button" onClick={() => setMultiStage(true)}
+            className={cn("flex flex-col items-center py-3 px-2 rounded-xl border-2 text-center transition-all",
+              multiStage ? "border-primary bg-primary/10 text-primary" : "border-border/40 text-muted-foreground hover:border-border/70 hover:text-foreground")}>
+            <span className="text-sm font-semibold">Олон шат</span>
+            <span className="text-[10px] mt-0.5 opacity-70">Group → KO гэх мэт</span>
+          </button>
         </div>
       </div>
 
-      {/* Core match settings */}
-      <div className="flex items-center gap-4 flex-wrap">
-        <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">Start Score</Label>
-          <div className="flex gap-1.5">
-            {[501, 301].map((s) => (
-              <button key={s} type="button" onClick={() => setStartScore(s)}
-                className={cn("px-3 py-1.5 rounded-lg border-2 text-sm font-bold transition-all",
-                  startScore === s ? "border-primary bg-primary/10 text-primary" : "border-border/40 text-muted-foreground hover:border-border")}>
-                {s}
-              </button>
-            ))}
+      {!multiStage && (
+        <>
+          {/* Format */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Тэмцээний хэлбэр</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {FORMAT_OPTIONS.map((f) => (
+                <button key={f.value} type="button" onClick={() => setBracketType(f.value)}
+                  className={cn("flex flex-col items-center py-3 px-2 rounded-xl border-2 text-center transition-all",
+                    bracketType === f.value
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border/40 text-muted-foreground hover:border-border/70 hover:text-foreground")}>
+                  <span className="text-sm font-semibold">{f.label}</span>
+                  <span className="text-[10px] mt-0.5 opacity-70">{f.sub}</span>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">First to</Label>
-          <div className="flex items-center gap-2">
-            <Num value={firstTo} onChange={setFirstTo} min={1} max={11} />
-            <span className="text-sm text-muted-foreground">{setsEnabled ? "Sets" : "Legs"}</span>
+
+          {/* Core match settings */}
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Start Score</Label>
+              <div className="flex gap-1.5">
+                {[501, 301].map((s) => (
+                  <button key={s} type="button" onClick={() => setStartScore(s)}
+                    className={cn("px-3 py-1.5 rounded-lg border-2 text-sm font-bold transition-all",
+                      startScore === s ? "border-primary bg-primary/10 text-primary" : "border-border/40 text-muted-foreground hover:border-border")}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">First to</Label>
+              <div className="flex items-center gap-2">
+                <Num value={firstTo} onChange={setFirstTo} min={1} max={11} />
+                <span className="text-sm text-muted-foreground">{setsEnabled ? "Sets" : "Legs"}</span>
+              </div>
+            </div>
           </div>
+        </>
+      )}
+
+      {multiStage && (
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">Шатнууд</Label>
+          <StageBuilder stages={stages} onChange={setStages} initialPlayers={validPlayers.length} />
         </div>
-      </div>
+      )}
 
       {/* Players */}
       <div className="space-y-2">
@@ -474,114 +546,118 @@ export function SetupWizard() {
                 className="bg-secondary/50 border-border/60 w-48" />
             </div>
 
-            {/* Start score extra options */}
-            <div className="space-y-1.5 py-4">
-              <Label className="text-sm">Start Score</Label>
-              <div className="flex gap-2 flex-wrap">
-                {[501, 301, 170, 121].map((s) => (
-                  <button key={s} type="button" onClick={() => setStartScore(s)}
-                    className={cn("px-3 py-1.5 rounded-lg border-2 text-sm font-bold transition-all",
-                      startScore === s ? "border-primary bg-primary/10 text-primary" : "border-border/40 text-muted-foreground hover:border-border")}>
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Sets mode */}
-            <div className="py-4 space-y-2">
-              <Label className="text-sm">Match горим</Label>
-              <div className="flex gap-2">
-                <button onClick={() => setSetsEnabled(false)}
-                  className={cn("px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition-all",
-                    !setsEnabled ? "border-primary bg-primary/10 text-primary" : "border-border/40 text-muted-foreground")}>
-                  Legs
-                </button>
-                <button onClick={() => setSetsEnabled(true)}
-                  className={cn("px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition-all",
-                    setsEnabled ? "border-primary bg-primary/10 text-primary" : "border-border/40 text-muted-foreground")}>
-                  Sets
-                </button>
-              </div>
-              {setsEnabled && (
-                <div className="flex items-center gap-2 pl-2">
-                  <span className="text-xs text-muted-foreground">Set дотор first to</span>
-                  <Num value={legsPerSet} onChange={setLegsPerSet} min={1} max={11} />
-                  <span className="text-xs text-muted-foreground">legs</span>
-                </div>
-              )}
-            </div>
-
-            {/* Double out/in */}
-            <div className="py-4 space-y-2">
-              <Label className="text-sm">Finish горим</Label>
-              <div className="flex gap-3">
-                <label className="flex items-center gap-2 cursor-pointer text-sm">
-                  <input type="checkbox" checked={doubleOut} onChange={(e) => setDoubleOut(e.target.checked)} className="accent-primary" />
-                  Захаар гарах
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer text-sm">
-                  <input type="checkbox" checked={doubleIn} onChange={(e) => setDoubleIn(e.target.checked)} className="accent-primary" />
-                  Double In
-                </label>
-              </div>
-            </div>
-
-            {/* Visit limit */}
-            <div className="py-4">
-              <VisitLimitPicker
-                enabled={limitRoundsEnabled}
-                onToggle={(v) => { setLimitRoundsEnabled(v); if (!v) setBullFinishAtLimit(false) }}
-                value={limitRounds}
-                onChange={setLimitRounds}
-                bullOff={bullFinishAtLimit}
-                onBullOffToggle={setBullFinishAtLimit}
-              />
-            </div>
-
-            {/* 3rd place (SE only) */}
-            {bracketType === "single_elimination" && (
-              <div className="py-4">
-                <label className="flex items-center gap-2 cursor-pointer text-sm">
-                  <input type="checkbox" checked={thirdPlace} onChange={(e) => setThirdPlace(e.target.checked)} className="accent-primary" />
-                  3-р байрны тоглолт
-                </label>
-              </div>
-            )}
-
-            {/* Groups config (groups_knockout only) */}
-            {bracketType === "groups_knockout" && (
-              <div className="py-4 space-y-3">
-                <Label className="text-sm">Бүлгийн тохиргоо</Label>
-                <div className="flex items-center gap-4 flex-wrap">
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Бүлгийн тоо</Label>
-                    <Num value={rrGroups} onChange={setRRGroups} min={2} max={16} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Бүлгээс гарах</Label>
-                    <Num value={rrGroupAdvance} onChange={setRRGroupAdvance} min={1} max={8} />
+            {!multiStage && (
+              <>
+                {/* Start score extra options */}
+                <div className="space-y-1.5 py-4">
+                  <Label className="text-sm">Start Score</Label>
+                  <div className="flex gap-2 flex-wrap">
+                    {[501, 301, 170, 121].map((s) => (
+                      <button key={s} type="button" onClick={() => setStartScore(s)}
+                        className={cn("px-3 py-1.5 rounded-lg border-2 text-sm font-bold transition-all",
+                          startScore === s ? "border-primary bg-primary/10 text-primary" : "border-border/40 text-muted-foreground hover:border-border")}>
+                        {s}
+                      </button>
+                    ))}
                   </div>
                 </div>
-              </div>
-            )}
 
-            {/* RR/Swiss: draw + points */}
-            {isRR && (
-              <div className="py-4 space-y-3">
-                <label className="flex items-center gap-2 cursor-pointer text-sm">
-                  <input type="checkbox" checked={enableDraw} onChange={(e) => setEnableDraw(e.target.checked)} className="accent-primary" />
-                  Draw зөвшөөрөх
-                </label>
-                <div className="space-y-1">
-                  <Label className="text-sm">Оноо тооцоо</Label>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <div className="flex items-center gap-1.5"><span className="text-xs text-muted-foreground w-8">Won</span><Num value={pointWon} onChange={setPointWon} min={0} max={10} /></div>
-                    <div className="flex items-center gap-1.5"><span className="text-xs text-muted-foreground w-8">Draw</span><Num value={pointDraw} onChange={setPointDraw} min={0} max={10} /></div>
-                    <div className="flex items-center gap-1.5"><span className="text-xs text-muted-foreground w-8">Lost</span><Num value={pointLost} onChange={setPointLost} min={0} max={10} /></div>
+                {/* Sets mode */}
+                <div className="py-4 space-y-2">
+                  <Label className="text-sm">Match горим</Label>
+                  <div className="flex gap-2">
+                    <button onClick={() => setSetsEnabled(false)}
+                      className={cn("px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition-all",
+                        !setsEnabled ? "border-primary bg-primary/10 text-primary" : "border-border/40 text-muted-foreground")}>
+                      Legs
+                    </button>
+                    <button onClick={() => setSetsEnabled(true)}
+                      className={cn("px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition-all",
+                        setsEnabled ? "border-primary bg-primary/10 text-primary" : "border-border/40 text-muted-foreground")}>
+                      Sets
+                    </button>
+                  </div>
+                  {setsEnabled && (
+                    <div className="flex items-center gap-2 pl-2">
+                      <span className="text-xs text-muted-foreground">Set дотор first to</span>
+                      <Num value={legsPerSet} onChange={setLegsPerSet} min={1} max={11} />
+                      <span className="text-xs text-muted-foreground">legs</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Double out/in */}
+                <div className="py-4 space-y-2">
+                  <Label className="text-sm">Finish горим</Label>
+                  <div className="flex gap-3">
+                    <label className="flex items-center gap-2 cursor-pointer text-sm">
+                      <input type="checkbox" checked={doubleOut} onChange={(e) => setDoubleOut(e.target.checked)} className="accent-primary" />
+                      Захаар гарах
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer text-sm">
+                      <input type="checkbox" checked={doubleIn} onChange={(e) => setDoubleIn(e.target.checked)} className="accent-primary" />
+                      Double In
+                    </label>
                   </div>
                 </div>
-              </div>
+
+                {/* Visit limit */}
+                <div className="py-4">
+                  <VisitLimitPicker
+                    enabled={limitRoundsEnabled}
+                    onToggle={(v) => { setLimitRoundsEnabled(v); if (!v) setBullFinishAtLimit(false) }}
+                    value={limitRounds}
+                    onChange={setLimitRounds}
+                    bullOff={bullFinishAtLimit}
+                    onBullOffToggle={setBullFinishAtLimit}
+                  />
+                </div>
+
+                {/* 3rd place (SE only) */}
+                {bracketType === "single_elimination" && (
+                  <div className="py-4">
+                    <label className="flex items-center gap-2 cursor-pointer text-sm">
+                      <input type="checkbox" checked={thirdPlace} onChange={(e) => setThirdPlace(e.target.checked)} className="accent-primary" />
+                      3-р байрны тоглолт
+                    </label>
+                  </div>
+                )}
+
+                {/* Groups config (groups_knockout only) */}
+                {bracketType === "groups_knockout" && (
+                  <div className="py-4 space-y-3">
+                    <Label className="text-sm">Бүлгийн тохиргоо</Label>
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Бүлгийн тоо</Label>
+                        <Num value={rrGroups} onChange={setRRGroups} min={2} max={16} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Бүлгээс гарах</Label>
+                        <Num value={rrGroupAdvance} onChange={setRRGroupAdvance} min={1} max={8} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* RR/Swiss: draw + points */}
+                {isRR && (
+                  <div className="py-4 space-y-3">
+                    <label className="flex items-center gap-2 cursor-pointer text-sm">
+                      <input type="checkbox" checked={enableDraw} onChange={(e) => setEnableDraw(e.target.checked)} className="accent-primary" />
+                      Draw зөвшөөрөх
+                    </label>
+                    <div className="space-y-1">
+                      <Label className="text-sm">Оноо тооцоо</Label>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <div className="flex items-center gap-1.5"><span className="text-xs text-muted-foreground w-8">Won</span><Num value={pointWon} onChange={setPointWon} min={0} max={10} /></div>
+                        <div className="flex items-center gap-1.5"><span className="text-xs text-muted-foreground w-8">Draw</span><Num value={pointDraw} onChange={setPointDraw} min={0} max={10} /></div>
+                        <div className="flex items-center gap-1.5"><span className="text-xs text-muted-foreground w-8">Lost</span><Num value={pointLost} onChange={setPointLost} min={0} max={10} /></div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -590,7 +666,7 @@ export function SetupWizard() {
       {/* Create button */}
       <button onClick={handleCreate}
         className="w-full py-4 rounded-xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 transition-colors">
-        Bracket үүсгэх →
+        {multiStage ? "Тэмцээн эхлүүлэх →" : "Bracket үүсгэх →"}
       </button>
     </div>
   )

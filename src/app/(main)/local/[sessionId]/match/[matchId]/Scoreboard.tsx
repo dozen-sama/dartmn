@@ -11,6 +11,7 @@ import { useLocalGame } from "@/lib/local-game/store"
 import { broadcastSession } from "@/lib/local-game/sync"
 import type { LegThrow, LocalLeg } from "@/lib/local-game/types"
 import { getCheckout, IMPOSSIBLE_CHECKOUTS, VALID_DOUBLES, classifyTurn, isPossibleVisitScore } from "@/lib/local-game/checkouts"
+import { isLocalRrPhase, localX01Config } from "@/lib/local-game/x01"
 import { useScoreboardKeyboard } from "@/hooks/useScoreboardKeyboard"
 import { useCaller } from "@/hooks/useCaller"
 import { BullOff } from "@/components/game/BullOff"
@@ -30,7 +31,7 @@ export function Scoreboard() {
   const startMatch  = useLocalGame((s) => s.startMatch)
   const recordThrow = useLocalGame((s) => s.recordThrow)
   const completeLeg = useLocalGame((s) => s.completeLeg)
-  const completeMatch = useLocalGame((s) => s.completeMatch)
+  const forfeitMatch = useLocalGame((s) => s.forfeitMatch)
 
   const [mounted, setMounted]               = useState(false)
   const [input, setInput]                   = useState("")
@@ -49,7 +50,9 @@ export function Scoreboard() {
   const p2Id       = (match?.player2Id ?? "") as string
   const p1         = playerMap[p1Id]
   const p2         = playerMap[p2Id]
-  const legsToWin  = session?.firstTo ?? 1
+  const cfg = session && match ? localX01Config(session, isLocalRrPhase(session, match)) : { legsToWin: 1 }
+  const legsToWin  = cfg.legsToWin
+  const setsToWin  = cfg.setsToWin
   const limitRounds = session?.limitRounds ?? null
   const startScore  = session?.startScore ?? 501
 
@@ -135,17 +138,16 @@ export function Scoreboard() {
     })
 
     if (isCheckoutScore) {
-      completeLeg(sessionId, matchId, currentLegIndex, activePlayerId)
-      const newP1 = match.player1Legs + (activePlayerId === p1Id ? 1 : 0)
-      const newP2 = match.player2Legs + (activePlayerId === p2Id ? 1 : 0)
-      if (newP1 >= legsToWin || newP2 >= legsToWin) {
-        completeMatch(sessionId, matchId, activePlayerId)
+      const result = completeLeg(sessionId, matchId, currentLegIndex, activePlayerId)
+      if (result.matchComplete) {
         localStorage.removeItem(SCORER_KEY)
         toast.success(`${playerMap[activePlayerId]?.name} ялав!`)
         router.push(`/local/${sessionId}`)
         return
       }
-      toast.success(`Leg ${currentLegIndex + 1} — ${playerMap[activePlayerId]?.name} хожлоо!`)
+      toast.success(result.setCompleted
+        ? `Set — ${playerMap[activePlayerId]?.name} хожлоо!`
+        : `Leg ${currentLegIndex + 1} — ${playerMap[activePlayerId]?.name} хожлоо!`)
       setActivePlayer(p => p === 0 ? 1 : 0)
       setVisitRound(1)
     } else {
@@ -197,11 +199,8 @@ export function Scoreboard() {
 
   function declareWinner(winnerId: string) {
     setShowWinnerSelect(false)
-    completeLeg(sessionId, matchId, currentLegIndex, winnerId)
-    const newP1 = match!.player1Legs + (winnerId === p1Id ? 1 : 0)
-    const newP2 = match!.player2Legs + (winnerId === p2Id ? 1 : 0)
-    if (newP1 >= legsToWin || newP2 >= legsToWin) {
-      completeMatch(sessionId, matchId, winnerId)
+    const result = completeLeg(sessionId, matchId, currentLegIndex, winnerId)
+    if (result.matchComplete) {
       localStorage.removeItem(SCORER_KEY)
       toast.success(`${playerMap[winnerId]?.name} тэмцэнд ялав!`)
       router.push(`/local/${sessionId}`)
@@ -237,7 +236,7 @@ export function Scoreboard() {
       <div className="max-w-sm mx-auto space-y-4 pt-4">
         <div className="flex items-center gap-3">
           <button onClick={() => router.push(`/local/${sessionId}`)} className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-8 w-8")}><ArrowLeft className="h-4 w-4" /></button>
-          <div><p className="font-semibold text-sm">{p1.name} vs {p2.name}</p><p className="text-xs text-muted-foreground">{session.format} · First to {session.firstTo}</p></div>
+          <div><p className="font-semibold text-sm">{p1.name} vs {p2.name}</p><p className="text-xs text-muted-foreground">{session.format} · First to {setsToWin ? `${setsToWin} sets` : legsToWin}</p></div>
         </div>
         <Card className="border-border/50 bg-card/80">
           <CardContent className="p-6 space-y-4 text-center">
@@ -265,7 +264,7 @@ export function Scoreboard() {
       <div className="max-w-sm mx-auto space-y-4 pt-4">
         <div className="flex items-center gap-3">
           <button onClick={() => router.push(`/local/${sessionId}`)} className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "h-8 w-8")}><ArrowLeft className="h-4 w-4" /></button>
-          <div><p className="font-semibold text-sm">{p1.name} vs {p2.name}</p><p className="text-xs text-muted-foreground">{session.format} · First to {session.firstTo}</p></div>
+          <div><p className="font-semibold text-sm">{p1.name} vs {p2.name}</p><p className="text-xs text-muted-foreground">{session.format} · First to {setsToWin ? `${setsToWin} sets` : legsToWin}</p></div>
         </div>
         <Card className="border-border/50 bg-card/80"><CardContent className="p-5">
           <BullOff players={[{ id: p1Id, name: p1.name }, { id: p2Id, name: p2.name }]}
@@ -347,7 +346,7 @@ export function Scoreboard() {
       <div className="flex items-center gap-2 pt-2">
         <button onClick={() => router.push(`/local/${sessionId}`)} className="text-muted-foreground hover:text-foreground shrink-0"><ArrowLeft className="h-5 w-5" /></button>
         <p className="flex-1 text-center text-xs text-muted-foreground truncate">
-          {session.format.toUpperCase()} · {legsToWin} leg хожно · Leg {currentLegIndex + 1}
+          {session.format.toUpperCase()} · {setsToWin ? `${setsToWin} set хожно · ${legsToWin} leg/set` : `${legsToWin} leg хожно`} · Leg {currentLegIndex + 1}
           {limitRounds && <span className={cn("ml-1", visitRound >= limitRounds ? "text-destructive" : "")}>· R{visitRound}/{limitRounds}</span>}
         </p>
         {callerSupported && (
@@ -398,6 +397,15 @@ export function Scoreboard() {
             )
           })}
         </div>
+
+        {/* Sets row — зөвхөн setsEnabled үед */}
+        {setsToWin && (
+          <div className="flex items-center justify-center gap-3 bg-secondary/60 py-1 text-xs border-b border-border/30">
+            <span className={cn("font-black tabular-nums", activePlayer === 0 ? "text-primary" : "text-muted-foreground")}>{match.player1Sets ?? 0}</span>
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60">Sets</span>
+            <span className={cn("font-black tabular-nums", activePlayer === 1 ? "text-blue-400" : "text-muted-foreground")}>{match.player2Sets ?? 0}</span>
+          </div>
+        )}
 
         {/* Legs row */}
         <div className="flex items-center justify-center gap-3 bg-secondary/40 py-1 text-xs">
@@ -495,7 +503,7 @@ export function Scoreboard() {
         <div className="grid grid-cols-2 gap-2">
           {[{ id: p1Id, name: p1?.name }, { id: p2Id, name: p2?.name }].map(({ id, name }) => (
             <button key={id}
-              onClick={() => { completeMatch(sessionId, matchId, id); localStorage.removeItem(SCORER_KEY); toast.success(`${name} ялагч боллоо`); router.push(`/local/${sessionId}`) }}
+              onClick={() => { forfeitMatch(sessionId, matchId, id); localStorage.removeItem(SCORER_KEY); toast.success(`${name} ялагч боллоо`); router.push(`/local/${sessionId}`) }}
               className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-border/40 text-sm text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors">
               <Trophy className="h-3.5 w-3.5" />{name} ялав
             </button>

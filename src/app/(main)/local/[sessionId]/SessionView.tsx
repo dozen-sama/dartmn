@@ -21,6 +21,7 @@ import { fetchRemoteSession, broadcastSession, subscribeToSession } from "@/lib/
 import { BracketView } from "@/components/local-game/BracketView"
 import { BracketEditor } from "@/components/local-game/BracketEditor"
 import { VisitLimitPicker } from "@/components/game/VisitLimitPicker"
+import { STAGE_ICONS, STAGE_LABELS } from "@/lib/tournament/stage-types"
 import { toast } from "sonner"
 
 const BRACKET_LABELS: Record<string, string> = {
@@ -38,8 +39,10 @@ export function SessionView() {
   const importSession = useLocalGame((s) => s.importSession)
   const addSwissRound = useLocalGame((s) => s.addSwissRound)
   const advanceGroupsToKnockout = useLocalGame((s) => s.advanceGroupsToKnockout)
+  const advanceLocalStage = useLocalGame((s) => s.advanceLocalStage)
   const updateSession = useLocalGame((s) => s.updateSession)
   const [mounted, setMounted] = useState(false)
+  const [advancingStage, setAdvancingStage] = useState(false)
   useEffect(() => setMounted(true), [])
 
   // Edit state — initialized after mount (uses session values)
@@ -173,19 +176,49 @@ export function SessionView() {
     )
   }
 
-  const playerMap = Object.fromEntries(session.players.map((p) => [p.id, p]))
-  const pendingMatches = session.matches.filter((m) => m.status === "pending" && m.player1Id && m.player2Id && m.player1Id !== "bye" && m.player2Id !== "bye")
-  const ongoingMatches = session.matches.filter((m) => m.status === "ongoing")
-  const completedMatches = session.matches.filter((m) => m.status === "completed")
+  // Олон шаттай session: одоогийн идэвхтэй шатны match/group/player-үүдээр л рендерлэнэ
+  // (өмнөх шатны түүх session.matches/groups дотор хадгалагдсаар байна, зөвхөн display-г scope хийнэ)
+  const isMultiStage = !!session.stages?.length
+  const currentStageIdx = session.currentStageIndex ?? 0
+  const stageMatches = isMultiStage ? session.matches.filter((m) => (m.stageIndex ?? 0) === currentStageIdx) : session.matches
+  const stageGroups = isMultiStage ? session.groups.filter((g) => (g.stageIndex ?? 0) === currentStageIdx) : session.groups
+  const stagePlayerIds = new Set<string>()
+  stageMatches.forEach((m) => {
+    if (m.player1Id && m.player1Id !== "bye") stagePlayerIds.add(m.player1Id)
+    if (m.player2Id && m.player2Id !== "bye") stagePlayerIds.add(m.player2Id)
+  })
+  stageGroups.forEach((g) => g.playerIds.forEach((id) => stagePlayerIds.add(id)))
+  const stagePlayers = isMultiStage ? session.players.filter((p) => stagePlayerIds.has(p.id)) : session.players
+  const displaySession = isMultiStage ? { ...session, matches: stageMatches, groups: stageGroups, players: stagePlayers } : session
 
-  const rounds = [...new Set(session.matches.map((m) => m.round))].sort((a, b) => a - b)
+  const playerMap = Object.fromEntries(session.players.map((p) => [p.id, p]))
+  const pendingMatches = stageMatches.filter((m) => m.status === "pending" && m.player1Id && m.player2Id && m.player1Id !== "bye" && m.player2Id !== "bye")
+  const ongoingMatches = stageMatches.filter((m) => m.status === "ongoing")
+  const completedMatches = stageMatches.filter((m) => m.status === "completed")
+
+  const rounds = [...new Set(stageMatches.map((m) => m.round))].sort((a, b) => a - b)
   const allCurrentRoundDone = session.bracketType === "swiss"
-    ? pendingMatches.filter((m) => m.round === Math.max(...session.matches.map((m) => m.round))).length === 0
+    ? pendingMatches.filter((m) => m.round === Math.max(...stageMatches.map((m) => m.round))).length === 0
     : false
 
-  const groupStageComplete = session.bracketType === "groups_knockout"
+  const groupStageComplete = !isMultiStage && session.bracketType === "groups_knockout"
     && session.phase === "group_stage"
     && session.matches.filter((m) => m.round < 100 && m.player1Id !== "bye" && m.player2Id !== "bye").every((m) => m.status === "completed")
+
+  // Multi-stage: одоогийн шатны бүх match дуусаад, сүүлийн шат биш бол дараагийн шатанд шилжих боломжтой
+  const currentStage = session.stages?.[currentStageIdx]
+  const hasNextStage = isMultiStage && currentStageIdx < (session.stages?.length ?? 0) - 1
+  const currentStageComplete = isMultiStage
+    && stageMatches.filter((m) => m.player1Id && m.player2Id && m.player1Id !== "bye" && m.player2Id !== "bye").every((m) => m.status === "completed")
+    && stageMatches.length > 0
+
+  async function handleAdvanceStage() {
+    setAdvancingStage(true)
+    const result = advanceLocalStage(sessionId)
+    if (result.error) toast.error(result.error)
+    else toast.success("Дараагийн шат эхэллээ!")
+    setAdvancingStage(false)
+  }
 
   function pName(id: string | "bye" | null): string {
     if (!id) return "Тодорхойгүй"
@@ -226,30 +259,47 @@ export function SessionView() {
         <div className="w-20" />
       </div>
 
+      {/* Multi-stage: одоогийн шат + дараагийн шатанд шилжих */}
+      {isMultiStage && currentStage && (
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-border/50 bg-secondary/20 px-3 py-2">
+          <p className="text-xs text-muted-foreground">
+            Шат {currentStageIdx + 1}/{session.stages!.length} · {STAGE_ICONS[currentStage.stage_type]} {STAGE_LABELS[currentStage.stage_type]}
+          </p>
+          {hasNextStage && currentStageComplete && session.status === "active" && (
+            <Button size="sm" className="glow-primary" disabled={advancingStage} onClick={handleAdvanceStage}>
+              <ChevronRight className="h-4 w-4 mr-1.5" />
+              Дараагийн шатанд шилжих
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* n01-style action buttons */}
-      <div className="space-y-2">
-        {/* Edit Bracket (green) — in session шатанд */}
-        {(session.phase === "in_session" || session.phase === "group_stage" || session.phase === "knockout" || session.phase === "setup") && session.status === "active" && (
-          <div className="space-y-2">
-            {/* Swiss: add round */}
-            {session.bracketType === "swiss" && allCurrentRoundDone && (
-              <Button size="sm" variant="outline" className="border-primary/30 text-primary hover:bg-primary/10 w-full"
-                onClick={() => { addSwissRound(sessionId); toast.success("Шинэ Swiss round нэмэгдлээ") }}>
-                <RotateCcw className="h-4 w-4 mr-1.5" />
-                Дараагийн round нэмэх
-              </Button>
-            )}
-            {/* Groups → Knockout */}
-            {groupStageComplete && (
-              <Button size="sm" className="glow-primary w-full"
-                onClick={() => { advanceGroupsToKnockout(sessionId); toast.success("Knockout шат эхэллээ!") }}>
-                <ChevronRight className="h-4 w-4 mr-1.5" />
-                Knockout эхлүүлэх
-              </Button>
-            )}
-          </div>
-        )}
-      </div>
+      {!isMultiStage && (
+        <div className="space-y-2">
+          {/* Edit Bracket (green) — in session шатанд */}
+          {(session.phase === "in_session" || session.phase === "group_stage" || session.phase === "knockout" || session.phase === "setup") && session.status === "active" && (
+            <div className="space-y-2">
+              {/* Swiss: add round */}
+              {session.bracketType === "swiss" && allCurrentRoundDone && (
+                <Button size="sm" variant="outline" className="border-primary/30 text-primary hover:bg-primary/10 w-full"
+                  onClick={() => { addSwissRound(sessionId); toast.success("Шинэ Swiss round нэмэгдлээ") }}>
+                  <RotateCcw className="h-4 w-4 mr-1.5" />
+                  Дараагийн round нэмэх
+                </Button>
+              )}
+              {/* Groups → Knockout */}
+              {groupStageComplete && (
+                <Button size="sm" className="glow-primary w-full"
+                  onClick={() => { advanceGroupsToKnockout(sessionId); toast.success("Knockout шат эхэллээ!") }}>
+                  <ChevronRight className="h-4 w-4 mr-1.5" />
+                  Knockout эхлүүлэх
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Old-style badges (compact) */}
       <div className="flex flex-wrap items-center gap-2">
@@ -318,12 +368,12 @@ export function SessionView() {
 
         {/* Bracket */}
         <TabsContent value="bracket" className="mt-4">
-          <BracketView session={session} sessionId={sessionId} />
+          <BracketView session={displaySession} sessionId={sessionId} />
         </TabsContent>
 
         {/* Edit Bracket */}
         <TabsContent value="edit-bracket" className="mt-4">
-          <BracketEditor session={session} sessionId={sessionId} />
+          <BracketEditor session={displaySession} sessionId={sessionId} />
         </TabsContent>
 
         {/* Schedule */}
@@ -338,7 +388,9 @@ export function SessionView() {
             if (roundMatches.length === 0) return null
 
             const isKnockoutRound = round >= 100
-            const roundLabel = isKnockoutRound
+            const roundLabel = round === 998
+              ? "3-р байрны тоглолт"
+              : isKnockoutRound
               ? round === 99 ? "Их Финал"
                 : `Knockout шат ${round - 99}`
               : session.bracketType === "single_elimination" || session.bracketType === "double_elimination"
@@ -428,7 +480,7 @@ export function SessionView() {
         <TabsContent value="standings" className="mt-4">
           {session.bracketType === "groups_knockout" ? (
             <div className="space-y-4">
-              {session.groups.map((group) => (
+              {stageGroups.map((group) => (
                 <Card key={group.id} className="border-border/50 bg-card/80">
                   <CardHeader className="pb-2 pt-4 px-4">
                     <CardTitle className="text-sm">{group.name}</CardTitle>
@@ -448,7 +500,7 @@ export function SessionView() {
             <Card className="border-border/50 bg-card/80">
               <CardContent className="p-0">
                 <StandingsTable
-                  playerIds={session.players.map((p) => p.id)}
+                  playerIds={stagePlayers.map((p) => p.id)}
                   standings={session.standings}
                   playerMap={playerMap}
                 />

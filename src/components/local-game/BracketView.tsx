@@ -237,12 +237,17 @@ function EliminationBracket({ matches, playerMap, sessionId, firstTo, setsEnable
 }) {
   const legLabel = setsEnabled ? "Sets" : "Legs"
 
+  // 3-р байрны тоглолт (round 998) — үндсэн bracket-ийн round grouping-д оруулахгүй,
+  // доор нь тусад нь харуулна
+  const thirdPlaceMatch = matches.find((m) => m.round === 998)
+  const bracketMatches = matches.filter((m) => m.round !== 998)
+
   const winnerRounds = [...new Set(
-    matches.filter((m) => !m.isLosersBracket).map((m) => m.round)
+    bracketMatches.filter((m) => !m.isLosersBracket).map((m) => m.round)
   )].sort((a, b) => a - b)
 
   const loserRounds = [...new Set(
-    matches.filter((m) => m.isLosersBracket).map((m) => m.round)
+    bracketMatches.filter((m) => m.isLosersBracket).map((m) => m.round)
   )].sort((a, b) => a - b)
 
   const totalWinnerRounds = winnerRounds.length
@@ -259,7 +264,7 @@ function EliminationBracket({ matches, playerMap, sessionId, firstTo, setsEnable
   const winnerMatchesByRound = winnerRounds.map((r, idx) => ({
     round: r,
     label: getRoundLabel(idx, totalWinnerRounds),
-    matches: matches.filter((m) => !m.isLosersBracket && m.round === r),
+    matches: bracketMatches.filter((m) => !m.isLosersBracket && m.round === r),
   }))
 
   return (
@@ -304,7 +309,7 @@ function EliminationBracket({ matches, playerMap, sessionId, firstTo, setsEnable
           <p className="text-xs font-semibold text-muted-foreground mb-3">Losers Bracket</p>
           <div className="flex gap-0 min-w-max">
             {loserRounds.map((r, i) => {
-              const lMatches = matches.filter((m) => m.isLosersBracket && m.round === r)
+              const lMatches = bracketMatches.filter((m) => m.isLosersBracket && m.round === r)
               return (
                 <div key={r} className="flex">
                   <div className="flex flex-col min-w-[160px]">
@@ -323,6 +328,15 @@ function EliminationBracket({ matches, playerMap, sessionId, firstTo, setsEnable
                 </div>
               )
             })}
+          </div>
+        </div>
+      )}
+
+      {thirdPlaceMatch && (
+        <div className="mt-6 pt-4 border-t border-border/40">
+          <p className="text-xs font-semibold text-muted-foreground mb-3">3-р байрны тоглолт</p>
+          <div style={{ maxWidth: 160 }}>
+            <MatchSlot match={thirdPlaceMatch} playerMap={playerMap} sessionId={sessionId} />
           </div>
         </div>
       )}

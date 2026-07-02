@@ -1,12 +1,13 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Trophy, Wifi, WifiOff } from "lucide-react"
+import { ArrowLeft, Maximize2, Minimize2, Trophy, Wifi, WifiOff } from "lucide-react"
 import { useLocalGame } from "@/lib/local-game/store"
 import { fetchRemoteSession, subscribeToSession } from "@/lib/local-game/sync"
 import { getCheckout } from "@/lib/local-game/checkouts"
+import { isLocalRrPhase, localX01Config } from "@/lib/local-game/x01"
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
 import type { LocalLeg, LegThrow, LocalSession } from "@/lib/local-game/types"
@@ -15,7 +16,25 @@ export function LiveView() {
   const { sessionId, matchId } = useParams<{ sessionId: string; matchId: string }>()
   const [mounted, setMounted] = useState(false)
   const tableRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const rowRefs = useRef<(HTMLDivElement | null)[]>([])
+  const [highlight, setHighlight] = useState({ left: 0, width: 0 })
+  const [isFullscreen, setIsFullscreen] = useState(false)
   const [syncStatus, setSyncStatus] = useState<"synced" | "none">("none")
+
+  useEffect(() => {
+    const onFsChange = () => setIsFullscreen(document.fullscreenElement === containerRef.current)
+    document.addEventListener("fullscreenchange", onFsChange)
+    return () => document.removeEventListener("fullscreenchange", onFsChange)
+  }, [])
+
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen()
+    } else {
+      containerRef.current?.requestFullscreen()
+    }
+  }, [])
 
   // liveSession: Supabase/storage-аас ирсэн шинэ өгөгдөл (Zustand bypas)
   // localSession: нэг device-ийн Zustand (initial fallback)
@@ -74,6 +93,20 @@ export function LiveView() {
     if (tableRef.current) tableRef.current.scrollTop = tableRef.current.scrollHeight
   })
 
+  const match = session?.matches.find((m) => m.id === matchId)
+  const isOngoingForHighlight = match?.status === "ongoing"
+  const curLegForHighlight = match?.legs[match.legs.filter((l) => l.winnerId !== null).length]
+  const p1CtForHighlight = (curLegForHighlight?.throws?.[match?.player1Id as string] ?? []).length
+  const p2CtForHighlight = (curLegForHighlight?.throws?.[match?.player2Id as string] ?? []).length
+  const activeSide: 0 | 1 = p1CtForHighlight <= p2CtForHighlight ? 0 : 1
+
+  // Идэвхтэй тоглогчийн highlight-ыг баганын хооронд зөөлөн шилжүүлнэ (MatchLiveView.tsx-тэй ижил дизайн)
+  useEffect(() => {
+    if (!isOngoingForHighlight) return
+    const el = rowRefs.current[activeSide]
+    if (el) setHighlight({ left: el.offsetLeft, width: el.offsetWidth })
+  }, [activeSide, isOngoingForHighlight])
+
   if (!mounted) return (
     <div className="flex items-center justify-center min-h-screen bg-slate-950">
       <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
@@ -87,8 +120,6 @@ export function LiveView() {
       <Link href="/local" className={cn(buttonVariants({ variant: "ghost" }), "text-white/40 text-sm")}>Буцах</Link>
     </div>
   )
-
-  const match = session.matches.find((m) => m.id === matchId)
   if (!match) return <div className="flex items-center justify-center min-h-screen bg-slate-950"><p className="text-white/50">Match олдсонгүй</p></div>
 
   const playerMap = Object.fromEntries(session.players.map((p) => [p.id, p]))
@@ -97,7 +128,9 @@ export function LiveView() {
   const p1 = playerMap[p1Id]
   const p2 = playerMap[p2Id]
   const startScore  = session.startScore || 501
-  const legsToWin   = session.firstTo || 1
+  const cfg = localX01Config(session, isLocalRrPhase(session, match))
+  const legsToWin   = cfg.legsToWin
+  const setsToWin   = cfg.setsToWin
   const limitRounds = session.limitRounds ?? null
 
   const completedLegs = match.legs.filter((l) => l.winnerId !== null).length
@@ -164,7 +197,7 @@ export function LiveView() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col select-none">
+    <div ref={containerRef} className="min-h-screen bg-slate-950 text-white flex flex-col select-none">
 
       {/* ── Top bar ── */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/10 shrink-0">
@@ -173,7 +206,9 @@ export function LiveView() {
         </Link>
         <div className="text-center">
           <p className="text-xs font-bold text-white/80">{session.name}</p>
-          <p className="text-[10px] text-white/30 uppercase tracking-widest">{session.format} · BO{session.firstTo}</p>
+          <p className="text-[10px] text-white/30 uppercase tracking-widest">
+            {session.format} · {setsToWin ? `BO${setsToWin} sets` : `BO${legsToWin}`}
+          </p>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="flex items-center gap-1.5">
@@ -192,6 +227,9 @@ export function LiveView() {
             </span>
           )}
           {isCompleted && <span className="text-[11px] font-bold text-green-400">ДУУССАН</span>}
+          <button onClick={toggleFullscreen} className="text-white/40 hover:text-white shrink-0">
+            {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+          </button>
         </div>
         </div>
       </div>
@@ -202,6 +240,15 @@ export function LiveView() {
           <Trophy className="h-5 w-5 text-yellow-400" />
           <p className="font-black text-yellow-400 text-lg">{playerMap[match.winnerId]?.name} — Ялагч!</p>
           <Trophy className="h-5 w-5 text-yellow-400" />
+        </div>
+      )}
+
+      {/* ── Sets row — зөвхөн setsToWin тохиргоотой үед ── */}
+      {setsToWin && (
+        <div className="flex items-center justify-center gap-3 px-4 py-1.5 border-b border-white/10 shrink-0 bg-white/5 text-xs">
+          <span className={cn("font-black tabular-nums", activeId === p1Id ? "text-primary" : "text-white/40")}>{match.player1Sets ?? 0}</span>
+          <span className="text-[10px] uppercase tracking-widest text-white/30">Sets</span>
+          <span className={cn("font-black tabular-nums", activeId === p2Id ? "text-primary" : "text-white/40")}>{match.player2Sets ?? 0}</span>
         </div>
       )}
 
@@ -243,15 +290,24 @@ export function LiveView() {
       </div>
 
       {/* ── Main: big remaining + stats ── */}
-      <div className="grid grid-cols-2 divide-x divide-white/10 shrink-0">
+      <div className="relative grid grid-cols-2 divide-x divide-white/10 shrink-0">
+        {/* Идэвхтэй тоглогчийн highlight-ыг баганын хооронд зөөлөн шилжүүлнэ */}
+        <div
+          className="absolute inset-y-0 bg-primary/5 transition-[transform,width,opacity] duration-300 ease-out pointer-events-none"
+          style={{
+            transform: `translateX(${highlight.left}px)`,
+            width: highlight.width || undefined,
+            opacity: isOngoing ? 1 : 0,
+          }}
+        />
         {[
           { id: p1Id, player: p1, rem: rem1, co: co1, last: last1, avg: getCurrentAvg(p1Throws) },
           { id: p2Id, player: p2, rem: rem2, co: co2, last: last2, avg: getCurrentAvg(p2Throws) },
-        ].map(({ id, player, rem, co, last, avg }) => {
+        ].map(({ id, player, rem, co, last, avg }, idx) => {
           const isActive = id === activeId && isOngoing
           const isWinner = isCompleted && match.winnerId === id
           return (
-            <div key={id} className={cn("flex flex-col items-center py-5 px-3 relative transition-all", isActive ? "bg-primary/5" : "")}>
+            <div key={id} ref={(el) => { rowRefs.current[idx] = el }} className="relative flex flex-col items-center py-5 px-3 transition-all">
               {isActive && (
                 <div className="absolute top-3 flex items-center gap-1 bg-primary/20 rounded-full px-2.5 py-0.5 border border-primary/30">
                   <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />

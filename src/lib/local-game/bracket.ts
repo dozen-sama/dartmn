@@ -5,7 +5,10 @@ function newId() { return `m${Date.now()}${++_idCounter}` }
 function newGroupId() { return `g${Date.now()}${++_idCounter}` }
 
 // ── Single Elimination ────────────────────────────────────────────
-export function generateSingleElimination(players: LocalPlayer[]): LocalMatch[] {
+// 3-р байрны тоглолт (round=998, matchNumber=998): 2 semifinal-ийн ялагдагчид
+// тоглоно. Semifinal гэдгийг "дараагийн (сүүлийн) финал match-д шууд орох 2
+// match" гэж тодорхойлно — bracket-ийн хэмжээнээс үл хамааран зөв ажиллана.
+export function generateSingleElimination(players: LocalPlayer[], thirdPlace = false): LocalMatch[] {
   const size = nextPowerOf2(players.length)
   const seeded = [...players].sort((a, b) => a.seed - b.seed)
   const slots: (string | "bye")[] = seeded.map((p) => p.id)
@@ -24,6 +27,7 @@ export function generateSingleElimination(players: LocalPlayer[]): LocalMatch[] 
 
   // Subsequent rounds — placeholder matches
   let prev = r1
+  let semifinals: LocalMatch[] = []
   while (prev.length > 1) {
     round++
     const next: LocalMatch[] = []
@@ -34,8 +38,20 @@ export function generateSingleElimination(players: LocalPlayer[]): LocalMatch[] 
       next.push(m)
     }
     matches.push(...next)
+    if (next.length === 1) semifinals = prev
     prev = next
   }
+
+  if (thirdPlace && semifinals.length === 2) {
+    // round=998 (matchNumber-ээс үл хамааран) 3-р байрны тоглолтыг бусад round-оос
+    // тодорхой ялгаж, "финал"-ийн round grouping-д (bracket render, finalMatch
+    // тооцоо) орохоос сэргийлнэ — online-ийн round=998 конвенцтой ижил.
+    const bronze = makeMatch(998, matchNumber++, null, null)
+    semifinals[0].nextLoserMatchId = bronze.id
+    semifinals[1].nextLoserMatchId = bronze.id
+    matches.push(bronze)
+  }
+
   return matches
 }
 
@@ -252,6 +268,8 @@ function makeMatch(round: number, matchNumber: number, p1: string | "bye" | null
     player2Id: p2,
     player1Legs: 0,
     player2Legs: 0,
+    player1Sets: 0,
+    player2Sets: 0,
     winnerId: null,
     loserId: null,
     status: "pending",
@@ -276,16 +294,26 @@ function initStandings(players: LocalPlayer[]): Record<string, StandingRow> {
   return standings
 }
 
+// useSets: true бол legsWon/legsLost-д leg-ийн оронд SET дүнг ашиглана (sets горимд
+// bracket/standings-ийн diff тооцоолол sets-ээр байх ёстой, online-той ижил дизайн)
 export function updateStandings(
   standings: Record<string, StandingRow>,
-  match: LocalMatch
+  match: LocalMatch,
+  useSets = false
 ): Record<string, StandingRow> {
   if (!match.winnerId || !match.loserId) return standings
   const s = { ...standings }
   const w = s[match.winnerId]
   const l = s[match.loserId]
   if (!w || !l) return standings
-  s[match.winnerId] = { ...w, played: w.played + 1, won: w.won + 1, legsWon: w.legsWon + match.player1Legs, legsLost: w.legsLost + match.player2Legs, points: w.points + 2 }
-  s[match.loserId] = { ...l, played: l.played + 1, lost: l.lost + 1, legsWon: l.legsWon + match.player2Legs, legsLost: l.legsLost + match.player1Legs }
+  const isP1Winner = match.winnerId === match.player1Id
+  const winnerScore = useSets
+    ? (isP1Winner ? match.player1Sets ?? 0 : match.player2Sets ?? 0)
+    : (isP1Winner ? match.player1Legs : match.player2Legs)
+  const loserScore = useSets
+    ? (isP1Winner ? match.player2Sets ?? 0 : match.player1Sets ?? 0)
+    : (isP1Winner ? match.player2Legs : match.player1Legs)
+  s[match.winnerId] = { ...w, played: w.played + 1, won: w.won + 1, legsWon: w.legsWon + winnerScore, legsLost: w.legsLost + loserScore, points: w.points + 2 }
+  s[match.loserId] = { ...l, played: l.played + 1, lost: l.lost + 1, legsWon: l.legsWon + loserScore, legsLost: l.legsLost + winnerScore }
   return s
 }

@@ -1,3 +1,5 @@
+import type { TournamentStage } from "@/lib/tournament/stage-types"
+
 export type GameFormat = "501" | "301" | "170" | "121"
 export type BracketType = "single_elimination" | "double_elimination" | "round_robin" | "groups_knockout" | "swiss"
 export type MatchStatus = "pending" | "ongoing" | "completed"
@@ -44,6 +46,8 @@ export interface LocalMatch {
   player2Id: string | "bye" | null
   player1Legs: number
   player2Legs: number
+  player1Sets: number
+  player2Sets: number
   winnerId: string | null
   loserId: string | null
   status: MatchStatus
@@ -51,12 +55,14 @@ export interface LocalMatch {
   isLosersBracket?: boolean
   nextMatchId?: string | null
   nextLoserMatchId?: string | null
+  stageIndex?: number  // олон шаттай session-д: session.stages[stageIndex]-д харьяалагдана
 }
 
 export interface LocalGroup {
   id: string
   name: string
   playerIds: string[]
+  stageIndex?: number  // олон шаттай session-д: session.stages[stageIndex]-д харьяалагдана
 }
 
 export interface StandingRow {
@@ -131,6 +137,10 @@ export interface LocalSession {
   phase: SessionPhase
   status: "active" | "completed"
   winnerId: string | null
+
+  // Олон шаттай тэмцээн (сонголтоор) — байхгүй/хоосон бол ганц-bracket горим
+  stages?: TournamentStage[]
+  currentStageIndex?: number
 }
 
 export interface SessionSummary {

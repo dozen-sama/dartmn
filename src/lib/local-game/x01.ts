@@ -1,4 +1,5 @@
 import { classifyTurn } from "./checkouts"
+import type { LocalMatch, LocalSession } from "./types"
 
 // x01 онооны engine — Together БА Online хоёр хуваалцана. Зөвхөн points+darts-аас
 // (event-sourced) үлдсэн оноо/bust/checkout/leg/winner-ийг replay-ээр гаргана.
@@ -51,6 +52,26 @@ export function x01LegsConfig(room: { best_of: number; legs_per_set: number | nu
     return { legsToWin: Math.ceil(room.legs_per_set / 2), setsToWin: Math.ceil(room.best_of / 2) }
   }
   return { legsToWin: Math.ceil(room.best_of / 2) }
+}
+
+// match.round-оос тухайн match RR (бүлгийн) шат мөн эсэхийг тодорхойлно.
+// groups_knockout: round<100 бол group stage (RR тохиргоо), round>=100 бол KO.
+// round_robin/swiss: бүх match RR тохиргоотой. single/double_elimination: үргэлж KO.
+export function isLocalRrPhase(session: Pick<LocalSession, "bracketType">, match: Pick<LocalMatch, "round">): boolean {
+  if (session.bracketType === "groups_knockout") return match.round < 100
+  return session.bracketType === "round_robin" || session.bracketType === "swiss"
+}
+
+// Local session-ий rr*/KO талбаруудаас (аль хэдийн "first to N" утга, best_of биш)
+// deriveX01/Scoreboard-д хэрэглэх { legsToWin, setsToWin? }-г гаргаж өгнө.
+export function localX01Config(session: LocalSession, isRrPhase: boolean): { legsToWin: number; setsToWin?: number } {
+  const setsEnabled = isRrPhase ? session.rrSetsEnabled : session.setsEnabled
+  const legsPerSet = isRrPhase ? session.rrLegsPerSet : session.legsPerSet
+  const firstTo = isRrPhase ? session.rrFirstTo : session.firstTo
+  if (setsEnabled) {
+    return { legsToWin: Math.max(1, legsPerSet), setsToWin: Math.max(1, firstTo) }
+  }
+  return { legsToWin: Math.max(1, firstTo) }
 }
 
 export function deriveX01(visits: X01Visit[], cfg: X01Config): X01State {

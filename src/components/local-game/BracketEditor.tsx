@@ -81,9 +81,12 @@ export function BracketEditor({ session, sessionId }: Props) {
   }
 
   // ── ROUND ROBIN / GROUPS: group assignment editor
+  // round 998 (3-р байрны тоглолт) groups_knockout-ийн KO шат биш тул хасна —
+  // players нь эцэст нь (semifinal дуусахад) автоматаар нөхөгддөг, гараар
+  // тохируулах шаардлагагүй
   const hasGroups = session.groups.length > 0
-  const hasKnockout = session.matches.some((m) => m.round >= 100)
-  const koMatches = session.matches.filter((m) => m.round >= 100).sort((a, b) => a.round - b.round || a.matchNumber - b.matchNumber)
+  const hasKnockout = session.matches.some((m) => m.round >= 100 && m.round !== 998)
+  const koMatches = session.matches.filter((m) => m.round >= 100 && m.round !== 998).sort((a, b) => a.round - b.round || a.matchNumber - b.matchNumber)
   const koRounds = [...new Set(koMatches.map((m) => m.round))].sort((a, b) => a - b)
   const maxKoRound = koRounds.length > 0 ? Math.max(...koRounds) : 0
 
