@@ -61,7 +61,7 @@ export function computeStandings(
 // Стандарт bracket seeding позиц: size слот бүрт ямар seed (1-indexed) орохыг
 // гаргана. Дээд seed нь хамгийн доод seed-тэй (эсвэл bye-тэй) тулна → bye-ууд дээд
 // seed-үүдэд хуваарилагдаж, хоосон-хоосон (гацдаг) match үүсэхгүй.
-function seedPositions(size: number): number[] {
+export function seedPositions(size: number): number[] {
   let pos = [1]
   while (pos.length < size) {
     const sum = pos.length * 2 + 1

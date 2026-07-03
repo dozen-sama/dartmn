@@ -1,4 +1,12 @@
 import { LocalMatch, LocalPlayer, LocalGroup, StandingRow, BracketType } from "./types"
+import { seedPositions } from "@/lib/tournament/standings"
+
+// seed-ээр эрэмбэлсэн players массиваас стандарт bracket слот дараалал (bye-ууд
+// дээд seed-үүдэд тэнцүү тархаж, bye-bye (гацдаг) match үүсэхгүй) гаргана.
+function seededSlots(players: LocalPlayer[], size: number): (string | "bye")[] {
+  const seeded = [...players].sort((a, b) => a.seed - b.seed)
+  return seedPositions(size).map((rank) => seeded[rank - 1]?.id ?? "bye")
+}
 
 let _idCounter = 0
 function newId() { return `m${Date.now()}${++_idCounter}` }
@@ -10,9 +18,7 @@ function newGroupId() { return `g${Date.now()}${++_idCounter}` }
 // match" гэж тодорхойлно — bracket-ийн хэмжээнээс үл хамааран зөв ажиллана.
 export function generateSingleElimination(players: LocalPlayer[], thirdPlace = false): LocalMatch[] {
   const size = nextPowerOf2(players.length)
-  const seeded = [...players].sort((a, b) => a.seed - b.seed)
-  const slots: (string | "bye")[] = seeded.map((p) => p.id)
-  while (slots.length < size) slots.push("bye")
+  const slots = seededSlots(players, size)
 
   const matches: LocalMatch[] = []
   let round = 1
@@ -59,9 +65,7 @@ export function generateSingleElimination(players: LocalPlayer[], thirdPlace = f
 export function generateDoubleElimination(players: LocalPlayer[]): LocalMatch[] {
   // Simplified: generate winners bracket + losers bracket stubs
   const size = nextPowerOf2(players.length)
-  const seeded = [...players].sort((a, b) => a.seed - b.seed)
-  const slots: (string | "bye")[] = seeded.map((p) => p.id)
-  while (slots.length < size) slots.push("bye")
+  const slots = seededSlots(players, size)
 
   const matches: LocalMatch[] = []
   let matchNumber = 1

@@ -267,14 +267,31 @@ function EliminationBracket({ matches, playerMap, sessionId, firstTo, setsEnable
     matches: bracketMatches.filter((m) => !m.isLosersBracket && m.round === r),
   }))
 
+  // Round бүрийн дотоод зай (gap) болон эхний match-ийн дээд offset-ийг
+  // recursively тооцно: round r+1-ийн match бүр өмнөх round-ийн 2 match-аас
+  // бүрдэх хосын дунд цэгт яг тулгарч зогсоно (bracket мод зөв "нэхмэл" болно).
+  const matchHeight = 72
+  const baseGap = 8
+  const roundLayout: { gap: number; offsetTop: number }[] = []
+  {
+    let gap = baseGap
+    let offsetTop = 0
+    for (let i = 0; i < winnerMatchesByRound.length; i++) {
+      if (i > 0) {
+        const prevStep = matchHeight + gap
+        gap = matchHeight + 2 * gap
+        offsetTop += prevStep / 2
+      }
+      roundLayout.push({ gap, offsetTop })
+    }
+  }
+
   return (
     <div className="overflow-x-auto pb-2">
       <div className="flex gap-0 min-w-max">
         {winnerMatchesByRound.map(({ round, label, matches: roundMatches }, roundIdx) => {
           const isLast = roundIdx === winnerMatchesByRound.length - 1
-          const prevCount = roundIdx > 0 ? winnerMatchesByRound[roundIdx - 1].matches.length : roundMatches.length * 2
-          const matchHeight = 72
-          const gap = roundIdx === 0 ? 8 : (prevCount / roundMatches.length - 1) * matchHeight + 8
+          const { gap, offsetTop } = roundLayout[roundIdx]
 
           return (
             <div key={round} className="flex">
@@ -283,7 +300,7 @@ function EliminationBracket({ matches, playerMap, sessionId, firstTo, setsEnable
                   <p className="text-xs font-semibold text-foreground/80">{label}</p>
                   <p className="text-[10px] text-muted-foreground">First to {firstTo} {legLabel}</p>
                 </div>
-                <div className="flex flex-col" style={{ gap }}>
+                <div className="flex flex-col" style={{ gap, marginTop: offsetTop }}>
                   {roundMatches.map((match) => (
                     <MatchSlot key={match.id} match={match} playerMap={playerMap} sessionId={sessionId} />
                   ))}
@@ -294,9 +311,7 @@ function EliminationBracket({ matches, playerMap, sessionId, firstTo, setsEnable
                   matchCount={roundMatches.length}
                   matchHeight={matchHeight}
                   gap={gap}
-                  nextGap={roundIdx + 1 < winnerMatchesByRound.length - 1
-                    ? (roundMatches.length / winnerMatchesByRound[roundIdx + 1].matches.length - 1) * matchHeight + 8
-                    : gap}
+                  offsetTop={offsetTop}
                 />
               )}
             </div>
@@ -323,7 +338,7 @@ function EliminationBracket({ matches, playerMap, sessionId, firstTo, setsEnable
                     </div>
                   </div>
                   {i < loserRounds.length - 1 && (
-                    <BracketConnector matchCount={lMatches.length} matchHeight={56} gap={8} nextGap={8} />
+                    <BracketConnector matchCount={lMatches.length} matchHeight={56} gap={8} />
                   )}
                 </div>
               )
@@ -413,15 +428,15 @@ function MatchSlot({ match: m, playerMap, sessionId, compact = false }: {
 
 // ── Bracket connector lines ───────────────────────────────────────────────────
 
-function BracketConnector({ matchCount, matchHeight, gap, nextGap }: {
-  matchCount: number; matchHeight: number; gap: number; nextGap: number
+function BracketConnector({ matchCount, matchHeight, gap, offsetTop = 0 }: {
+  matchCount: number; matchHeight: number; gap: number; offsetTop?: number
 }) {
   const pairs = matchCount / 2
   const pairHeight = matchHeight * 2 + gap
   return (
-    <div className="flex flex-col relative" style={{ width: 24 }}>
+    <div className="flex flex-col relative" style={{ width: 24, marginTop: offsetTop }}>
       {Array.from({ length: pairs }).map((_, i) => (
-        <div key={i} className="relative" style={{ height: pairHeight, marginBottom: i < pairs - 1 ? nextGap : 0 }}>
+        <div key={i} className="relative" style={{ height: pairHeight, marginBottom: i < pairs - 1 ? gap : 0 }}>
           <div className="absolute right-0 bg-border/60" style={{ width: 2, top: matchHeight / 2, height: (pairHeight - matchHeight) / 2 }} />
           <div className="absolute right-0 bg-border/60" style={{ width: 2, top: pairHeight / 2, height: (pairHeight - matchHeight) / 2 }} />
           <div className="absolute bg-border/60" style={{ height: 2, right: 0, left: 0, top: pairHeight / 2 - 1 }} />

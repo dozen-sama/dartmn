@@ -693,17 +693,35 @@ function OnlineEliminationBracket({ matches, entrants, myEntrant, isOrganizer, b
   }
 
   const matchH = 72
+  const baseGap = 8
+  const roundMatchesByRound = rounds.map((round) =>
+    matches.filter((m) => m.round === round).sort((a, b) => a.match_number - b.match_number)
+  )
+
+  // Round бүрийн дотоод зай (gap) болон эхний match-ийн дээд offset-ийг
+  // recursively тооцно: round r+1-ийн match бүр өмнөх round-ийн 2 match-аас
+  // бүрдэх хосын дунд цэгт яг тулгарч зогсоно (bracket мод зөв "нэхмэл" болно).
+  const roundLayout: { gap: number; offsetTop: number }[] = []
+  {
+    let gap = baseGap
+    let offsetTop = 0
+    for (let i = 0; i < rounds.length; i++) {
+      if (i > 0) {
+        const prevStep = matchH + gap
+        gap = matchH + 2 * gap
+        offsetTop += prevStep / 2
+      }
+      roundLayout.push({ gap, offsetTop })
+    }
+  }
 
   return (
     <div className="overflow-x-auto pb-2">
       <div className="flex gap-0 min-w-max">
         {rounds.map((round, roundIdx) => {
-          const roundMatches = matches.filter((m) => m.round === round).sort((a, b) => a.match_number - b.match_number)
+          const roundMatches = roundMatchesByRound[roundIdx]
           const isLast = roundIdx === rounds.length - 1
-          const prevCount = roundIdx > 0
-            ? matches.filter((m) => m.round === rounds[roundIdx - 1]).length
-            : roundMatches.length * 2
-          const gap = roundIdx === 0 ? 8 : (prevCount / roundMatches.length - 1) * matchH + 8
+          const { gap, offsetTop } = roundLayout[roundIdx]
 
           return (
             <div key={round} className="flex">
@@ -711,7 +729,7 @@ function OnlineEliminationBracket({ matches, entrants, myEntrant, isOrganizer, b
                 <div className="text-center pb-2 px-2">
                   <p className="text-xs font-semibold text-foreground/80">{getRoundLabel(roundIdx)}</p>
                 </div>
-                <div className="flex flex-col" style={{ gap }}>
+                <div className="flex flex-col" style={{ gap, marginTop: offsetTop }}>
                   {roundMatches.map((m) => (
                     <OnlineMatchSlot
                       key={m.id}
@@ -730,9 +748,7 @@ function OnlineEliminationBracket({ matches, entrants, myEntrant, isOrganizer, b
                   matchCount={roundMatches.length}
                   matchHeight={matchH}
                   gap={gap}
-                  nextGap={roundIdx + 1 < rounds.length - 1
-                    ? (roundMatches.length / matches.filter((m) => m.round === rounds[roundIdx + 1]).length - 1) * matchH + 8
-                    : gap}
+                  offsetTop={offsetTop}
                 />
               )}
             </div>
@@ -819,15 +835,15 @@ function OnlineMatchSlot({ match: m, entrants, myEntrant, isOrganizer, busy, onS
 
 // ── Bracket Connector Lines ───────────────────────────────────────────────────
 
-function BracketConnector({ matchCount, matchHeight, gap, nextGap }: {
-  matchCount: number; matchHeight: number; gap: number; nextGap: number
+function BracketConnector({ matchCount, matchHeight, gap, offsetTop = 0 }: {
+  matchCount: number; matchHeight: number; gap: number; offsetTop?: number
 }) {
   const pairs = matchCount / 2
   const pairHeight = matchHeight * 2 + gap
   return (
-    <div className="flex flex-col relative" style={{ width: 24 }}>
+    <div className="flex flex-col relative" style={{ width: 24, marginTop: offsetTop }}>
       {Array.from({ length: pairs }).map((_, i) => (
-        <div key={i} className="relative" style={{ height: pairHeight, marginBottom: i < pairs - 1 ? nextGap : 0 }}>
+        <div key={i} className="relative" style={{ height: pairHeight, marginBottom: i < pairs - 1 ? gap : 0 }}>
           <div className="absolute right-0 bg-border/60" style={{ width: 2, top: matchHeight / 2, height: (pairHeight - matchHeight) / 2 }} />
           <div className="absolute right-0 bg-border/60" style={{ width: 2, top: pairHeight / 2, height: (pairHeight - matchHeight) / 2 }} />
           <div className="absolute bg-border/60" style={{ height: 2, right: 0, left: 0, top: pairHeight / 2 - 1 }} />
