@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto"
 import { generateSingleElimination, generateRoundRobin, generateGroupsKnockout, generateSwissRound1, generateSwissNextRound } from "@/lib/local-game/bracket"
 import type { LocalPlayer, LocalMatch, StandingRow } from "@/lib/local-game/types"
-import { computeStandings } from "@/lib/tournament/standings"
+import { computeStandings, seedPositions } from "@/lib/tournament/standings"
+import { computePlayInPlan } from "@/lib/tournament/play-in"
 
 // Online тэмцээний bracket-ийг DB-д хадгалах давхарга. `bracket.ts`-ийн pure
 // генераторуудыг (local тэмцээнтэй ижил) дуудаж, генераторын текст id-г uuid руу
@@ -263,9 +264,12 @@ export function buildSwissNextRoundRows(
   }))
 }
 
-// 2-ийн зэрэг мөн үү (4, 8, 16, ...)
-export function isPowerOfTwo(n: number): boolean {
-  return n >= 2 && (n & (n - 1)) === 0
+// Double Elimination бүтээх боломжтой мөн үү (клиг тоглолттой ч гэсэн) — зорилтот
+// bracket хэмжээ (2-ын доод зэрэг) >= 4 байх ёстой, учир нь k=1 (targetSize=2)
+// доройтсон тохиолдол Losers Bracket 0 round үүсгэж, ялагдагч хаашаа ч орох
+// боломжгүй болно.
+export function isDoubleEliminationEligible(n: number): boolean {
+  return computePlayInPlan(n).targetSize >= 4
 }
 
 // Double Elimination — local генератор дутуу (losers bracket холбоогүй) тул бүрэн
@@ -273,14 +277,17 @@ export function isPowerOfTwo(n: number): boolean {
 // 101..(100+2(k-1)) [is_losers_bracket=true], их финал = 200. advance_tournament_match
 // RPC нь next_match_id (ялагч)/next_loser_match_id (ялагдагч)-аар дэвшүүлнэ; их финал
 // (round 200, losers бус) дуусахад тэмцээн дуусна. Reset (bracket reset) хийхгүй —
-// нэг их финал. Bye-ийн төвөгтэй каскадаас сэргийлж зөвхөн 2-ийн зэрэг (4/8/16/…)
-// оролцогчийг дэмжинэ (caller шалгана).
+// нэг их финал. N нь 2-ын зэрэг биш байж болно (`computePlayInPlan` targetSize-ийг
+// доод 2-ын зэрэгт нь буулгаж, илүүдэл оролцогчид клиг (play-in, round=0) тоглолт
+// тоглоно — bye-ийн оронд). Клиг тоглолтоор хожигдсон тоглогч WB Round 1-ийн "холбох
+// тоглолт" (insertion match)-оор Losers Bracket-руу орно (DE зарчим бүрэн хадгалагдана).
 export function buildDoubleEliminationRows(
   tournamentId: string,
   entrants: EntrantSeed[],
 ): TournamentMatchRow[] {
-  const N = entrants.length
-  const k = Math.log2(N) // бүхэл тоо (caller power-of-2 шалгасан)
+  const plan = computePlayInPlan(entrants.length)
+  const targetSize = plan.targetSize
+  const k = Math.log2(targetSize)
   const seeded = [...entrants].sort((a, b) => a.seed - b.seed).map((e) => e.id)
 
   const rows: TournamentMatchRow[] = []
@@ -297,30 +304,50 @@ export function buildDoubleEliminationRows(
     return row
   }
 
+  // ── Клиг (play-in) тоглолтууд — round 0 ──
+  const playInMatches: TournamentMatchRow[] = plan.playInPairs.map(([a, b]) =>
+    mk(0, false, seeded[a - 1], seeded[b - 1])
+  )
+
   // ── Winners bracket ──
+  const order = seedPositions(targetSize) // слот → виртуал seed (1-indexed)
+  const slots = order.map((v) => plan.virtualSeedSource[v - 1])
   const wb: TournamentMatchRow[][] = []
   const r1: TournamentMatchRow[] = []
-  for (let i = 0; i < N; i += 2) r1.push(mk(1, false, seeded[i], seeded[i + 1]))
+  const r1PlayInFeeders: TournamentMatchRow[][] = []
+  for (let i = 0; i < targetSize; i += 2) {
+    const s1 = slots[i]
+    const s2 = slots[i + 1]
+    const side1 = typeof s1 === "number" ? seeded[s1 - 1] : null
+    const side2 = typeof s2 === "number" ? seeded[s2 - 1] : null
+    const m = mk(1, false, side1, side2)
+    const feeders: TournamentMatchRow[] = []
+    if (typeof s1 !== "number") { playInMatches[s1.playInIndex].next_match_id = m.id; feeders.push(playInMatches[s1.playInIndex]) }
+    if (typeof s2 !== "number") { playInMatches[s2.playInIndex].next_match_id = m.id; feeders.push(playInMatches[s2.playInIndex]) }
+    r1PlayInFeeders.push(feeders)
+    r1.push(m)
+  }
   wb.push(r1)
+  // WB ялагчдын замчлал (round r → r+1, floor(i/2))
   for (let r = 2; r <= k; r++) {
     const cur: TournamentMatchRow[] = []
     for (let i = 0; i < wb[r - 2].length; i += 2) cur.push(mk(r, false))
     wb.push(cur)
   }
-  // WB ялагчдын замчлал (round r → r+1, floor(i/2))
   for (let r = 1; r < k; r++) {
     wb[r - 1].forEach((m, i) => { m.next_match_id = wb[r][Math.floor(i / 2)].id })
   }
 
   // ── Их финал ──
   const gf = mk(200, false)
+  wb[k - 1][0].next_match_id = gf.id
 
   // ── Losers bracket ──
-  const lbRoundCount = 2 * (k - 1)
+  const lbRoundCount = k > 1 ? 2 * (k - 1) : 0
   const lb: TournamentMatchRow[][] = []
   for (let lr = 1; lr <= lbRoundCount; lr++) {
     const j = Math.ceil(lr / 2)
-    const count = N / Math.pow(2, j + 1)
+    const count = targetSize / Math.pow(2, j + 1)
     const arr: TournamentMatchRow[] = []
     for (let i = 0; i < count; i++) arr.push(mk(100 + lr, true))
     lb.push(arr)
@@ -331,17 +358,38 @@ export function buildDoubleEliminationRows(
     const isMinor = lr % 2 === 1 // сондгой = minor (тоо тэнцүү → i→i); тэгш = major (next хагас → floor(i/2))
     cur.forEach((m, i) => { m.next_match_id = next[isMinor ? i : Math.floor(i / 2)].id })
   }
-  // LB финал ялагч → их финал; WB финал ялагч → их финал
-  lb[lbRoundCount - 1][0].next_match_id = gf.id
-  wb[k - 1][0].next_match_id = gf.id
+  // LB финал ялагч → их финал
+  if (lbRoundCount > 0) lb[lbRoundCount - 1][0].next_match_id = gf.id
 
-  // ── Ялагдагчдын уналт (WB → LB) ──
-  // WB R1 ялагдагч → LB R1 match floor(i/2)
-  wb[0].forEach((m, i) => { m.next_loser_match_id = lb[0][Math.floor(i / 2)].id })
-  // WB Rr (2..k) ялагдагч → LB round 2(r-1) match i
-  for (let r = 2; r <= k; r++) {
-    const target = lb[2 * (r - 1) - 1] // 0-based LB round index
-    wb[r - 1].forEach((m, i) => { m.next_loser_match_id = target[i].id })
+  // ── Ялагдагчдын уналт (WB → LB), клиг-тэжээгчийн холбох тоглолт ──
+  if (lbRoundCount > 0) {
+    // WB R1 ялагдагч → LB R1 match floor(i/2); клиг-тэжээгчтэй бол "холбох тоглолт"
+    // (insertion match)-оор дамжуулна (0/1/2 тэжээгчийн тохиолдол).
+    wb[0].forEach((m, i) => {
+      const target = lb[0][Math.floor(i / 2)]
+      const feeders = r1PlayInFeeders[i]
+      if (feeders.length === 0) {
+        m.next_loser_match_id = target.id
+      } else if (feeders.length === 1) {
+        const ins = mk(-1, true)
+        ins.next_match_id = target.id
+        feeders[0].next_loser_match_id = ins.id
+        m.next_loser_match_id = ins.id
+      } else {
+        const ins1 = mk(-1, true)
+        const ins2 = mk(-1, true)
+        feeders[0].next_loser_match_id = ins1.id
+        feeders[1].next_loser_match_id = ins1.id
+        ins1.next_match_id = ins2.id
+        m.next_loser_match_id = ins2.id
+        ins2.next_match_id = target.id
+      }
+    })
+    // WB Rr (2..k) ялагдагч → LB round 2(r-1) match i
+    for (let r = 2; r <= k; r++) {
+      const target = lb[2 * (r - 1) - 1] // 0-based LB round index
+      wb[r - 1].forEach((m, i) => { m.next_loser_match_id = target[i].id })
+    }
   }
 
   return rows

@@ -1,11 +1,13 @@
 import { LocalMatch, LocalPlayer, LocalGroup, StandingRow, BracketType } from "./types"
 import { seedPositions } from "@/lib/tournament/standings"
+import { computePlayInPlan } from "@/lib/tournament/play-in"
 
-// seed-ээр эрэмбэлсэн players массиваас стандарт bracket слот дараалал (bye-ууд
-// дээд seed-үүдэд тэнцүү тархаж, bye-bye (гацдаг) match үүсэхгүй) гаргана.
-function seededSlots(players: LocalPlayer[], size: number): (string | "bye")[] {
-  const seeded = [...players].sort((a, b) => a.seed - b.seed)
-  return seedPositions(size).map((rank) => seeded[rank - 1]?.id ?? "bye")
+// Play-in төлөвлөгөөний виртуал seed-үүдийг стандарт bracket слот дараалал руу
+// байрлуулна (слот бүр жинхэнэ seed rank эсвэл клиг тоглолтын индекс заана).
+// targetSize = plan.targetSize тул BYE огт үлдэхгүй (илүүдэл нь клиг тоглолт тоглоно).
+function round1Slots(plan: ReturnType<typeof computePlayInPlan>): (number | { playInIndex: number })[] {
+  const order = seedPositions(plan.targetSize) // слот → виртуал seed (1-indexed)
+  return order.map((v) => plan.virtualSeedSource[v - 1])
 }
 
 let _idCounter = 0
@@ -17,17 +19,32 @@ function newGroupId() { return `g${Date.now()}${++_idCounter}` }
 // тоглоно. Semifinal гэдгийг "дараагийн (сүүлийн) финал match-д шууд орох 2
 // match" гэж тодорхойлно — bracket-ийн хэмжээнээс үл хамааран зөв ажиллана.
 export function generateSingleElimination(players: LocalPlayer[], thirdPlace = false): LocalMatch[] {
-  const size = nextPowerOf2(players.length)
-  const slots = seededSlots(players, size)
+  const plan = computePlayInPlan(players.length)
+  const seeded = [...players].sort((a, b) => a.seed - b.seed)
 
   const matches: LocalMatch[] = []
   let round = 1
   let matchNumber = 1
 
-  // Round 1
+  // Клиг (play-in) тоглолтууд — round 0, доод эрэмбийн илүүдэл тоглогчид
+  const playInMatches: LocalMatch[] = plan.playInPairs.map(([a, b]) =>
+    makeMatch(0, matchNumber++, seeded[a - 1].id, seeded[b - 1].id)
+  )
+  matches.push(...playInMatches)
+
+  // Round 1 — виртуал seed-үүдийг стандарт bracket слот руу байрлуулна.
+  // Клиг тоглолтоор дүүрэх слот null-аар үүсч, тэр тоглолтын nextMatchId үүнийг заана.
+  const slots = round1Slots(plan)
   const r1: LocalMatch[] = []
-  for (let i = 0; i < size; i += 2) {
-    r1.push(makeMatch(round, matchNumber++, slots[i], slots[i + 1]))
+  for (let i = 0; i < plan.targetSize; i += 2) {
+    const s1 = slots[i]
+    const s2 = slots[i + 1]
+    const p1 = typeof s1 === "number" ? seeded[s1 - 1].id : null
+    const p2 = typeof s2 === "number" ? seeded[s2 - 1].id : null
+    const m = makeMatch(round, matchNumber++, p1, p2)
+    if (typeof s1 !== "number") playInMatches[s1.playInIndex].nextMatchId = m.id
+    if (typeof s2 !== "number") playInMatches[s2.playInIndex].nextMatchId = m.id
+    r1.push(m)
   }
   matches.push(...r1)
 
@@ -62,57 +79,113 @@ export function generateSingleElimination(players: LocalPlayer[], thirdPlace = f
 }
 
 // ── Double Elimination ────────────────────────────────────────────
+// Winners bracket (round 1..k), Losers bracket (round 100+lr, isLosersBracket=true),
+// Их финал (round 200) бүгд бодитоор холбогдоно (WB→LB, LB дотоод, LB final→GF,
+// WB final→GF) — bracket-server.ts-ийн buildDoubleEliminationRows-ийн адил алгоритм.
+// Play-in (клиг) тоглолт байвал WB Round 1-ийн 0/1/2 клиг-тэжээгчийг "холбох тоглолт"
+// (insertion match)-оор LB руу зөв чиглүүлнэ — DE-ийн "2 удаа хожигдсоны дараа
+// шалгарна" зарчмыг клиг тоглогчид ч бүрэн хадгална.
 export function generateDoubleElimination(players: LocalPlayer[]): LocalMatch[] {
-  // Simplified: generate winners bracket + losers bracket stubs
-  const size = nextPowerOf2(players.length)
-  const slots = seededSlots(players, size)
+  const plan = computePlayInPlan(players.length)
+  const seeded = [...players].sort((a, b) => a.seed - b.seed)
+  const targetSize = plan.targetSize
+  const k = Math.log2(targetSize)
 
   const matches: LocalMatch[] = []
   let matchNumber = 1
 
-  // Winners bracket round 1
-  const wr1: LocalMatch[] = []
-  for (let i = 0; i < size; i += 2) {
-    const m = makeMatch(1, matchNumber++, slots[i], slots[i + 1])
-    wr1.push(m)
-  }
-  matches.push(...wr1)
+  // Клиг тоглолтууд — round 0
+  const playInMatches: LocalMatch[] = plan.playInPairs.map(([a, b]) =>
+    makeMatch(0, matchNumber++, seeded[a - 1].id, seeded[b - 1].id)
+  )
+  matches.push(...playInMatches)
 
-  // Winners bracket subsequent
-  let wPrev = wr1
-  let wRound = 2
-  while (wPrev.length > 1) {
-    const next: LocalMatch[] = []
-    for (let i = 0; i < wPrev.length; i += 2) {
-      const m = makeMatch(wRound, matchNumber++, null, null)
-      wPrev[i].nextMatchId = m.id
-      wPrev[i + 1].nextMatchId = m.id
-      next.push(m)
-    }
-    matches.push(...next)
-    wPrev = next
-    wRound++
+  // ── Winners bracket ──
+  const slots = round1Slots(plan)
+  const wb: LocalMatch[][] = []
+  const r1: LocalMatch[] = []
+  const r1PlayInFeeders: LocalMatch[][] = []
+  for (let i = 0; i < targetSize; i += 2) {
+    const s1 = slots[i]
+    const s2 = slots[i + 1]
+    const p1 = typeof s1 === "number" ? seeded[s1 - 1].id : null
+    const p2 = typeof s2 === "number" ? seeded[s2 - 1].id : null
+    const m = makeMatch(1, matchNumber++, p1, p2)
+    const feeders: LocalMatch[] = []
+    if (typeof s1 !== "number") { playInMatches[s1.playInIndex].nextMatchId = m.id; feeders.push(playInMatches[s1.playInIndex]) }
+    if (typeof s2 !== "number") { playInMatches[s2.playInIndex].nextMatchId = m.id; feeders.push(playInMatches[s2.playInIndex]) }
+    r1PlayInFeeders.push(feeders)
+    r1.push(m)
   }
+  wb.push(r1)
+  matches.push(...r1)
 
-  // Losers bracket stubs (one per winners-bracket loser)
-  const lrounds = Math.log2(size) * 2 - 1
-  let lMatchNumber = 101
-  let lPrev: LocalMatch[] = []
-  for (let lr = 1; lr <= lrounds; lr++) {
-    const count = lr === 1 ? size / 2 : lPrev.length / (lr % 2 === 0 ? 2 : 1)
-    const row: LocalMatch[] = []
-    for (let i = 0; i < count; i++) {
-      const m = makeMatch(lr, lMatchNumber++, null, null, true)
-      row.push(m)
-    }
-    matches.push(...row)
-    lPrev = row
+  for (let r = 2; r <= k; r++) {
+    const cur: LocalMatch[] = []
+    for (let i = 0; i < wb[r - 2].length; i += 2) cur.push(makeMatch(r, matchNumber++, null, null))
+    wb.push(cur)
+    matches.push(...cur)
+  }
+  for (let r = 1; r < k; r++) {
+    wb[r - 1].forEach((m, i) => { m.nextMatchId = wb[r][Math.floor(i / 2)].id })
   }
 
-  // Grand final stub
-  const gf = makeMatch(99, matchNumber++, null, null)
-  gf.matchNumber = 999
+  // ── Их финал ──
+  const gf = makeMatch(200, matchNumber++, null, null)
   matches.push(gf)
+  wb[k - 1][0].nextMatchId = gf.id
+
+  // ── Losers bracket ──
+  const lbRoundCount = k > 1 ? 2 * (k - 1) : 0
+  const lb: LocalMatch[][] = []
+  for (let lr = 1; lr <= lbRoundCount; lr++) {
+    const j = Math.ceil(lr / 2)
+    const count = targetSize / Math.pow(2, j + 1)
+    const arr: LocalMatch[] = []
+    for (let i = 0; i < count; i++) arr.push(makeMatch(100 + lr, matchNumber++, null, null, true))
+    lb.push(arr)
+    matches.push(...arr)
+  }
+  for (let lr = 1; lr < lbRoundCount; lr++) {
+    const cur = lb[lr - 1], next = lb[lr]
+    const isMinor = lr % 2 === 1 // сондгой = minor (тоо тэнцүү → i→i); тэгш = major (next хагас → floor(i/2))
+    cur.forEach((m, i) => { m.nextMatchId = next[isMinor ? i : Math.floor(i / 2)].id })
+  }
+  if (lbRoundCount > 0) lb[lbRoundCount - 1][0].nextMatchId = gf.id
+
+  // ── Ялагдагчдын уналт (WB → LB), клиг-тэжээгчийн холбох тоглолт ──
+  if (lbRoundCount > 0) {
+    wb[0].forEach((m, i) => {
+      const target = lb[0][Math.floor(i / 2)]
+      const feeders = r1PlayInFeeders[i]
+      if (feeders.length === 0) {
+        m.nextLoserMatchId = target.id
+      } else if (feeders.length === 1) {
+        // 1 клиг-тэжээгч: клиг-ялагдагч + R1-ийн ялагдагч нэг "холбох тоглолт"-д
+        // тулгарч, ялагч нь жинхэнэ LB зорилт руу
+        const ins = makeMatch(-1, matchNumber++, null, null, true)
+        ins.nextMatchId = target.id
+        feeders[0].nextLoserMatchId = ins.id
+        m.nextLoserMatchId = ins.id
+        matches.push(ins)
+      } else {
+        // 2 клиг-тэжээгч: эхлээд 2 клиг-ялагдагчийг нэгтгэж, дараа нь R1-ийн
+        // ялагдагчтай нэгтгэнэ (гинжилсэн 2 холбох тоглолт)
+        const ins1 = makeMatch(-1, matchNumber++, null, null, true)
+        const ins2 = makeMatch(-1, matchNumber++, null, null, true)
+        feeders[0].nextLoserMatchId = ins1.id
+        feeders[1].nextLoserMatchId = ins1.id
+        ins1.nextMatchId = ins2.id
+        m.nextLoserMatchId = ins2.id
+        ins2.nextMatchId = target.id
+        matches.push(ins1, ins2)
+      }
+    })
+    for (let r = 2; r <= k; r++) {
+      const target = lb[2 * (r - 1) - 1]
+      wb[r - 1].forEach((m, i) => { m.nextLoserMatchId = target[i].id })
+    }
+  }
 
   return matches
 }

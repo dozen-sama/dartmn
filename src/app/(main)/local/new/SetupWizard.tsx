@@ -19,6 +19,7 @@ import { BracketEditor } from "@/components/local-game/BracketEditor"
 import { VisitLimitPicker } from "@/components/game/VisitLimitPicker"
 import { StageBuilder, type LocalStage } from "@/components/tournament/StageBuilder"
 import { validatePipeline, type TournamentStage } from "@/lib/tournament/stage-types"
+import { computePlayInPlan } from "@/lib/tournament/play-in"
 import { createClient } from "@/lib/supabase/client"
 import Link from "next/link"
 import { toast } from "sonner"
@@ -162,6 +163,9 @@ export function SetupWizard() {
   function handleCreate() {
     if (!name.trim()) { toast.error("Тэмцээний нэр оруулна уу"); return }
     if (validPlayers.length < 2) { toast.error("Дор хаяж 2 тоглогч хэрэгтэй"); return }
+    if (!multiStage && bracketType === "double_elimination" && computePlayInPlan(validPlayers.length).targetSize < 4) {
+      toast.error("Double elimination-д хамгийн багадаа 3 оролцогч хэрэгтэй"); return
+    }
 
     if (multiStage) {
       if (stages.length === 0) { toast.error("Хамгийн багадаа нэг шат нэмнэ үү"); return }

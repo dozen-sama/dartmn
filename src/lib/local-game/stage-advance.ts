@@ -4,6 +4,7 @@ import type {
   RoundRobinStageConfig, SwissStageConfig, SemiFinalStageConfig, FinalStageConfig,
 } from "@/lib/tournament/stage-types"
 import { computeStandings, type StandingMatch } from "@/lib/tournament/standings"
+import { computePlayInPlan } from "@/lib/tournament/play-in"
 import {
   generateSingleElimination, generateDoubleElimination,
   generateRoundRobin, generateGroupsKnockout, generateSwissRound1,
@@ -12,8 +13,10 @@ import {
 // advance-stage/route.ts (online)-той ижил branching, гэхдээ Supabase-гүй, pure
 // функцаар LocalSession дээр шууд ажиллана.
 
-function isPowerOfTwo(n: number): boolean {
-  return n > 0 && (n & (n - 1)) === 0
+// Double Elimination бүтээх боломжтой мөн үү (клиг тоглолттой ч гэсэн) —
+// bracket-server.ts::isDoubleEliminationEligible-тэй ижил зарчим.
+function isDoubleEliminationEligible(n: number): boolean {
+  return computePlayInPlan(n).targetSize >= 4
 }
 
 // LocalMatch → StandingMatch adapter — standings.ts-ийн computeStandings-г дахин ашиглана
@@ -111,7 +114,7 @@ export function buildStageMatches(
   } else if (stage.stage_type === "elimination") {
     const c = stage.config as EliminationStageConfig
     if ((c.max_losses ?? 1) >= 2) {
-      if (!isPowerOfTwo(seededPlayers.length)) return { error: "Double elimination-д 2-ийн зэрэг тоглогч хэрэгтэй" }
+      if (!isDoubleEliminationEligible(seededPlayers.length)) return { error: "Double elimination-д хамгийн багадаа 3 оролцогч хэрэгтэй" }
       matches = generateDoubleElimination(seededPlayers)
     } else {
       matches = generateSingleElimination(seededPlayers, c.has_third_place)

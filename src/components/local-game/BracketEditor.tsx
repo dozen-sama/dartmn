@@ -83,10 +83,16 @@ export function BracketEditor({ session, sessionId }: Props) {
   // ── ROUND ROBIN / GROUPS: group assignment editor
   // round 998 (3-р байрны тоглолт) groups_knockout-ийн KO шат биш тул хасна —
   // players нь эцэст нь (semifinal дуусахад) автоматаар нөхөгддөг, гараар
-  // тохируулах шаардлагагүй
+  // тохируулах шаардлагагүй. round>=100 = groups_knockout-ийн ХАРААЖ ХЭЛСЭН KO
+  // шатны конвенц — single/double_elimination bracketType-д ижил тооны муж (LB=100+lr,
+  // GF=200) ашигладаг ч энэ тэдэнд ХАМААРАЛГҮЙ (Round 1 нь аль хэдийн зөв seed-лэгдсэн,
+  // энэ гараар тохируулах widget зөвхөн groups_knockout-д зориулагдсан).
   const hasGroups = session.groups.length > 0
-  const hasKnockout = session.matches.some((m) => m.round >= 100 && m.round !== 998)
-  const koMatches = session.matches.filter((m) => m.round >= 100 && m.round !== 998).sort((a, b) => a.round - b.round || a.matchNumber - b.matchNumber)
+  const isGroupsKnockout = session.bracketType === "groups_knockout"
+  const hasKnockout = isGroupsKnockout && session.matches.some((m) => m.round >= 100 && m.round !== 998)
+  const koMatches = isGroupsKnockout
+    ? session.matches.filter((m) => m.round >= 100 && m.round !== 998).sort((a, b) => a.round - b.round || a.matchNumber - b.matchNumber)
+    : []
   const koRounds = [...new Set(koMatches.map((m) => m.round))].sort((a, b) => a - b)
   const maxKoRound = koRounds.length > 0 ? Math.max(...koRounds) : 0
 

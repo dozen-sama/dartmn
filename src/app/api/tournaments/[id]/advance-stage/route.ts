@@ -1,5 +1,5 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server"
-import { buildSingleEliminationRows, buildRoundRobinRows, buildSwissRows, buildDoubleEliminationRows, buildGroupsKnockoutRows, isPowerOfTwo, type EntrantSeed } from "@/lib/tournament/bracket-server"
+import { buildSingleEliminationRows, buildRoundRobinRows, buildSwissRows, buildDoubleEliminationRows, buildGroupsKnockoutRows, isDoubleEliminationEligible, type EntrantSeed } from "@/lib/tournament/bracket-server"
 import { computeStandings, type StandingMatch } from "@/lib/tournament/standings"
 import type { GroupStageConfig, EliminationStageConfig, SemiFinalStageConfig } from "@/lib/tournament/stage-types"
 import { randomUUID } from "node:crypto"
@@ -126,8 +126,8 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     const c = nextConfig as EliminationStageConfig
     let rows
     if ((c.max_losses ?? 1) >= 2) {
-      if (!isPowerOfTwo(seeds.length)) {
-        return NextResponse.json({ error: "Double elimination-д 2-ийн зэрэг тоглогч хэрэгтэй" }, { status: 400 })
+      if (!isDoubleEliminationEligible(seeds.length)) {
+        return NextResponse.json({ error: "Double elimination-д хамгийн багадаа 3 оролцогч хэрэгтэй" }, { status: 400 })
       }
       rows = buildDoubleEliminationRows(tournamentId, seeds)
     } else {

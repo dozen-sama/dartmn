@@ -387,19 +387,29 @@ export function SessionView() {
             )
             if (roundMatches.length === 0) return null
 
-            const isKnockoutRound = round >= 100
+            // round>=100 = groups_knockout-ийн ХАРААЖ ХЭЛСЭН KO шатны конвенц
+            // (round 99 = Их Финал). single/double_elimination bracketType ижил тооны
+            // муж (LB=100+lr, GF=200) ашигладаг ч ЭНЭ ХАРААЖ ХЭЛЭЭГҮЙ (доор тусад нь).
+            const isGroupsKnockoutKO = session.bracketType === "groups_knockout" && round >= 100
+            const isElimBracket = session.bracketType === "single_elimination" || session.bracketType === "double_elimination"
             const roundLabel = round === 998
               ? "3-р байрны тоглолт"
-              : isKnockoutRound
-              ? round === 99 ? "Их Финал"
-                : `Knockout шат ${round - 99}`
-              : session.bracketType === "single_elimination" || session.bracketType === "double_elimination"
-                ? `Round ${round}`
-                : session.bracketType === "swiss"
-                  ? `Swiss Round ${round}`
-                  : session.bracketType === "groups_knockout" && round < 100
-                    ? "Бүлгийн шат"
-                    : `Round ${round}`
+              : round === 0 && isElimBracket
+                ? "Клиг тоглолт"
+                : round === -1 && isElimBracket
+                  ? "Тэнцүүлэх тоглолт"
+                  : isGroupsKnockoutKO
+                    ? round === 99 ? "Их Финал"
+                      : `Knockout шат ${round - 99}`
+                    : isElimBracket
+                      ? round === 200 ? "Их Финал"
+                        : round >= 100 ? `Losers Round ${round - 100}`
+                          : `Round ${round}`
+                      : session.bracketType === "swiss"
+                        ? `Swiss Round ${round}`
+                        : session.bracketType === "groups_knockout" && round < 100
+                          ? "Бүлгийн шат"
+                          : `Round ${round}`
 
             return (
               <div key={round}>

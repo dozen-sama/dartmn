@@ -238,9 +238,13 @@ function EliminationBracket({ matches, playerMap, sessionId, firstTo, setsEnable
   const legLabel = setsEnabled ? "Sets" : "Legs"
 
   // 3-р байрны тоглолт (round 998) — үндсэн bracket-ийн round grouping-д оруулахгүй,
-  // доор нь тусад нь харуулна
+  // доор нь тусад нь харуулна. Их финал (round 200, Double Elimination) мөн WB-ийн
+  // "Round of X" тооцооноос тусад нь (WB финалаас ялгаатай тусдаа match тул нэг нэмэлт
+  // "numbered round" болж тооцогдвол бусад бүх WB round-ийн шошго/зэрэгцүүлэлт budgetOff
+  // болно) — доор нь тусад нь харуулна.
   const thirdPlaceMatch = matches.find((m) => m.round === 998)
-  const bracketMatches = matches.filter((m) => m.round !== 998)
+  const grandFinalMatch = matches.find((m) => m.round === 200 && !m.isLosersBracket)
+  const bracketMatches = matches.filter((m) => m.round !== 998 && m.round !== 200)
 
   const winnerRounds = [...new Set(
     bracketMatches.filter((m) => !m.isLosersBracket).map((m) => m.round)
@@ -250,10 +254,15 @@ function EliminationBracket({ matches, playerMap, sessionId, firstTo, setsEnable
     bracketMatches.filter((m) => m.isLosersBracket).map((m) => m.round)
   )].sort((a, b) => a - b)
 
-  const totalWinnerRounds = winnerRounds.length
+  // round 0 (isLosersBracket=false) = клиг (play-in) тоглолт — "Round of X" тооцооноос
+  // тусад нь, өөрийн шошготой байна.
+  const numberedRounds = winnerRounds.filter((r) => r !== 0)
+  const totalNumberedRounds = numberedRounds.length
 
-  function getRoundLabel(idx: number, total: number) {
-    const fromEnd = total - 1 - idx
+  function getRoundLabel(round: number) {
+    if (round === 0) return "Клиг тоглолт"
+    const idx = numberedRounds.indexOf(round)
+    const fromEnd = totalNumberedRounds - 1 - idx
     if (fromEnd === 0) return "Финал"
     if (fromEnd === 1) return "Хагас финал"
     if (fromEnd === 2) return "Улирал финал"
@@ -261,29 +270,34 @@ function EliminationBracket({ matches, playerMap, sessionId, firstTo, setsEnable
     return `Round of ${Number.isFinite(playerCount) && playerCount < 1e9 ? playerCount : idx + 1}`
   }
 
-  const winnerMatchesByRound = winnerRounds.map((r, idx) => ({
+  const winnerMatchesByRound = winnerRounds.map((r) => ({
     round: r,
-    label: getRoundLabel(idx, totalWinnerRounds),
+    label: getRoundLabel(r),
     matches: bracketMatches.filter((m) => !m.isLosersBracket && m.round === r),
   }))
 
-  // Round бүрийн дотоод зай (gap) болон эхний match-ийн дээд offset-ийг
-  // recursively тооцно: round r+1-ийн match бүр өмнөх round-ийн 2 match-аас
-  // бүрдэх хосын дунд цэгт яг тулгарч зогсоно (bracket мод зөв "нэхмэл" болно).
+  // Round бүрийн дотоод зай (gap) болон эхний match-ийн дээд offset-ийг recursively
+  // тооцно: зөвхөн ЖИНХЭНЭ (2-ын зэрэг) round-уудад хамаарна (round r+1-ийн match бүр
+  // өмнөх round-ийн 2 match-аас бүрдэх хосын дунд цэгт яг тулгарч зогсоно). Клиг (round 0)
+  // багана өөр тоо-харьцаатай (2:1 биш) тул энэ recursion-д ОРОХГҮЙ, энгийн зайтай харагдана.
   const matchHeight = 72
   const baseGap = 8
-  const roundLayout: { gap: number; offsetTop: number }[] = []
+  const numberedLayout: { gap: number; offsetTop: number }[] = []
   {
     let gap = baseGap
     let offsetTop = 0
-    for (let i = 0; i < winnerMatchesByRound.length; i++) {
+    for (let i = 0; i < totalNumberedRounds; i++) {
       if (i > 0) {
         const prevStep = matchHeight + gap
         gap = matchHeight + 2 * gap
         offsetTop += prevStep / 2
       }
-      roundLayout.push({ gap, offsetTop })
+      numberedLayout.push({ gap, offsetTop })
     }
+  }
+  function layoutFor(round: number) {
+    if (round === 0) return { gap: baseGap, offsetTop: 0 }
+    return numberedLayout[numberedRounds.indexOf(round)]
   }
 
   return (
@@ -291,7 +305,10 @@ function EliminationBracket({ matches, playerMap, sessionId, firstTo, setsEnable
       <div className="flex gap-0 min-w-max">
         {winnerMatchesByRound.map(({ round, label, matches: roundMatches }, roundIdx) => {
           const isLast = roundIdx === winnerMatchesByRound.length - 1
-          const { gap, offsetTop } = roundLayout[roundIdx]
+          const { gap, offsetTop } = layoutFor(round)
+          // Клиг → Round 1 хооронд стандарт хос-холбогч шугам зохимжгүй (тоо харьцаа
+          // 2:1 биш байж болно) тул зүгээр хоосон зай үлдээнэ.
+          const skipConnector = round === 0
 
           return (
             <div key={round} className="flex">
@@ -307,12 +324,9 @@ function EliminationBracket({ matches, playerMap, sessionId, firstTo, setsEnable
                 </div>
               </div>
               {!isLast && (
-                <BracketConnector
-                  matchCount={roundMatches.length}
-                  matchHeight={matchHeight}
-                  gap={gap}
-                  offsetTop={offsetTop}
-                />
+                skipConnector
+                  ? <div style={{ width: 24 }} />
+                  : <BracketConnector matchCount={roundMatches.length} matchHeight={matchHeight} gap={gap} offsetTop={offsetTop} />
               )}
             </div>
           )
@@ -343,6 +357,15 @@ function EliminationBracket({ matches, playerMap, sessionId, firstTo, setsEnable
                 </div>
               )
             })}
+          </div>
+        </div>
+      )}
+
+      {grandFinalMatch && (
+        <div className="mt-6 pt-4 border-t border-border/40">
+          <p className="text-xs font-semibold text-muted-foreground mb-3">Их Финал</p>
+          <div style={{ maxWidth: 160 }}>
+            <MatchSlot match={grandFinalMatch} playerMap={playerMap} sessionId={sessionId} />
           </div>
         </div>
       )}

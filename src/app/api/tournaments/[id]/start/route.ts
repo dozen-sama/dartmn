@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto"
 import { createClient, createAdminClient } from "@/lib/supabase/server"
-import { buildSingleEliminationRows, buildRoundRobinRows, buildGroupsKnockoutRows, buildSwissRows, buildDoubleEliminationRows, isPowerOfTwo, type EntrantSeed, type TournamentMatchRow } from "@/lib/tournament/bracket-server"
+import { buildSingleEliminationRows, buildRoundRobinRows, buildGroupsKnockoutRows, buildSwissRows, buildDoubleEliminationRows, isDoubleEliminationEligible, type EntrantSeed, type TournamentMatchRow } from "@/lib/tournament/bracket-server"
 import type { GroupStageConfig, EliminationStageConfig, SemiFinalStageConfig } from "@/lib/tournament/stage-types"
 import { NextRequest, NextResponse } from "next/server"
 
@@ -94,8 +94,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     } else if (firstStage.stage_type === "elimination") {
       const c = config as EliminationStageConfig
       if ((c.max_losses ?? 1) >= 2) {
-        if (!isPowerOfTwo(seeds.length)) {
-          return NextResponse.json({ error: "Double elimination-д 2-ийн зэрэг тоглогч хэрэгтэй" }, { status: 400 })
+        if (!isDoubleEliminationEligible(seeds.length)) {
+          return NextResponse.json({ error: "Double elimination-д хамгийн багадаа 3 оролцогч хэрэгтэй" }, { status: 400 })
         }
         matches = buildDoubleEliminationRows(tournamentId, seeds)
       } else {
@@ -138,8 +138,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     } else if (t.bracket_type === "swiss") {
       matches = buildSwissRows(tournamentId, seeds)
     } else if (t.bracket_type === "double_elimination") {
-      if (!isPowerOfTwo(seeds.length)) {
-        return NextResponse.json({ error: "Double elimination-д оролцогчийн тоо 2-ийн зэрэг байх ёстой (4, 8, 16, 32...)" }, { status: 400 })
+      if (!isDoubleEliminationEligible(seeds.length)) {
+        return NextResponse.json({ error: "Double elimination-д хамгийн багадаа 3 оролцогч хэрэгтэй" }, { status: 400 })
       }
       matches = buildDoubleEliminationRows(tournamentId, seeds)
     } else if (t.bracket_type === "groups_knockout") {

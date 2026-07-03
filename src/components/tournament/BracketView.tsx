@@ -681,10 +681,16 @@ interface EliminationProps {
 
 function OnlineEliminationBracket({ matches, entrants, myEntrant, isOrganizer, busy, onStartMatch, maxRound }: EliminationProps) {
   const rounds = [...new Set(matches.map((m) => m.round))].sort((a, b) => a - b)
-  const totalRounds = rounds.length
+  // round 0 = клиг (play-in) тоглолт (WB талд), round -1 = клиг-тэжээгчийн холбох
+  // тоглолт (LB талд) — "Round of X" тооцооноос тусад нь, өөрийн шошготой байна.
+  const numberedRounds = rounds.filter((r) => r !== 0 && r !== -1)
+  const totalNumberedRounds = numberedRounds.length
 
-  function getRoundLabel(idx: number) {
-    const fromEnd = totalRounds - 1 - idx
+  function getRoundLabel(round: number) {
+    if (round === 0) return "Клиг тоглолт"
+    if (round === -1) return "Тэнцүүлэх тоглолт"
+    const idx = numberedRounds.indexOf(round)
+    const fromEnd = totalNumberedRounds - 1 - idx
     if (fromEnd === 0) return "Финал"
     if (fromEnd === 1) return "Хагас финал"
     if (fromEnd === 2) return "Улирал финал"
@@ -698,21 +704,26 @@ function OnlineEliminationBracket({ matches, entrants, myEntrant, isOrganizer, b
     matches.filter((m) => m.round === round).sort((a, b) => a.match_number - b.match_number)
   )
 
-  // Round бүрийн дотоод зай (gap) болон эхний match-ийн дээд offset-ийг
-  // recursively тооцно: round r+1-ийн match бүр өмнөх round-ийн 2 match-аас
-  // бүрдэх хосын дунд цэгт яг тулгарч зогсоно (bracket мод зөв "нэхмэл" болно).
-  const roundLayout: { gap: number; offsetTop: number }[] = []
+  // Round бүрийн дотоод зай (gap) болон эхний match-ийн дээд offset-ийг recursively
+  // тооцно: зөвхөн ЖИНХЭНЭ (2-ын зэрэг) round-уудад хамаарна (round r+1-ийн match бүр
+  // өмнөх round-ийн 2 match-аас бүрдэх хосын дунд цэгт яг тулгарч зогсоно). Клиг (round 0)
+  // багана өөр тоо-харьцаатай (2:1 биш) тул энэ recursion-д ОРОХГҮЙ, энгийн зайтай харагдана.
+  const numberedLayout: { gap: number; offsetTop: number }[] = []
   {
     let gap = baseGap
     let offsetTop = 0
-    for (let i = 0; i < rounds.length; i++) {
+    for (let i = 0; i < numberedRounds.length; i++) {
       if (i > 0) {
         const prevStep = matchH + gap
         gap = matchH + 2 * gap
         offsetTop += prevStep / 2
       }
-      roundLayout.push({ gap, offsetTop })
+      numberedLayout.push({ gap, offsetTop })
     }
+  }
+  function layoutFor(round: number) {
+    if (round === 0 || round === -1) return { gap: baseGap, offsetTop: 0 }
+    return numberedLayout[numberedRounds.indexOf(round)]
   }
 
   return (
@@ -721,13 +732,16 @@ function OnlineEliminationBracket({ matches, entrants, myEntrant, isOrganizer, b
         {rounds.map((round, roundIdx) => {
           const roundMatches = roundMatchesByRound[roundIdx]
           const isLast = roundIdx === rounds.length - 1
-          const { gap, offsetTop } = roundLayout[roundIdx]
+          const { gap, offsetTop } = layoutFor(round)
+          // Клиг → Round 1 хооронд стандарт хос-холбогч шугам зохимжгүй (тоо харьцаа
+          // 2:1 биш байж болно) тул зүгээр хоосон зай үлдээнэ.
+          const skipConnector = round === 0 || round === -1
 
           return (
             <div key={round} className="flex">
               <div className="flex flex-col" style={{ minWidth: 170 }}>
                 <div className="text-center pb-2 px-2">
-                  <p className="text-xs font-semibold text-foreground/80">{getRoundLabel(roundIdx)}</p>
+                  <p className="text-xs font-semibold text-foreground/80">{getRoundLabel(round)}</p>
                 </div>
                 <div className="flex flex-col" style={{ gap, marginTop: offsetTop }}>
                   {roundMatches.map((m) => (
@@ -744,12 +758,9 @@ function OnlineEliminationBracket({ matches, entrants, myEntrant, isOrganizer, b
                 </div>
               </div>
               {!isLast && (
-                <BracketConnector
-                  matchCount={roundMatches.length}
-                  matchHeight={matchH}
-                  gap={gap}
-                  offsetTop={offsetTop}
-                />
+                skipConnector
+                  ? <div style={{ width: 24 }} />
+                  : <BracketConnector matchCount={roundMatches.length} matchHeight={matchH} gap={gap} offsetTop={offsetTop} />
               )}
             </div>
           )
