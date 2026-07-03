@@ -38,7 +38,7 @@ const MODES = [
     id: "practice" as const,
     icon: Target,
     label: "Бэлтгэл",
-    desc: "Ганцаарчилсан — 501, Checkout drill",
+    desc: "Ганцаарчилсан — 501, Checkout, Cricket, Bob's 27, Shanghai гэх мэт",
     color: "text-yellow-400",
     border: "border-yellow-500/30",
     bg: "bg-yellow-500/8",

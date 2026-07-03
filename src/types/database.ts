@@ -1189,9 +1189,154 @@ export interface Database {
         }
         Relationships: []
       }
+      match_stat_details: {
+        Row: {
+          id: string
+          player_id: string
+          opponent_id: string | null
+          opponent_name: string
+          won: boolean
+          legs_for: number
+          legs_against: number
+          source: "online" | "local"
+          room_id: string | null
+          local_session_id: string | null
+          local_match_id: string | null
+          tournament_match_id: string | null
+          context_label: string | null
+          match_key: string
+          format: string
+          double_out: boolean
+          darts_thrown: number
+          points_scored: number
+          avg3: number
+          avg_first9: number
+          band_60: number
+          band_80: number
+          band_100: number
+          band_120: number
+          band_140: number
+          band_170: number
+          count_180: number
+          high_finish: number
+          count_100_finishes: number
+          best_leg_darts: number | null
+          worst_leg_darts: number | null
+          checkout_attempts: number
+          checkout_makes: number
+          keep_attempts: number
+          keep_makes: number
+          break_attempts: number
+          break_makes: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          player_id: string
+          opponent_id?: string | null
+          opponent_name: string
+          won: boolean
+          legs_for: number
+          legs_against: number
+          source: "online" | "local"
+          room_id?: string | null
+          local_session_id?: string | null
+          local_match_id?: string | null
+          tournament_match_id?: string | null
+          context_label?: string | null
+          match_key: string
+          format: string
+          double_out: boolean
+          darts_thrown: number
+          points_scored: number
+          avg3: number
+          avg_first9: number
+          band_60?: number
+          band_80?: number
+          band_100?: number
+          band_120?: number
+          band_140?: number
+          band_170?: number
+          count_180?: number
+          high_finish?: number
+          count_100_finishes?: number
+          best_leg_darts?: number | null
+          worst_leg_darts?: number | null
+          checkout_attempts?: number
+          checkout_makes?: number
+          keep_attempts?: number
+          keep_makes?: number
+          break_attempts?: number
+          break_makes?: number
+        }
+        Update: Record<string, never>
+        Relationships: []
+      }
+      practice_sessions: {
+        Row: {
+          id: string
+          player_id: string
+          mode: string
+          headline_metric: number
+          summary: Json
+          duration_seconds: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          player_id: string
+          mode: string
+          headline_metric: number
+          summary?: Json
+          duration_seconds?: number | null
+          created_at?: string
+        }
+        Update: Record<string, never>
+        Relationships: []
+      }
     }
     Views: {}
-    Functions: {}
+    Functions: {
+      get_player_stat_summary: {
+        Args: { p_player_id: string }
+        Returns: {
+          matches: number
+          legs_for: number
+          legs_against: number
+          darts_thrown: number
+          points_scored: number
+          avg3: number
+          avg_first9: number
+          band_60: number
+          band_80: number
+          band_100: number
+          band_120: number
+          band_140: number
+          band_170: number
+          count_180: number
+          high_finish: number
+          count_100_finishes: number
+          best_leg_darts: number | null
+          worst_leg_darts: number | null
+          checkout_attempts: number
+          checkout_makes: number
+          keep_attempts: number
+          keep_makes: number
+          break_attempts: number
+          break_makes: number
+        }[]
+      }
+      get_practice_stat_summary: {
+        Args: { p_player_id: string }
+        Returns: {
+          mode: string
+          session_count: number
+          best_metric: number
+          worst_metric: number
+          last_played: string
+        }[]
+      }
+    }
     Enums: {}
   }
 }
@@ -1216,3 +1361,5 @@ export type OnlineRoom = Tables<"online_rooms">
 export type RoomPlayer = Tables<"room_players">
 export type RoomInvite = Tables<"room_invites">
 export type RoomVisit = Tables<"room_visits">
+export type MatchStatDetail = Tables<"match_stat_details">
+export type PracticeSession = Tables<"practice_sessions">

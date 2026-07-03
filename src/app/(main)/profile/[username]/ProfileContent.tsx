@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { BarChart3, Building2, ChevronRight, Edit, MapPin, Pin, Sparkles, Target, Trophy, Zap } from "lucide-react"
@@ -9,7 +10,8 @@ import { buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { mn } from "@/locales/mn"
-import { Profile, Tournament, TournamentRegistration } from "@/types/database"
+import { Profile, Tournament, TournamentRegistration, MatchStatDetail, Database } from "@/types/database"
+import { MatchStatsDialog } from "@/components/match/MatchStatsDialog"
 import { formatAverage, formatDate, formatNumber } from "@/lib/utils/format"
 import { cn } from "@/lib/utils"
 import { getTier } from "@/lib/rating"
@@ -26,15 +28,8 @@ interface Props {
   isOwner: boolean
   organizerRating?: { avg: number; count: number; paid: number; unpaid: number }
   clubName: string | null
-  history: {
-    id: string
-    created_at: string
-    change: number
-    won: boolean | null
-    reason: string
-    room_id: string | null
-    opponent: { display_name: string; username: string } | null
-  }[]
+  matchStats: MatchStatDetail[]
+  statSummary: Database["public"]["Functions"]["get_player_stat_summary"]["Returns"][number] | null
   tournaments: (TournamentRegistration & {
     tournaments: Pick<Tournament, "id" | "name" | "status" | "start_date"> | null
   })[]
@@ -65,7 +60,8 @@ function StatCard({ label, value, sub, highlight }: { label: string; value: stri
   )
 }
 
-export function ProfileContent({ profile: p, isOwner, organizerRating, clubName, history, tournaments, allAchievements, earnedAchievements, ownedEffects, effects, unlockedFrames }: Props) {
+export function ProfileContent({ profile: p, isOwner, organizerRating, clubName, matchStats, statSummary, tournaments, allAchievements, earnedAchievements, ownedEffects, effects, unlockedFrames }: Props) {
+  const [openMatchKey, setOpenMatchKey] = useState<string | null>(null)
   const winRate = p.matches_played > 0 ? Math.round((p.matches_won / p.matches_played) * 100) : 0
   const lossCount = p.matches_played - p.matches_won
   const tier = getTier(p.rating_points)
@@ -230,48 +226,73 @@ export function ProfileContent({ profile: p, isOwner, organizerRating, clubName,
                 <StatRow label="180s" value={formatNumber(p.count_180)} accent={p.count_180 > 0} />
               </CardContent>
             </Card>
+
+            {/* Дэлгэрэнгүй статистик — match_stat_details aggregate */}
+            {statSummary && statSummary.matches > 0 && (
+              <Card className="border-border/50 bg-card/80 sm:col-span-2">
+                <CardHeader className="pb-2 pt-4 px-4">
+                  <CardTitle className="text-sm text-muted-foreground uppercase tracking-wide">Дэлгэрэнгүй статистик</CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {[
+                      { label: "First 9", value: formatAverage(statSummary.avg_first9) },
+                      { label: "60+", value: formatNumber(statSummary.band_60) },
+                      { label: "80+", value: formatNumber(statSummary.band_80) },
+                      { label: "100+", value: formatNumber(statSummary.band_100) },
+                      { label: "120+", value: formatNumber(statSummary.band_120) },
+                      { label: "140+", value: formatNumber(statSummary.band_140) },
+                      { label: "170+", value: formatNumber(statSummary.band_170) },
+                      { label: "Хамгийн муу лег", value: statSummary.worst_leg_darts ? `${statSummary.worst_leg_darts} дарт` : "—" },
+                      { label: "Checkout %", value: statSummary.checkout_attempts > 0 ? `${((statSummary.checkout_makes / statSummary.checkout_attempts) * 100).toFixed(1)}%` : "—" },
+                      { label: "Keep %", value: statSummary.keep_attempts > 0 ? `${((statSummary.keep_makes / statSummary.keep_attempts) * 100).toFixed(1)}%` : "—" },
+                      { label: "Break %", value: statSummary.break_attempts > 0 ? `${((statSummary.break_makes / statSummary.break_attempts) * 100).toFixed(1)}%` : "—" },
+                    ].map((s) => (
+                      <div key={s.label} className="text-center space-y-0.5 p-2 rounded-lg bg-secondary/40">
+                        <p className="text-lg font-bold score-display">{s.value}</p>
+                        <p className="text-[11px] text-muted-foreground">{s.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
 
         <TabsContent value="matches" className="mt-4">
           <Card className="border-border/50 bg-card/80">
             <CardContent className="p-0">
-              {history.length === 0 ? (
+              {matchStats.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12">
                   <Target className="h-10 w-10 text-muted-foreground/20 mb-3" />
                   <p className="text-muted-foreground text-sm">Match history байхгүй байна</p>
                 </div>
               ) : (
-                history.map((h) => {
-                  const won = h.won ?? h.change >= 0
-                  const inner = (
-                    <>
-                      <div className={`w-2 h-2 rounded-full shrink-0 ${won ? "bg-green-400" : "bg-destructive"}`} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {h.opponent ? <>vs {h.opponent.display_name}</> : h.reason}
-                        </p>
-                        <p className="text-xs text-muted-foreground">{h.opponent ? `@${h.opponent.username} · ` : ""}{formatDate(h.created_at)}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className={cn("text-sm font-bold score-display", h.change >= 0 ? "text-green-400" : "text-destructive")}>
-                          {h.change >= 0 ? "+" : ""}{h.change}
-                        </p>
-                        <Badge variant="outline" className={`text-[10px] ${won ? "border-green-500/30 text-green-400" : "border-destructive/30 text-destructive"}`}>
-                          {won ? "Win" : "Loss"}
-                        </Badge>
-                      </div>
-                      {h.room_id && <ChevronRight className="h-4 w-4 text-muted-foreground/50 shrink-0" />}
-                    </>
-                  )
-                  const cls = "flex items-center gap-3 px-4 py-3 border-b border-border/30 last:border-0"
-                  return h.room_id
-                    ? <Link key={h.id} href={`/play/${h.room_id}`} className={cn(cls, "hover:bg-secondary/40 transition-colors")}>{inner}</Link>
-                    : <div key={h.id} className={cls}>{inner}</div>
-                })
+                matchStats.map((h) => (
+                  <button key={h.id} onClick={() => setOpenMatchKey(h.match_key)}
+                    className="w-full flex items-center gap-3 px-4 py-3 border-b border-border/30 last:border-0 hover:bg-secondary/40 transition-colors text-left">
+                    <div className={`w-2 h-2 rounded-full shrink-0 ${h.won ? "bg-green-400" : "bg-destructive"}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">vs {h.opponent_name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {h.context_label ? `${h.context_label} · ` : ""}{formatDate(h.created_at)}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold score-display">{h.legs_for} — {h.legs_against}</p>
+                      <Badge variant="outline" className={`text-[10px] ${h.won ? "border-green-500/30 text-green-400" : "border-destructive/30 text-destructive"}`}>
+                        {h.won ? "Win" : "Loss"}
+                      </Badge>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground/50 shrink-0" />
+                  </button>
+                ))
               )}
             </CardContent>
           </Card>
+          <MatchStatsDialog open={!!openMatchKey} onOpenChange={(open) => !open && setOpenMatchKey(null)}
+            matchKey={openMatchKey ?? undefined} selfPlayerId={p.id} selfName={p.display_name} />
         </TabsContent>
 
         <TabsContent value="tournaments" className="mt-4">

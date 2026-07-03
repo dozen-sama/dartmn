@@ -406,6 +406,7 @@ export const useLocalGame = create<LocalGameStore>()(
                 throws: {},
                 winnerId: null,
                 startedAt: new Date().toISOString(),
+                starterId: playerId,
               }
             }
             const leg = { ...legs[legIndex] }

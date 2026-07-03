@@ -4,19 +4,10 @@ import { Metadata } from "next"
 import { createClient } from "@/lib/supabase/server"
 import { notFound } from "next/navigation"
 import { ProfileContent } from "./ProfileContent"
-import { Profile, Tournament, TournamentRegistration } from "@/types/database"
+import { Profile, Tournament, TournamentRegistration, MatchStatDetail } from "@/types/database"
 import { isPassActive, type EffectRow, type PassRow } from "@/lib/cosmetics"
 import { resolveUnlockedFrames } from "@/lib/cosmetics-server"
 
-type MatchHistoryRow = {
-  id: string
-  created_at: string
-  change: number
-  won: boolean | null
-  reason: string
-  room_id: string | null
-  opponent: { display_name: string; username: string } | null
-}
 type RegistrationWithTournament = TournamentRegistration & {
   tournaments: Pick<Tournament, "id" | "name" | "status" | "start_date"> | null
 }
@@ -37,12 +28,10 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
     .from("profiles").select("*").eq("username", username).single()
   if (!profile) notFound()
 
-  const [historyResult, tournamentResult, clubResult, allAchievementsResult, earnedResult, unlocksResult, effectsResult, passesResult] = await Promise.all([
-    // Тоглолтын түүх — rating_history (онлайн/Together rated тоглолтууд). Тэмцээний
-    // түүх (matches хүснэгт) онлайн тэмцээн хийгдэхэд нэмэгдэнэ.
-    supabase.from("rating_history")
-      .select("id, created_at, change, won, reason, room_id, opponent:profiles!rating_history_opponent_id_fkey(display_name, username)")
-      .eq("player_id", profile.id).order("created_at", { ascending: false }).limit(20),
+  const [matchStatsResult, tournamentResult, clubResult, allAchievementsResult, earnedResult, unlocksResult, effectsResult, passesResult] = await Promise.all([
+    // Тоглолтын түүх — match_stat_details (online + local, дэлгэрэнгүй статистиктэй)
+    supabase.from("match_stat_details")
+      .select("*").eq("player_id", profile.id).order("created_at", { ascending: false }).limit(20),
     supabase.from("tournament_registrations")
       .select("*, tournaments(id, name, status, start_date)")
       .eq("player_id", profile.id).order("registered_at", { ascending: false }).limit(10),
@@ -67,6 +56,9 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
     ? await resolveUnlockedFrames(profile.id, { rating: profile.rating_points, isPremium: profile.is_premium })
     : []
 
+  const { data: statSummaryRows } = await supabase.rpc("get_player_stat_summary", { p_player_id: profile.id })
+  const statSummary = statSummaryRows?.[0] ?? null
+
   // Зохион байгуулагчийн үнэлгээ + шагнал төлөлтийн баталгаа (тэмцээн зохиогчийн профайлд)
   const { data: orgRatings } = await supabase.from("organizer_ratings").select("rating, payout_status").eq("organizer_id", profile.id)
   const orgRatingCount = orgRatings?.length ?? 0
@@ -83,7 +75,8 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
       isOwner={isOwner}
       organizerRating={organizerRating}
       clubName={clubName}
-      history={(historyResult.data ?? []) as unknown as MatchHistoryRow[]}
+      matchStats={(matchStatsResult.data ?? []) as MatchStatDetail[]}
+      statSummary={statSummary}
       tournaments={(tournamentResult.data ?? []) as unknown as RegistrationWithTournament[]}
       allAchievements={(allAchievementsResult.data ?? []) as any[]}
       earnedAchievements={(earnedResult.data ?? []) as { achievement_key: string; earned_at: string }[]}

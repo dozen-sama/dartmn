@@ -42,6 +42,7 @@ export interface X01State {
   currentRound: number
   // Хязгаарт хүрсэн (bull finish) — гараар ялагч сонгох хүртэл зогсоно
   legAtLimit: boolean
+  legWinners: number[]  // leg бүрийг хожсон баг (индекс = leg дугаар) — match-stat-details-д ашиглана
 }
 
 // online_rooms.best_of/legs_per_set-ээс deriveX01-д дамжуулах legsToWin/setsToWin-г
@@ -87,6 +88,7 @@ export function deriveX01(visits: X01Visit[], cfg: X01Config): X01State {
   let active = starterTeam
   let winner: number | null = null
   let legAtLimit = false
+  const legWinners: number[] = []
   const legsView: X01VisitView[][] = []
   let curLeg: X01VisitView[] = []
   legsView.push(curLeg)
@@ -106,6 +108,7 @@ export function deriveX01(visits: X01Visit[], cfg: X01Config): X01State {
   }
   // Leg-ийг багт олгож, матч дуусвал true
   function awardLeg(team: number): boolean {
+    legWinners.push(team)
     lg[team]++
     if (lg[team] >= legsToWin) {
       if (setsToWin) {
@@ -151,5 +154,5 @@ export function deriveX01(visits: X01Visit[], cfg: X01Config): X01State {
   }
 
   const currentRound = Math.floor(curLeg.length / 2) + 1
-  return { scores: sc, legs: lg, sets: st, currentPlayer: cp, activeTeam: active, winner, legsView, currentRound, legAtLimit }
+  return { scores: sc, legs: lg, sets: st, currentPlayer: cp, activeTeam: active, winner, legsView, currentRound, legAtLimit, legWinners }
 }

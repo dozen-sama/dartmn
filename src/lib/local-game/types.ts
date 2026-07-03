@@ -35,6 +35,7 @@ export interface LocalLeg {
   throws: Record<string, LegThrow[]>
   winnerId: string | null
   startedAt: string
+  starterId: string | null  // энэ leg-ийг эхэлсэн тоглогч — match-stat-details-ийн Keep/Break-д
 }
 
 export interface LocalMatch {

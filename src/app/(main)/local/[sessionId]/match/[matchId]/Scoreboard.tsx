@@ -12,6 +12,8 @@ import { broadcastSession } from "@/lib/local-game/sync"
 import type { LegThrow, LocalLeg } from "@/lib/local-game/types"
 import { getCheckout, IMPOSSIBLE_CHECKOUTS, VALID_DOUBLES, classifyTurn, isPossibleVisitScore } from "@/lib/local-game/checkouts"
 import { isLocalRrPhase, localX01Config } from "@/lib/local-game/x01"
+import { computeMatchStatDetails, localLegsToStatLegs } from "@/lib/local-game/match-stat-details"
+import { MatchStatsDialog, type MatchStatComparison } from "@/components/match/MatchStatsDialog"
 import { useScoreboardKeyboard } from "@/hooks/useScoreboardKeyboard"
 import { useCaller } from "@/hooks/useCaller"
 import { BullOff } from "@/components/game/BullOff"
@@ -43,6 +45,8 @@ export function Scoreboard() {
   const SCORER_KEY = `scoring-${matchId}`
   const [visitRound, setVisitRound]         = useState(1)
   const [playerOpened, setPlayerOpened]     = useState<Record<string, boolean>>({})
+  const [showStatsDialog, setShowStatsDialog] = useState(false)
+  const [statsComparison, setStatsComparison] = useState<MatchStatComparison | null>(null)
 
   const match      = session?.matches.find((m) => m.id === matchId)
   const playerMap  = session ? Object.fromEntries(session.players.map((p) => [p.id, p])) : {}
@@ -105,6 +109,30 @@ export function Scoreboard() {
   const kbDelete = useCallback(() => setInput(p => p.slice(0, -1)), [])
   const kbClear  = useCallback(() => setInput(""), [])
 
+  // Match дуусангуут дэлгэрэнгүй статистикийг шууд клиент дээр (store-оос fresh) тооцоолж
+  // popup нээнэ; DartMN акаунттай тоглогчдод зориулж DB бичилтийг fire-and-forget илгээнэ.
+  // Store update синхрон тул useLocalGame.getState()-ээр яг шинэ (энэ match дуусах leg-ийг
+  // багтаасан) session/match-ыг шууд авна — React re-render хүлээхгүй.
+  function finishAndShowStats() {
+    const freshSession = useLocalGame.getState().sessions[sessionId]
+    const freshMatch = freshSession?.matches.find((m) => m.id === matchId)
+    if (freshSession && freshMatch && p1 && p2) {
+      setStatsComparison({
+        contextLabel: freshSession.name,
+        p1: { name: p1.name, stats: computeMatchStatDetails(localLegsToStatLegs(freshMatch.legs, p1Id)) },
+        p2: { name: p2.name, stats: computeMatchStatDetails(localLegsToStatLegs(freshMatch.legs, p2Id)) },
+      })
+      setShowStatsDialog(true)
+      fetch("/api/local/match-stats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session: freshSession, matchId }),
+      }).catch(() => {})
+    } else {
+      router.push(`/local/${sessionId}`)
+    }
+  }
+
   function submitScore() {
     if (!session || !match) return
     const score = parseInt(input)
@@ -142,7 +170,7 @@ export function Scoreboard() {
       if (result.matchComplete) {
         localStorage.removeItem(SCORER_KEY)
         toast.success(`${playerMap[activePlayerId]?.name} ялав!`)
-        router.push(`/local/${sessionId}`)
+        finishAndShowStats()
         return
       }
       toast.success(result.setCompleted
@@ -203,7 +231,7 @@ export function Scoreboard() {
     if (result.matchComplete) {
       localStorage.removeItem(SCORER_KEY)
       toast.success(`${playerMap[winnerId]?.name} тэмцэнд ялав!`)
-      router.push(`/local/${sessionId}`)
+      finishAndShowStats()
       return
     }
     toast.success(`${playerMap[winnerId]?.name} хожлоо!`)
@@ -503,13 +531,16 @@ export function Scoreboard() {
         <div className="grid grid-cols-2 gap-2">
           {[{ id: p1Id, name: p1?.name }, { id: p2Id, name: p2?.name }].map(({ id, name }) => (
             <button key={id}
-              onClick={() => { forfeitMatch(sessionId, matchId, id); localStorage.removeItem(SCORER_KEY); toast.success(`${name} ялагч боллоо`); router.push(`/local/${sessionId}`) }}
+              onClick={() => { forfeitMatch(sessionId, matchId, id); localStorage.removeItem(SCORER_KEY); toast.success(`${name} ялагч боллоо`); finishAndShowStats() }}
               className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-border/40 text-sm text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors">
               <Trophy className="h-3.5 w-3.5" />{name} ялав
             </button>
           ))}
         </div>
       </div>
+
+      <MatchStatsDialog open={showStatsDialog} data={statsComparison}
+        onOpenChange={(open) => { setShowStatsDialog(open); if (!open) router.push(`/local/${sessionId}`) }} />
     </div>
   )
 }

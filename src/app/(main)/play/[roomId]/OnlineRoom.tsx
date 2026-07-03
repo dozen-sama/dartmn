@@ -15,6 +15,8 @@ import { getTier } from "@/lib/rating"
 import { teamSize, totalPlayers, type RoomMode } from "@/lib/local-game/room"
 import { deriveX01, x01LegsConfig } from "@/lib/local-game/x01"
 import { classifyTurn, getCheckout, isPossibleVisitScore } from "@/lib/local-game/checkouts"
+import { computeMatchStatDetails, type StatLeg } from "@/lib/local-game/match-stat-details"
+import { MatchStatsDialog, type MatchStatComparison } from "@/components/match/MatchStatsDialog"
 import { useScoreboardKeyboard } from "@/hooks/useScoreboardKeyboard"
 import { useWebRTCCamera } from "@/hooks/useWebRTCCamera"
 import { useCaller } from "@/hooks/useCaller"
@@ -80,6 +82,7 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName, t
   const [submitting, setSubmitting] = useState(false)
   const [now, setNow] = useState(() => Date.now())
   const [showCamera, setShowCamera] = useState(false)
+  const [showStatsDialog, setShowStatsDialog] = useState(false)
 
   const mode = liveRoom.mode as RoomMode
   const { enabled: callerOn, supported: callerSupported, toggle: toggleCaller, announce } = useCaller()
@@ -421,6 +424,28 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName, t
     const bigName = (t: number) => n === 1 ? nameOf(t, 0) : `Баг ${t + 1}`
     const subName = (t: number) => n === 1 ? null : nameOf(t, d.currentPlayer[t])
 
+    // 1v1-д л 2 талт дэлгэрэнгүй статистик утга учиртай (баг тоглолтод нэг тоглогчийн
+    // тоо баг бүхэлд нь илэрхийлэхгүй)
+    const statsComparison: MatchStatComparison | null = (done && n === 1) ? {
+      contextLabel: null,
+      p1: { name: bigName(0), stats: computeMatchStatDetails(d.legsView.map((legVisits, i): StatLeg => ({
+        starter: legVisits[0]?.team === 0,
+        won: d.legWinners[i] === 0,
+        visits: legVisits.filter((v) => v.team === 0).map((v) => ({
+          points: v.points, darts: sortedVisits[v.idx]?.darts ?? 3, bust: v.bust,
+          before: v.bust ? v.remaining : v.remaining + v.points,
+        })),
+      }))) },
+      p2: { name: bigName(1), stats: computeMatchStatDetails(d.legsView.map((legVisits, i): StatLeg => ({
+        starter: legVisits[0]?.team === 1,
+        won: d.legWinners[i] === 1,
+        visits: legVisits.filter((v) => v.team === 1).map((v) => ({
+          points: v.points, darts: sortedVisits[v.idx]?.darts ?? 3, bust: v.bust,
+          before: v.bust ? v.remaining : v.remaining + v.points,
+        })),
+      }))) },
+    } : null
+
     const curLeg = d.legsView[d.legsView.length - 1] ?? []
     const t0 = curLeg.filter((v) => v.team === 0)
     const t1 = curLeg.filter((v) => v.team === 1)
@@ -519,13 +544,23 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName, t
 
         {/* Winner banner */}
         {done && winnerTeam !== null && winnerTeam !== undefined && (
-          <div className="text-center py-4 rounded-xl bg-[oklch(0.78_0.16_85)]/10 border border-[oklch(0.78_0.16_85)]/30">
+          <div className="text-center py-4 rounded-xl bg-[oklch(0.78_0.16_85)]/10 border border-[oklch(0.78_0.16_85)]/30 space-y-2">
             <div className="text-4xl mb-1">🏆</div>
             <p className="text-lg font-black text-[oklch(0.78_0.16_85)]">{bigName(winnerTeam)} хожлоо!</p>
             <p className="text-xs text-muted-foreground mt-0.5">
               {setsToWin ? <>{d.sets[0]} — {d.sets[1]} sets</> : <>{d.legs[0]} — {d.legs[1]}</>}
             </p>
+            {n === 1 && (
+              <button onClick={() => setShowStatsDialog(true)}
+                className="text-xs font-semibold text-primary hover:text-primary/80 underline underline-offset-2">
+                Үр дүнг харуулах
+              </button>
+            )}
           </div>
+        )}
+
+        {statsComparison && (
+          <MatchStatsDialog open={showStatsDialog} onOpenChange={setShowStatsDialog} data={statsComparison} />
         )}
 
         {/* TV scoreboard */}

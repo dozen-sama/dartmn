@@ -28,6 +28,9 @@ export default async function StatsPage() {
     .order("created_at", { ascending: false })
     .limit(15)
 
+  const { data: statSummaryRows } = await supabase.rpc("get_player_stat_summary", { p_player_id: user.id })
+  const summary = statSummaryRows?.[0] ?? null
+
   if (!profile) redirect("/dashboard")
 
   const winRate = profile.matches_played > 0
@@ -104,6 +107,40 @@ export default async function StatsPage() {
           </Card>
         ))}
       </div>
+
+      {/* Дэлгэрэнгүй статистик — match_stat_details-ийн aggregate (get_player_stat_summary) */}
+      {summary && summary.matches > 0 && (
+        <Card className="border-border/50 bg-card/80">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Target className="h-4 w-4 text-primary" />
+              Дэлгэрэнгүй статистик
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: "First 9", value: formatAverage(summary.avg_first9) },
+                { label: "60+", value: formatNumber(summary.band_60) },
+                { label: "80+", value: formatNumber(summary.band_80) },
+                { label: "100+", value: formatNumber(summary.band_100) },
+                { label: "120+", value: formatNumber(summary.band_120) },
+                { label: "140+", value: formatNumber(summary.band_140) },
+                { label: "170+", value: formatNumber(summary.band_170) },
+                { label: "Хамгийн муу лег", value: summary.worst_leg_darts ? `${summary.worst_leg_darts} дарт` : "—" },
+                { label: "Checkout %", value: summary.checkout_attempts > 0 ? `${((summary.checkout_makes / summary.checkout_attempts) * 100).toFixed(1)}%` : "—" },
+                { label: "Keep %", value: summary.keep_attempts > 0 ? `${((summary.keep_makes / summary.keep_attempts) * 100).toFixed(1)}%` : "—" },
+                { label: "Break %", value: summary.break_attempts > 0 ? `${((summary.break_makes / summary.break_attempts) * 100).toFixed(1)}%` : "—" },
+              ].map((s) => (
+                <div key={s.label} className="text-center space-y-0.5 p-2 rounded-lg bg-secondary/40">
+                  <p className="text-lg font-bold score-display">{s.value}</p>
+                  <p className="text-[11px] text-muted-foreground">{s.label}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Summary banner */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
