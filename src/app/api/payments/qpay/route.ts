@@ -1,5 +1,6 @@
-import { createAdminClient } from "@/lib/supabase/server"
+import { createClient, createAdminClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
+import { resolveExpectedAmount } from "@/lib/payments/validate-amount"
 
 const QPAY_BASE = "https://merchant.qpay.mn/v2"
 
@@ -20,12 +21,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "QPay гэрээ хийгдээгүй байна" }, { status: 503 })
   }
 
+  const auth = await createClient()
+  const { data: { user } } = await auth.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Нэвтрээгүй байна" }, { status: 401 })
+
   const { tournament_id, player_id, amount, purpose } = await req.json()
-  if (!tournament_id || !player_id || !amount) {
+  if (!tournament_id || !player_id || typeof amount !== "number" || amount < 0) {
     return NextResponse.json({ error: "Missing params" }, { status: 400 })
   }
+  if (player_id !== user.id) return NextResponse.json({ error: "Зөвшөөрөлгүй" }, { status: 403 })
 
   const supabase = await createAdminClient()
+
+  const expected = await resolveExpectedAmount(supabase, tournament_id, purpose)
+  if (expected === null || amount !== expected) {
+    return NextResponse.json({ error: "Дүн зөрсөн байна" }, { status: 400 })
+  }
 
   // Create payment transaction
   const { data: txn, error: txnErr } = await supabase

@@ -1,6 +1,7 @@
-import { createAdminClient } from "@/lib/supabase/server"
+import { createClient, createAdminClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
 import crypto from "crypto"
+import { resolveExpectedAmount } from "@/lib/payments/validate-amount"
 
 // Bonum Gateway integration
 // Гэрээ байгуулсны дараа .env.local-д нэмнэ:
@@ -27,12 +28,22 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const { tournament_id, player_id, amount, description } = await req.json()
-  if (!tournament_id || !player_id || !amount) {
+  const auth = await createClient()
+  const { data: { user } } = await auth.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Нэвтрээгүй байна" }, { status: 401 })
+
+  const { tournament_id, player_id, amount, description, purpose } = await req.json()
+  if (!tournament_id || !player_id || typeof amount !== "number" || amount < 0) {
     return NextResponse.json({ error: "Missing params" }, { status: 400 })
   }
+  if (player_id !== user.id) return NextResponse.json({ error: "Зөвшөөрөлгүй" }, { status: 403 })
 
   const supabase = await createAdminClient()
+
+  const expected = await resolveExpectedAmount(supabase, tournament_id, purpose)
+  if (expected === null || amount !== expected) {
+    return NextResponse.json({ error: "Дүн зөрсөн байна" }, { status: 400 })
+  }
 
   // Transaction үүсгэх
   const { data: txn, error: txnErr } = await supabase
@@ -44,6 +55,7 @@ export async function POST(req: NextRequest) {
       currency: "MNT",
       provider: "bonum",
       status: "pending",
+      metadata: purpose ? { purpose } : {},
     })
     .select("id")
     .single()

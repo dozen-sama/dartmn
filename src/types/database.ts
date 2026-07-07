@@ -921,6 +921,7 @@ export interface Database {
           room_id: string | null
           status: "searching" | "matched"
           joined_at: string
+          last_seen_at: string
         }
         Insert: {
           id?: string
@@ -932,6 +933,7 @@ export interface Database {
           room_id?: string | null
           status?: "searching" | "matched"
           joined_at?: string
+          last_seen_at?: string
         }
         Update: {
           rating_points?: number
@@ -941,6 +943,7 @@ export interface Database {
           room_id?: string | null
           status?: "searching" | "matched"
           joined_at?: string
+          last_seen_at?: string
         }
         Relationships: []
       }
@@ -959,6 +962,7 @@ export interface Database {
           metadata: Json
           created_at: string
           updated_at: string
+          consumed_at: string | null
         }
         Insert: {
           id?: string
@@ -978,6 +982,7 @@ export interface Database {
           invoice_id?: string | null
           qr_text?: string | null
           deep_link?: string | null
+          consumed_at?: string | null
         }
         Relationships: []
       }
@@ -994,6 +999,7 @@ export interface Database {
           double_out: boolean
           limit_rounds: number | null
           bull_finish: boolean
+          loser_first: boolean
           start_method: "random" | "bulloff"
           starter_team: number | null
           winner_team: number | null
@@ -1001,6 +1007,9 @@ export interface Database {
           tournament_match_id: string | null
           legs_per_set: number | null
           created_at: string
+          decide_vote_team: number | null
+          decide_vote_by: string | null
+          decide_vote_at: string | null
         }
         Insert: {
           id?: string
@@ -1014,6 +1023,7 @@ export interface Database {
           double_out?: boolean
           limit_rounds?: number | null
           bull_finish?: boolean
+          loser_first?: boolean
           start_method?: "random" | "bulloff"
           starter_team?: number | null
           winner_team?: number | null
@@ -1028,6 +1038,9 @@ export interface Database {
           winner_team?: number | null
           match_id?: string | null
           legs_per_set?: number | null
+          decide_vote_team?: number | null
+          decide_vote_by?: string | null
+          decide_vote_at?: string | null
         }
         Relationships: []
       }
@@ -1335,6 +1348,50 @@ export interface Database {
           worst_metric: number
           last_played: string
         }[]
+      }
+      undo_last_room_visit: {
+        Args: { p_room_id: string; p_user_id: string }
+        Returns: {
+          id: string
+          room_id: string
+          seq: number
+          team: number
+          slot: number
+          points: number
+          darts: number
+          created_by: string
+          created_at: string
+        }[]
+      }
+      matchmaking_claim_match: {
+        Args: {
+          p_player_id: string
+          p_rating: number
+          p_format: string
+          p_best_of: number
+          p_double_out: boolean
+          p_elo_window: number
+        }
+        Returns: {
+          room_id: string | null
+          matched: boolean
+        }[]
+      }
+      matchmaking_heartbeat: {
+        Args: {
+          p_player_id: string
+        }
+        Returns: undefined
+      }
+      matchmaking_join_queue: {
+        Args: {
+          p_player_id: string
+          p_rating: number
+          p_format: string
+          p_best_of: number
+          p_double_out: boolean
+        }
+        Returns: undefined
       }
     }
     Enums: {}

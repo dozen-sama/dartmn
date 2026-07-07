@@ -29,6 +29,7 @@ export interface X01Config {
   limitRounds?: number
   bullFinishAtLimit?: boolean
   setsToWin?: number  // заасан бол sets горим: legsToWin-д хүрэхэд SET шилжинэ
+  loserFirst?: boolean  // true бол leg хожигдсон баг дараагийн leg-ийг эхэлнэ; false (default) бол энгийн ээлжлэн солигдоно
 }
 
 export interface X01State {
@@ -95,12 +96,13 @@ export function deriveX01(visits: X01Visit[], cfg: X01Config): X01State {
 
   const pcount = (t: number) => Math.max(1, teamSizes[t] ?? 1)
 
-  // Шинэ leg — оноо reset, тоглогч эргэлдэнэ, эхлэгч ЭЭЛЖИЛНЭ (стандарт дартс)
-  function advanceLeg() {
+  // Шинэ leg — оноо reset, тоглогч эргэлдэнэ. loserFirst=true бол дараагийн leg-ийг
+  // хожигдсон баг эхэлнэ, эс бөгөөс энгийн ээлжлэн солигдоно (стандарт дартс)
+  function advanceLeg(winnerTeam: number) {
     sc[0] = startScore; sc[1] = startScore
     cp[0] = (cp[0] + 1) % pcount(0)
     cp[1] = (cp[1] + 1) % pcount(1)
-    legStarter = legStarter === 0 ? 1 : 0
+    legStarter = cfg.loserFirst ? (winnerTeam === 0 ? 1 : 0) : (legStarter === 0 ? 1 : 0)
     active = legStarter
     curLeg = []
     legAtLimit = false
@@ -115,12 +117,12 @@ export function deriveX01(visits: X01Visit[], cfg: X01Config): X01State {
         st[team]++
         if (st[team] >= setsToWin) { winner = team; return true }
         lg[0] = 0; lg[1] = 0
-        advanceLeg()
+        advanceLeg(team)
         return false
       }
       winner = team; return true
     }
-    advanceLeg()
+    advanceLeg(team)
     return false
   }
 

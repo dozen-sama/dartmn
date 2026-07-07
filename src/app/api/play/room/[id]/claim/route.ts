@@ -36,6 +36,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     legsToWin, setsToWin, starterTeam: room.starter_team ?? 0,
     teamSizes: [ts, ts], limitRoundsEnabled: room.limit_rounds != null,
     limitRounds: room.limit_rounds ?? undefined, bullFinishAtLimit: room.bull_finish,
+    loserFirst: room.loser_first,
   })
 
   // Дуудагч хүлээж байгаа (идэвхтэй нь өрсөлдөгч) байх ёстой

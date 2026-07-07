@@ -583,7 +583,10 @@ CREATE TABLE public.payment_transactions (
   deep_link TEXT,
   metadata JSONB NOT NULL DEFAULT '{}',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  -- subscriptions/activate route-д replay хамгаалалт: conditional UPDATE
+  -- (WHERE consumed_at IS NULL) ашиглан гүйлгээ бүрийг зөвхөн нэг л удаа ашиглана.
+  consumed_at TIMESTAMPTZ
 );
 
 ALTER TABLE public.payment_transactions ENABLE ROW LEVEL SECURITY;
@@ -611,23 +614,227 @@ CREATE TABLE public.online_rooms (
   double_out BOOLEAN NOT NULL DEFAULT true,
   limit_rounds SMALLINT,
   bull_finish BOOLEAN NOT NULL DEFAULT false,
+  loser_first BOOLEAN NOT NULL DEFAULT false,
   start_method TEXT NOT NULL DEFAULT 'random' CHECK (start_method IN ('random', 'bulloff')),
   starter_team SMALLINT,
   winner_team SMALLINT,
   match_id UUID REFERENCES public.matches(id) ON DELETE SET NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  -- Bull-finish decide: эсрэг талын баталгаажуулалт хүлээж буй санал (decide/route.ts)
+  decide_vote_team SMALLINT,
+  decide_vote_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  -- Санал хэзээ илгээгдснийг тэмдэглэнэ — эсрэг тал холбогдохгүй (tab хаасан) үед
+  -- IDLE хугацаа өнгөрсний дараа саналыг илгээгч тал timeout-оор өөрөө баталгаажуулж болно
+  decide_vote_at TIMESTAMPTZ
 );
 
 ALTER TABLE public.online_rooms ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Waiting rooms viewable by everyone" ON public.online_rooms FOR SELECT USING (true);
-CREATE POLICY "Hosts can manage their rooms" ON public.online_rooms FOR ALL USING (auth.uid() = host_id);
 CREATE POLICY "Authenticated users can create rooms" ON public.online_rooms FOR INSERT WITH CHECK (auth.uid() = host_id);
-CREATE POLICY "Guests can join rooms" ON public.online_rooms FOR UPDATE USING (
-  status = 'waiting' AND (guest_id IS NULL OR auth.uid() = guest_id)
-);
+-- "Guests can join rooms" UPDATE policy устгасан (2026-07-05): guest_id багана апп-д хэзээ ч бичигддэггүй хоцрогдсон
+-- багана байсан бөгөөд WITH CHECK байхгүй тул дурын хэрэглэгч waiting room-ийн host_id/format/mode зэргийг
+-- чөлөөтэй өөрчилж чаддаг байв. Тоглогч нэгдэх нь одоо /api/play/room/[id]/join (service-role) route-оор
+-- room_players-д бичигдэнэ, тул client UPDATE policy огт хэрэггүй.
+-- "Hosts can manage their rooms" FOR ALL policy устгасан (2026-07-07): WITH CHECK-гүй тул host client-аас
+-- decide_vote_team/decide_vote_by/winner_team/status зэргийг шууд бичиж, mutual-confirmation "decide" route-ийг
+-- тойрч болдог байв. Бүх UPDATE/DELETE аль хэдийн зөвхөн service-role admin client-аар route.ts-үүдээс
+-- хийгддэг (client-ээс шууд .update()/.delete() дуудагддаггүй) тул энэ policy огт хэрэггүй байсан.
 
 CREATE INDEX online_rooms_status_idx ON public.online_rooms USING btree (status);
 CREATE INDEX online_rooms_code_idx ON public.online_rooms USING btree (room_code);
+
+-- matchmaking_queue: ELO-гээр ойролцоо тоглогч хайх дараалал
+CREATE TABLE public.matchmaking_queue (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  player_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+  rating_points INTEGER NOT NULL,
+  format TEXT NOT NULL DEFAULT '501',
+  best_of INTEGER NOT NULL DEFAULT 3,
+  double_out BOOLEAN NOT NULL DEFAULT true,
+  room_id UUID REFERENCES public.online_rooms(id),
+  status TEXT NOT NULL DEFAULT 'searching',
+  joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  -- Client heartbeat while status='searching' (see matchmaking_heartbeat below).
+  -- Lets matchmaking_claim_match tell apart a live search from a ghost entry
+  -- left behind by a closed/crashed tab that never called /leave.
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.matchmaking_queue ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "see own entry" ON public.matchmaking_queue FOR SELECT USING (auth.uid() = player_id);
+CREATE POLICY "insert own entry" ON public.matchmaking_queue FOR INSERT WITH CHECK (auth.uid() = player_id);
+CREATE POLICY "update own entry" ON public.matchmaking_queue FOR UPDATE USING (auth.uid() = player_id);
+CREATE POLICY "delete own entry" ON public.matchmaking_queue FOR DELETE USING (auth.uid() = player_id);
+
+CREATE INDEX idx_matchmaking_queue_searching ON public.matchmaking_queue USING btree (status, rating_points, joined_at) WHERE (status = 'searching');
+
+-- Тоглогч хайх+таарах+өрөө үүсгэхийг НЭГ атомик транзакцад (FOR UPDATE SKIP LOCKED)
+-- хийдэг: хоёр тоглогч бараг зэрэг join хийхэд өмнө нь /api/matchmaking/join
+-- 2-3 тусдаа round-trip-ээр (select→insert room→insert room_players→update queue)
+-- хийдэг байсан тул хоёул нэг оппонентыг зэрэг "барьж", давхар өрөө үүсгэх/нэг
+-- тоглогчийг 2 өрөөнд оруулах боломжтой байв.
+CREATE OR REPLACE FUNCTION public.matchmaking_claim_match(
+  p_player_id UUID,
+  p_rating INT,
+  p_format TEXT,
+  p_best_of INT,
+  p_double_out BOOLEAN,
+  p_elo_window INT
+)
+RETURNS TABLE(room_id UUID, matched BOOLEAN)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_self RECORD;
+  v_opponent RECORD;
+  v_room_id UUID;
+  v_code TEXT;
+  i INT;
+BEGIN
+  -- Serialize the whole matching decision across ALL concurrent callers (any
+  -- player), not just duplicate calls for the same player_id. Without this,
+  -- two players joining at nearly the same moment each lock their own row
+  -- first (see below) and then look for each other with FOR UPDATE SKIP
+  -- LOCKED — each sees the other's row as locked-by-someone-else and skips
+  -- it, so both report "no opponent found" even though they were a perfect
+  -- match (livelock). The advisory lock makes claim attempts run one at a
+  -- time, so SKIP LOCKED below never has a same-instant competitor to skip.
+  PERFORM pg_advisory_xact_lock(hashtext('matchmaking_claim_match'));
+
+  -- Lock own queue row first: a concurrent duplicate call for the same
+  -- player_id (double-click, retry) must serialize here, not race below.
+  SELECT * INTO v_self FROM matchmaking_queue WHERE player_id = p_player_id FOR UPDATE;
+
+  IF v_self.id IS NULL OR v_self.status <> 'searching' THEN
+    RETURN QUERY SELECT v_self.room_id, COALESCE(v_self.status = 'matched', false);
+    RETURN;
+  END IF;
+
+  -- Self-heal: opportunistically clear out ghost entries (abandoned tabs that
+  -- never called /leave) so they stop being offered as opponents to anyone.
+  -- SKIP LOCKED so this never blocks on a row another concurrent claim call
+  -- is actively evaluating.
+  DELETE FROM matchmaking_queue
+  WHERE id IN (
+    SELECT id FROM matchmaking_queue
+    WHERE status = 'searching'
+      AND player_id <> p_player_id
+      AND last_seen_at < NOW() - INTERVAL '30 seconds'
+    FOR UPDATE SKIP LOCKED
+  );
+
+  -- FOR UPDATE SKIP LOCKED: if another concurrent caller is already
+  -- evaluating this same candidate, skip it instead of double-claiming it.
+  -- Only consider opponents seen recently (excludes ghosts whose heartbeat
+  -- lapsed but haven't been swept by the DELETE above yet).
+  SELECT * INTO v_opponent
+  FROM matchmaking_queue
+  WHERE status = 'searching'
+    AND player_id <> p_player_id
+    AND format = p_format
+    AND best_of = p_best_of
+    AND double_out = p_double_out
+    AND rating_points BETWEEN p_rating - p_elo_window AND p_rating + p_elo_window
+    AND last_seen_at > NOW() - INTERVAL '15 seconds'
+  ORDER BY joined_at
+  FOR UPDATE SKIP LOCKED
+  LIMIT 1;
+
+  IF v_opponent.id IS NULL THEN
+    RETURN QUERY SELECT NULL::UUID, false;
+    RETURN;
+  END IF;
+
+  FOR i IN 1..5 LOOP
+    v_code := upper(substr(md5(random()::text || clock_timestamp()::text), 1, 6));
+    BEGIN
+      INSERT INTO online_rooms (room_code, host_id, format, best_of, mode, double_out, limit_rounds, bull_finish, start_method, status)
+      VALUES (v_code, v_opponent.player_id, p_format, p_best_of, '1v1', p_double_out, NULL, false, 'random', 'waiting')
+      RETURNING id INTO v_room_id;
+      EXIT;
+    EXCEPTION WHEN unique_violation THEN
+      v_room_id := NULL;
+    END;
+  END LOOP;
+
+  IF v_room_id IS NULL THEN
+    RAISE EXCEPTION 'matchmaking: room code collision retries exhausted';
+  END IF;
+
+  INSERT INTO room_players (room_id, player_id, team, slot, is_ready)
+  VALUES (v_room_id, v_opponent.player_id, 0, 0, false),
+         (v_room_id, p_player_id, 1, 0, false);
+
+  UPDATE matchmaking_queue
+  SET status = 'matched', room_id = v_room_id
+  WHERE player_id IN (p_player_id, v_opponent.player_id);
+
+  RETURN QUERY SELECT v_room_id, true;
+END;
+$$;
+
+-- Зөвхөн service_role (Next.js API route-уудын admin client) дуудна. anon/authenticated-аас
+-- шууд дуудвал p_player_id parameter-ээр дурын хэрэглэгчийг олонддог тул PUBLIC-ээс revoke хийсэн —
+-- эдгээр SECURITY DEFINER функц дотроо auth.uid()-тэй харьцуулдаггүй (учир нь admin client-ээр
+-- дуудахад auth.uid() NULL байдаг), тул зөвхөн грант-аар хязгаарлана.
+REVOKE EXECUTE ON FUNCTION public.matchmaking_claim_match(uuid, integer, text, integer, boolean, integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.matchmaking_claim_match(uuid, integer, text, integer, boolean, integer) TO service_role;
+
+-- Client calls this every few seconds while status='searching' (see
+-- /api/matchmaking/heartbeat) to prove the tab is still open. Rows whose
+-- last_seen_at goes stale are treated as ghosts by matchmaking_claim_match.
+CREATE OR REPLACE FUNCTION public.matchmaking_heartbeat(p_player_id UUID)
+RETURNS VOID
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  UPDATE matchmaking_queue
+  SET last_seen_at = NOW()
+  WHERE player_id = p_player_id AND status = 'searching';
+$$;
+
+-- Зөвхөн service_role дуудна (доод тайлбарыг matchmaking_claim_match дээрээс үз).
+REVOKE EXECUTE ON FUNCTION public.matchmaking_heartbeat(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.matchmaking_heartbeat(uuid) TO service_role;
+
+-- matchmaking/join/route.ts дуудна. joined_at/last_seen_at-г app-серверийн
+-- цагаар (new Date()) биш, доторх NOW()-оор бичдэг — matchmaking_claim_match-ийн
+-- ghost-cleanup/recency шалгалт мөн NOW()-оор хийдэг тул clock drift-ийн улмаас
+-- шинэ мөр анхны heartbeat-ээс өмнө "ghost" гэж алдагдахаас сэргийлнэ.
+CREATE OR REPLACE FUNCTION public.matchmaking_join_queue(
+  p_player_id UUID,
+  p_rating INT,
+  p_format TEXT,
+  p_best_of INT,
+  p_double_out BOOLEAN
+)
+RETURNS VOID
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  INSERT INTO matchmaking_queue (player_id, rating_points, format, best_of, double_out, status, room_id, joined_at, last_seen_at)
+  VALUES (p_player_id, p_rating, p_format, p_best_of, p_double_out, 'searching', NULL, NOW(), NOW())
+  ON CONFLICT (player_id) DO UPDATE SET
+    rating_points = EXCLUDED.rating_points,
+    format = EXCLUDED.format,
+    best_of = EXCLUDED.best_of,
+    double_out = EXCLUDED.double_out,
+    status = 'searching',
+    room_id = NULL,
+    joined_at = NOW(),
+    last_seen_at = NOW();
+$$;
+
+-- Зөвхөн service_role дуудна. "FROM PUBLIC" хангалтгүй байсан — энэ project дээр
+-- CREATE FUNCTION-ий үед ALTER DEFAULT PRIVILEGES-ээр anon/authenticated рольд
+-- шууд (PUBLIC-аас тусдаа) EXECUTE олгогддог тул тэдгээрийг ч тодорхой REVOKE хийнэ.
+REVOKE EXECUTE ON FUNCTION public.matchmaking_join_queue(uuid, integer, text, integer, boolean) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.matchmaking_join_queue(uuid, integer, text, integer, boolean) FROM anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.matchmaking_join_queue(uuid, integer, text, integer, boolean) TO service_role;
 
 -- room_players: every participant (incl. host), team + slot + ready
 CREATE TABLE public.room_players (
@@ -645,8 +852,11 @@ CREATE TABLE public.room_players (
 CREATE INDEX room_players_room_idx ON public.room_players (room_id);
 ALTER TABLE public.room_players ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Room players viewable by everyone" ON public.room_players FOR SELECT USING (true);
-CREATE POLICY "Users join themselves" ON public.room_players FOR INSERT WITH CHECK (auth.uid() = player_id);
-CREATE POLICY "Players update own ready" ON public.room_players FOR UPDATE USING (auth.uid() = player_id);
+-- "Users join themselves" INSERT policy болон "Players update own ready" UPDATE policy устгасан (2026-07-05):
+-- room статус шалгаагүй тул client-аар шууд бичихэд идэвхтэй (ongoing) тоглолтод зөвшөөрөлгүй нэгдэх, эсвэл
+-- бусад тоглогчийн team/slot-той мөргөлдөх боломжтой байсан. Join/ready/bulloff бүгд одоо
+-- /api/play/room/[id]/{join,ready,bulloff} (service-role) route-оор room статус шалгаж бичдэг тул
+-- client INSERT/UPDATE policy огт хэрэггүй байсан.
 CREATE POLICY "Player or host removes player" ON public.room_players FOR DELETE USING (
   auth.uid() = player_id
   OR auth.uid() = (SELECT host_id FROM public.online_rooms r WHERE r.id = room_id)
@@ -686,7 +896,52 @@ CREATE TABLE public.room_visits (
 CREATE INDEX room_visits_room_idx ON public.room_visits (room_id, seq);
 ALTER TABLE public.room_visits ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Visits viewable by everyone" ON public.room_visits FOR SELECT USING (true);
-CREATE POLICY "Players insert own visit" ON public.room_visits FOR INSERT WITH CHECK (auth.uid() = created_by);
+-- Direct client insert intentionally disallowed: only server routes (turn/decide),
+-- using the service-role admin client, are permitted to write visits.
+
+-- Undo-г нэг атомик DELETE-ээр гүйцэтгэнэ: "seq-ээс өндөр өөр мөр байхгүй" нөхцөлийг
+-- мөрийг устгах statement-ийн дотор шалгадаг тул read (сүүлийн visit)-ээс delete хүртэлх
+-- цонхонд өрсөлдөгч шинэ ээлж (visit) нэмчихвэл race-аар буруу (аль хэдийн хуучирсан) мөр
+-- устдаггүй (устгах гэж буй мөрөөс seq өндөр мөр гарч ирмэгц WHERE нөхцөл хангахгүй болно).
+CREATE OR REPLACE FUNCTION public.undo_last_room_visit(p_room_id UUID, p_user_id UUID)
+RETURNS SETOF public.room_visits
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  DELETE FROM public.room_visits rv
+  WHERE rv.room_id = p_room_id
+    AND rv.created_by = p_user_id
+    AND NOT EXISTS (
+      SELECT 1 FROM public.room_visits rv2
+      WHERE rv2.room_id = rv.room_id AND rv2.seq > rv.seq
+    )
+  RETURNING rv.*;
+$$;
+
+-- Зөвхөн service_role дуудна (доод тайлбарыг matchmaking_claim_match дээрээс үз).
+REVOKE EXECUTE ON FUNCTION public.undo_last_room_visit(uuid, uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.undo_last_room_visit(uuid, uuid) TO service_role;
+
+-- ============================================================
+-- match_stat_details-ийн нэгтгэсэн статистик (профайл/статистик хуудас)
+-- Тоглолтгүй тоглогчид ч бүх sum() талбарууд NULL биш 0 буцаана
+-- (зөвхөн best_leg_darts/worst_leg_darts NULL-able хэвээр — MIN/MAX empty).
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.get_player_stat_summary(p_player_id uuid)
+ RETURNS TABLE(matches bigint, legs_for bigint, legs_against bigint, darts_thrown bigint, points_scored bigint, avg3 numeric, avg_first9 numeric, band_60 bigint, band_80 bigint, band_100 bigint, band_120 bigint, band_140 bigint, band_170 bigint, count_180 bigint, high_finish integer, count_100_finishes bigint, best_leg_darts integer, worst_leg_darts integer, checkout_attempts bigint, checkout_makes bigint, keep_attempts bigint, keep_makes bigint, break_attempts bigint, break_makes bigint)
+ LANGUAGE sql
+ STABLE
+AS $function$
+  SELECT count(*), COALESCE(sum(legs_for), 0), COALESCE(sum(legs_against), 0), COALESCE(sum(darts_thrown), 0), COALESCE(sum(points_scored), 0),
+         CASE WHEN sum(darts_thrown) > 0 THEN sum(points_scored)::numeric / sum(darts_thrown) * 3 ELSE 0 END,
+         COALESCE(avg(avg_first9), 0),
+         COALESCE(sum(band_60), 0), COALESCE(sum(band_80), 0), COALESCE(sum(band_100), 0), COALESCE(sum(band_120), 0), COALESCE(sum(band_140), 0), COALESCE(sum(band_170), 0), COALESCE(sum(count_180), 0),
+         COALESCE(max(high_finish), 0), COALESCE(sum(count_100_finishes), 0),
+         min(best_leg_darts), max(worst_leg_darts),
+         COALESCE(sum(checkout_attempts), 0), COALESCE(sum(checkout_makes), 0), COALESCE(sum(keep_attempts), 0), COALESCE(sum(keep_makes), 0), COALESCE(sum(break_attempts), 0), COALESCE(sum(break_makes), 0)
+  FROM public.match_stat_details WHERE player_id = p_player_id
+$function$;
 
 -- ============================================================
 -- ДУУТ ЗАРЛАГЧ (caller) — админ дуу бичлэг

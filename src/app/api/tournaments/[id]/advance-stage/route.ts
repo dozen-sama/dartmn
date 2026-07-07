@@ -74,10 +74,16 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       qualifiedIds.push(...standings.slice(0, advanceCount).map((s) => s.entrantId))
     }
   } else if (currentStage.stage_type === "elimination") {
-    // Гол bracket-ын финал match-ийн ялагч
-    const mainMs = ms.filter((m) => !m.is_losers_bracket && m.round < 200)
-    const maxRound = mainMs.length ? Math.max(...mainMs.map((m) => m.round)) : 0
-    const finalMs = mainMs.filter((m) => m.round === maxRound)
+    // Double elimination-д round 200 бол Их Финал — тэрнийг л фианл гэж үзнэ.
+    // Single elimination-д round 200 байхгүй тул гол bracket-ын хамгийн сүүлийн round нь финал.
+    const grandFinalMs = ms.filter((m) => m.round === 200)
+    const finalMs = grandFinalMs.length
+      ? grandFinalMs
+      : (() => {
+          const mainMs = ms.filter((m) => !m.is_losers_bracket && m.round < 200)
+          const maxRound = mainMs.length ? Math.max(...mainMs.map((m) => m.round)) : 0
+          return mainMs.filter((m) => m.round === maxRound)
+        })()
     qualifiedIds = finalMs.map((m) => m.winner_entrant_id).filter(Boolean) as string[]
   } else if (currentStage.stage_type === "round_robin" || currentStage.stage_type === "swiss") {
     const c = config as { advance_count?: number }

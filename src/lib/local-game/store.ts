@@ -13,6 +13,7 @@ import {
 import { isLocalRrPhase, localX01Config } from "./x01"
 import { advanceToNextStage, buildStageMatches, buildSessionPatch } from "./stage-advance"
 import type { TournamentStage } from "@/lib/tournament/stage-types"
+import { seedKnockout } from "@/lib/tournament/standings"
 
 export interface CompleteLegResult { matchComplete: boolean; setCompleted: boolean }
 
@@ -308,28 +309,28 @@ export const useLocalGame = create<LocalGameStore>()(
           const session = s.sessions[sessionId]
           if (!session || session.bracketType !== "groups_knockout") return s
 
-          // Get top N from each group by standing
-          const advancing: string[] = []
-          for (const group of session.groups) {
-            const sorted = group.playerIds
+          // Бүлэг тус бүрийн эрэмбэлсэн (points/leg diff) тоглогчдын id-г бүлэг тус бүрд ялгаатай массив болгоно
+          const rankedByGroup: string[][] = session.groups.map((group) =>
+            group.playerIds
               .map((id) => session.standings[id])
               .filter(Boolean)
-              .sort((a, b) => b.points - a.points || b.legsWon - a.legsLost)
-            advancing.push(...sorted.slice(0, session.groupAdvance).map((st) => st.playerId))
-          }
+              .sort((a, b) => b.points - a.points || b.legsWon - a.legsWon)
+              .map((st) => st.playerId)
+          )
 
           // Fill knockout round 1 slots
           const koR1 = session.matches
             .filter((m) => m.round >= 100 && m.round < 200)
             .sort((a, b) => a.matchNumber - b.matchNumber)
 
-          let idx = 0
+          // rank-major cross-seed (бүх 1-р байр, дараа нь бүх 2-р байр...) + стандарт
+          // bracket seed-template — ижил бүлгийнхэн R1-д дахин таарахгүй байхын тулд
+          const pairs = seedKnockout(rankedByGroup, session.groupAdvance, koR1.length)
+          const pairByMatchId = new Map(koR1.map((km, i) => [km.id, pairs[i]]))
           const matches = session.matches.map((m) => {
-            const isKoR1 = koR1.some((km) => km.id === m.id)
-            if (!isKoR1) return m
-            const p1 = advancing[idx++] ?? null
-            const p2 = advancing[idx++] ?? null
-            return { ...m, player1Id: p1, player2Id: p2 }
+            const pair = pairByMatchId.get(m.id)
+            if (!pair) return m
+            return { ...m, player1Id: pair[0] ?? "bye", player2Id: pair[1] ?? "bye" }
           })
 
           return {
@@ -518,6 +519,14 @@ export const useLocalGame = create<LocalGameStore>()(
           const allMatchesDone = matches.filter((m) => m.player1Id && m.player2Id && m.player1Id !== "bye" && m.player2Id !== "bye")
             .every((m) => m.status === "completed" || m.player1Id === "bye" || m.player2Id === "bye")
 
+          // Олон шаттай session: одоогийн шатны бүх match дууссан ч дараагийн шат
+          // (Elimination гэх мэт) бий бол session-ийг "completed" гэж БУРУУ тэмдэглэхгүй —
+          // "Дараагийн шатанд шилжих" товч гарч ирэхийн тулд session.status "active"
+          // хэвээр байх ёстой (SessionView.tsx-ийн hasNextStage/currentStageComplete шалгалт).
+          const isLastStage = !session.stages || session.stages.length === 0
+            || (session.currentStageIndex ?? 0) >= session.stages.length - 1
+          const tournamentComplete = allMatchesDone && isLastStage
+
           // round 998 (3-р байрны тоглолт) жинхэнэ финал биш тул хасна
           const finalMatch = [...matches].filter((m) => !m.nextMatchId && m.round !== 998 && m.status === "completed").pop()
           const sessionWinnerId = finalMatch?.winnerId ?? null
@@ -526,8 +535,8 @@ export const useLocalGame = create<LocalGameStore>()(
             ...session,
             matches,
             standings,
-            status: allMatchesDone ? "completed" : "active",
-            winnerId: allMatchesDone ? sessionWinnerId : null,
+            status: tournamentComplete ? "completed" : "active",
+            winnerId: tournamentComplete ? sessionWinnerId : null,
             phase: session.bracketType === "groups_knockout" && session.phase === "group_stage"
               ? "group_stage"  // stays until manually advanced
               : session.phase,
@@ -591,25 +600,29 @@ export const useLocalGame = create<LocalGameStore>()(
           const session = s.sessions[sessionId]
           if (!session || session.bracketType !== "groups_knockout") return s
 
-          // Get top N from each group
-          const advancingIds: string[] = []
-          for (const group of session.groups) {
-            const groupStandings = group.playerIds
+          // Бүлэг тус бүрийн эрэмбэлсэн (points/leg diff) тоглогчдын id-г бүлэг тус бүрд ялгаатай массив болгоно
+          const rankedByGroup: string[][] = session.groups.map((group) =>
+            group.playerIds
               .map((id) => session.standings[id])
               .filter(Boolean)
               .sort((a, b) => b.points - a.points || b.legsWon - a.legsWon)
-            advancingIds.push(...groupStandings.slice(0, session.groupAdvance).map((s) => s.playerId))
-          }
+              .map((s) => s.playerId)
+          )
 
           // Fill knockout round 1 slots
           const koMatches = session.matches.filter((m) => m.round >= 100)
-          const koR1 = koMatches.filter((m) => m.round === 100)
-          let slotIndex = 0
+          const koR1 = koMatches
+            .filter((m) => m.round === 100)
+            .sort((a, b) => a.matchNumber - b.matchNumber)
+
+          // rank-major cross-seed (бүх 1-р байр, дараа нь бүх 2-р байр...) + стандарт
+          // bracket seed-template — ижил бүлгийнхэн R1-д дахин таарахгүй байхын тулд
+          const pairs = seedKnockout(rankedByGroup, session.groupAdvance, koR1.length)
+          const pairByMatchId = new Map(koR1.map((km, i) => [km.id, pairs[i]]))
           const updatedKo = koMatches.map((m) => {
-            if (m.round !== 100) return m
-            const p1 = advancingIds[slotIndex++] ?? "bye"
-            const p2 = advancingIds[slotIndex++] ?? "bye"
-            return { ...m, player1Id: p1, player2Id: p2 }
+            const pair = pairByMatchId.get(m.id)
+            if (!pair) return m
+            return { ...m, player1Id: pair[0] ?? "bye", player2Id: pair[1] ?? "bye" }
           })
 
           const matches = [

@@ -70,7 +70,7 @@ export async function finishOnlineRoom(
             before: v.bust ? v.remaining : v.remaining + v.points,
           })),
         }))
-        const stats = computeMatchStatDetails(statLegs)
+        const stats = computeMatchStatDetails(statLegs, room?.double_out ?? true)
         return {
           player_id: p.player_id,
           opponent_id: opponent.player_id,

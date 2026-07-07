@@ -1,5 +1,4 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server"
-import { generateRoomCode } from "@/lib/utils/format"
 import { NextRequest, NextResponse } from "next/server"
 
 const ELO_WINDOW = 300  // ±300 ELO-тай тоглогчтой таарна
@@ -25,67 +24,41 @@ export async function POST(req: NextRequest) {
 
   const rating = profile?.rating_points ?? 1000
 
-  // Хэрэв аль хэдийн дараалалд байвал шинэчлэнэ
-  await admin.from("matchmaking_queue").upsert({
-    player_id: user.id,
-    rating_points: rating,
-    format,
-    best_of: bestOf,
-    double_out: doubleOut,
-    status: "searching",
-    room_id: null,
-    joined_at: new Date().toISOString(),
-  }, { onConflict: "player_id" })
+  // Хэрэв аль хэдийн дараалалд байвал шинэчлэнэ (энэ upsert тусдаа commit
+  // хийгддэг тул доорх атомик RPC функц дуудагдах үед өөрийн мөрний lock
+  // аль хэдийн суллагдсан байна). joined_at/last_seen_at-г app-серверийн
+  // цагаар биш, Postgres-ийн өөрийнх нь NOW()-оор бичихийн тулд RPC ашиглана
+  // (matchmaking_claim_match-ийн ghost-cleanup/recency шалгалт мөн NOW()-оор
+  // хийдэг тул clock drift-ээс сэргийлнэ).
+  await admin.rpc("matchmaking_join_queue", {
+    p_player_id: user.id,
+    p_rating: rating,
+    p_format: format,
+    p_best_of: bestOf,
+    p_double_out: doubleOut,
+  })
 
-  // Таарах тоглогч хайна (өмнө орсон, ойролцоо ELO)
-  const { data: opponent } = await admin
-    .from("matchmaking_queue")
-    .select("id, player_id, rating_points")
-    .eq("status", "searching")
-    .neq("player_id", user.id)
-    .gte("rating_points", rating - ELO_WINDOW)
-    .lte("rating_points", rating + ELO_WINDOW)
-    .order("joined_at")
-    .limit(1)
-    .maybeSingle()
+  // Таарах тоглогч хайх + өрөө үүсгэх + queue шинэчлэхийг NЭГ транзакцад
+  // (FOR UPDATE SKIP LOCKED) хийдэг тул хоёр тоглогч зэрэг join хийхэд
+  // нэг л оппонентыг хоёул "барьж" авах (давхар өрөө үүсгэх) боломжгүй.
+  const { data: result, error: rpcError } = await admin.rpc("matchmaking_claim_match", {
+    p_player_id: user.id,
+    p_rating: rating,
+    p_format: format,
+    p_best_of: bestOf,
+    p_double_out: doubleOut,
+    p_elo_window: ELO_WINDOW,
+  }).single()
 
-  if (!opponent) {
+  if (rpcError) {
+    return NextResponse.json({ error: "Тоглогч хайхад алдаа гарлаа" }, { status: 500 })
+  }
+
+  const { room_id: roomId, matched } = result as { room_id: string | null; matched: boolean }
+
+  if (!matched || !roomId) {
     return NextResponse.json({ matched: false })
   }
-
-  // Таарсан — өрөө үүсгэнэ (өмнө орсон тоглогч host)
-  let roomId: string | null = null
-  for (let i = 0; i < 5 && !roomId; i++) {
-    const code = generateRoomCode()
-    const { data: room } = await admin.from("online_rooms").insert({
-      room_code: code,
-      host_id: opponent.player_id,
-      format,
-      best_of: bestOf,
-      mode: "1v1",
-      double_out: doubleOut,
-      limit_rounds: null,
-      bull_finish: false,
-      start_method: "random",
-      status: "waiting",
-    }).select("id").single()
-    if (room) roomId = room.id
-  }
-
-  if (!roomId) {
-    return NextResponse.json({ error: "Өрөө үүсгэхэд алдаа гарлаа" }, { status: 500 })
-  }
-
-  // Хоёр тоглогчийг өрөөнд нэмнэ
-  await admin.from("room_players").insert([
-    { room_id: roomId, player_id: opponent.player_id, team: 0, slot: 0, is_ready: false },
-    { room_id: roomId, player_id: user.id, team: 1, slot: 0, is_ready: false },
-  ])
-
-  // Дараалал дахь хоёр entry-ийг matched болгоно
-  await admin.from("matchmaking_queue")
-    .update({ status: "matched", room_id: roomId })
-    .in("player_id", [user.id, opponent.player_id])
 
   return NextResponse.json({ matched: true, roomId })
 }

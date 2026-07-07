@@ -295,10 +295,42 @@ export function generateSwissRound1(players: LocalPlayer[]): { matches: LocalMat
   for (let i = 0; i < shuffled.length; i += 2) {
     if (shuffled[i + 1]) {
       matches.push(makeMatch(1, matchNumber++, shuffled[i].id, shuffled[i + 1].id))
+    } else {
+      matches.push(makeMatch(1, matchNumber++, shuffled[i].id, "bye"))
     }
   }
   const standings = initStandings(players)
   return { matches, standings }
+}
+
+// Rank-ээр эрэмбэлсэн жагсаалтыг өмнө нь тоглоогүй хосуудаар бүрэн хослуулна.
+// Шунахай (greedy) хослол rank дараалалд наалдаж, дундаас гацаад үлдсэн
+// тоглогчдыг хослуулах боломжгүй болгодог байсан тул backtrack хийж, дараагийн
+// нэр дэвшигчийг оролдож, шаардлагатай бол өмнөх хослолыг буцааж дахин
+// хуваарилна. `pool.length` тэгш байх ёстой (bye тоглогч урьдчилан хасагдсан).
+// Онолын хувьд оролцогчид маш их (10+) бөгөөд ихэнх хос аль хэдийн тоглосон
+// байвал backtracking экспоненциал цаг зарцуулж болзошгүй тул оролдлогын
+// хязгаар тавьж, хэтэрвэл түгжрэхийн оронд null буцаана (дуудагч талд
+// дараалсан хослолын fallback байгаа).
+const SWISS_BACKTRACK_BUDGET = 200_000
+
+function backtrackPairSwiss(
+  pool: StandingRow[],
+  playedPairs: Set<string>,
+  budget: { remaining: number } = { remaining: SWISS_BACKTRACK_BUDGET }
+): Array<[string, string]> | null {
+  if (pool.length === 0) return []
+  if (budget.remaining-- <= 0) return null
+  const [first, ...rest] = pool
+  for (let j = 0; j < rest.length; j++) {
+    const candidate = rest[j]
+    const pairKey = [first.playerId, candidate.playerId].sort().join("|")
+    if (playedPairs.has(pairKey)) continue
+    const remaining = [...rest.slice(0, j), ...rest.slice(j + 1)]
+    const sub = backtrackPairSwiss(remaining, playedPairs, budget)
+    if (sub !== null) return [[first.playerId, candidate.playerId], ...sub]
+  }
+  return null
 }
 
 export function generateSwissNextRound(
@@ -307,30 +339,49 @@ export function generateSwissNextRound(
   currentRound: number,
   existingMatches: LocalMatch[]
 ): LocalMatch[] {
-  // Pair players with same points, avoid rematches
-  const paired = new Set<string>()
-  const sorted = Object.values(standings).sort((a, b) => b.points - a.points || b.legsWon - a.legsWon)
   const playedPairs = new Set<string>()
+  const hadBye = new Set<string>()
   existingMatches.forEach((m) => {
-    if (m.player1Id && m.player2Id && m.player1Id !== "bye" && m.player2Id !== "bye") {
-      playedPairs.add([m.player1Id, m.player2Id].sort().join("|"))
+    const isBye1 = !m.player1Id || m.player1Id === "bye"
+    const isBye2 = !m.player2Id || m.player2Id === "bye"
+    if (isBye1 && !isBye2) hadBye.add(m.player2Id as string)
+    else if (isBye2 && !isBye1) hadBye.add(m.player1Id as string)
+    else if (!isBye1 && !isBye2) {
+      playedPairs.add([m.player1Id as string, m.player2Id as string].sort().join("|"))
     }
   })
 
-  const matches: LocalMatch[] = []
-  let matchNumber = existingMatches.length + 1
-  for (let i = 0; i < sorted.length; i++) {
-    if (paired.has(sorted[i].playerId)) continue
-    for (let j = i + 1; j < sorted.length; j++) {
-      if (paired.has(sorted[j].playerId)) continue
-      const pairKey = [sorted[i].playerId, sorted[j].playerId].sort().join("|")
-      if (!playedPairs.has(pairKey)) {
-        matches.push(makeMatch(currentRound + 1, matchNumber++, sorted[i].playerId, sorted[j].playerId))
-        paired.add(sorted[i].playerId)
-        paired.add(sorted[j].playerId)
+  const sorted = Object.values(standings).sort((a, b) => b.points - a.points || b.legsWon - a.legsWon)
+
+  // Тэгш бус тоо бол бага онооны, өмнө нь bye аваагүй тоглогч энэ удаа bye авна
+  let byePlayerId: string | null = null
+  let pool = sorted
+  if (sorted.length % 2 !== 0) {
+    for (let i = sorted.length - 1; i >= 0; i--) {
+      if (!hadBye.has(sorted[i].playerId)) {
+        byePlayerId = sorted[i].playerId
         break
       }
     }
+    if (byePlayerId === null) byePlayerId = sorted[sorted.length - 1].playerId
+    pool = sorted.filter((s) => s.playerId !== byePlayerId)
+  }
+
+  let pairs = backtrackPairSwiss(pool, playedPairs)
+  if (!pairs) {
+    // Онолын хувьд боломжгүй ёстой (бүх хос аль хэдийн тоглосон) — гэсэн ч
+    // тоглогчийг хослолгүй орхиж болохгүй тул давталт зөвшөөрөөд дараалсан хослол хийнэ
+    pairs = []
+    for (let i = 0; i < pool.length; i += 2) pairs.push([pool[i].playerId, pool[i + 1].playerId])
+  }
+
+  const matches: LocalMatch[] = []
+  let matchNumber = existingMatches.length + 1
+  for (const [p1, p2] of pairs) {
+    matches.push(makeMatch(currentRound + 1, matchNumber++, p1, p2))
+  }
+  if (byePlayerId) {
+    matches.push(makeMatch(currentRound + 1, matchNumber++, byePlayerId, "bye"))
   }
   return matches
 }

@@ -26,9 +26,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   await admin.from("room_players").update({ bulloff: score }).eq("room_id", id).eq("player_id", user.id)
 
-  // Хоёр багийн төлөөлөгч хоёулаа оруулсан эсэх
-  const reps = (players ?? []).filter((p) => p.slot === 0).map((p) =>
-    p.player_id === user.id ? { ...p, bulloff: score } : p)
+  // Хоёр багийн төлөөлөгч хоёулаа оруулсан эсэх — өөрийн бичилтийн ДАРАА fresh унших
+  // (өрсөлдөгч ижил хугацаанд илгээвэл stale снапшот дээр үндэслэвэл шилжилт бүрмөсөн алдагдаж болно)
+  const { data: freshReps } = await admin.from("room_players").select("player_id, team, slot, bulloff")
+    .eq("room_id", id).eq("slot", 0)
+  const reps = freshReps ?? []
   const t0 = reps.find((p) => p.team === 0)
   const t1 = reps.find((p) => p.team === 1)
   if (t0?.bulloff != null && t1?.bulloff != null) {

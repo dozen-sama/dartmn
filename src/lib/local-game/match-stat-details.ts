@@ -1,4 +1,4 @@
-import { canDoubleOut } from "./checkouts"
+import { canDoubleOut, isPossibleVisitScore } from "./checkouts"
 import type { LocalLeg } from "./types"
 
 // Тоглолт дуусахад гарах дэлгэрэнгүй статистик ("Үр дүнг харуулах" popup). Online (room-finish.ts)
@@ -57,7 +57,11 @@ export function localLegsToStatLegs(legs: LocalLeg[], playerId: string): StatLeg
   }))
 }
 
-export function computeMatchStatDetails(legs: StatLeg[]): MatchStatDetails {
+// `doubleOut` тохиргоог заавал дамжуулна: double-out бол зөвхөн double-ээр
+// дуусгаж болох үлдэгдэл (canDoubleOut) checkout attempt тооцогдоно; straight/master-out
+// бол ямар ч 1..180 (боломжит visit оноо) үлдэгдэл attempt тооцогдоно — эс тэгвэл
+// straight-out тоглолтын checkout% дутуу/буруу гарна.
+export function computeMatchStatDetails(legs: StatLeg[], doubleOut: boolean): MatchStatDetails {
   let legsFor = 0, legsAgainst = 0
   let dartsThrown = 0, pointsScored = 0
   let band60 = 0, band80 = 0, band100 = 0, band120 = 0, band140 = 0, band170 = 0, count180 = 0
@@ -92,7 +96,9 @@ export function computeMatchStatDetails(legs: StatLeg[]): MatchStatDetails {
       legDarts += v.darts
       dartsThrown += v.darts
 
-      const isCheckoutAttempt = canDoubleOut(v.before)
+      const isCheckoutAttempt = doubleOut
+        ? canDoubleOut(v.before)
+        : v.before > 0 && isPossibleVisitScore(v.before)
       if (isCheckoutAttempt) checkoutAttempts++
 
       if (v.bust) continue
@@ -105,7 +111,7 @@ export function computeMatchStatDetails(legs: StatLeg[]): MatchStatDetails {
       else if (v.points >= 100 && v.points < 120) band100++
       else if (v.points >= 120 && v.points < 140) band120++
       else if (v.points >= 140 && v.points < 170) band140++
-      else if (v.points === 170) band170++
+      else if (v.points >= 170 && v.points < 180) band170++
       else if (v.points === 180) count180++
 
       if (isCheckout) {

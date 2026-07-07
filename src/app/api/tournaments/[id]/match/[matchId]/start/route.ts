@@ -16,7 +16,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   const admin: any = await createAdminClient()
 
   const { data: t } = await admin.from("tournaments")
-    .select("id, organizer_id, format, first_to, rr_first_to, bracket_type, double_out, limit_rounds, bull_finish_at_limit, type, sets_enabled, legs_per_set, rr_sets_enabled, rr_legs_per_set")
+    .select("id, organizer_id, format, first_to, rr_first_to, bracket_type, double_out, limit_rounds, bull_finish_at_limit, loser_first, type, sets_enabled, legs_per_set, rr_sets_enabled, rr_legs_per_set")
     .eq("id", tournamentId).single()
   if (!t) return NextResponse.json({ error: "Тэмцээн олдсонгүй" }, { status: 404 })
 
@@ -119,6 +119,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       double_out: t.double_out !== false,
       limit_rounds: t.limit_rounds ?? null,
       bull_finish: t.limit_rounds != null && t.bull_finish_at_limit === true,
+      loser_first: t.loser_first === true,
       start_method: "bulloff",
       status: "waiting",
       tournament_match_id: matchId,

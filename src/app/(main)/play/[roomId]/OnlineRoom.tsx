@@ -314,6 +314,7 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName, t
     limitRoundsEnabled: liveRoom.limit_rounds != null,
     limitRounds: liveRoom.limit_rounds ?? undefined,
     bullFinishAtLimit: liveRoom.bull_finish,
+    loserFirst: liveRoom.loser_first,
   })
   const gActiveTeam = game.activeTeam
   const gActiveSlot = game.currentPlayer[gActiveTeam]
@@ -327,6 +328,14 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName, t
   // Өрсөлдөгч өөрийн ээлжийг ≥90с шидэхгүй бол хүлээж буй тал ялалт нэхэж болно
   const lastAtMs = lastVisit ? new Date(lastVisit.created_at).getTime() : null
   const opponentIdle = canForfeit && !game.legAtLimit && !isMyTurn && lastAtMs !== null && now - lastAtMs > 90_000
+  // Bull-finish decide — эсрэг талын баталгаажуулалт хүлээж буй санал байгаа эсэх
+  const decideVotePending = liveRoom.decide_vote_team !== null && liveRoom.decide_vote_by !== null
+  const iAmDecideVoter = decideVotePending && liveRoom.decide_vote_by === currentUserId
+  const decideVoterPlayer = decideVotePending ? livePlayers.find((p) => p.player_id === liveRoom.decide_vote_by) : undefined
+  // Эсрэг тал (tab хаасан гэх мэт) ≥90с баталгаажуулаагүй бол саналаа илгээгч тал timeout-оор өөрөө үргэлжлүүлж болно
+  const decideVoteAtMs = liveRoom.decide_vote_at ? new Date(liveRoom.decide_vote_at).getTime() : null
+  const decideVoteTimedOut = iAmDecideVoter && decideVoteAtMs !== null && now - decideVoteAtMs > 90_000
+  const canConfirmDecide = decideVotePending && !iAmDecideVoter && !!decideVoterPlayer && !!me && decideVoterPlayer.team !== me.team
   const gInputNum = parseInt(input) || 0
   const gBefore = game.scores[gActiveTeam]
   const gPreview = input !== "" ? classifyTurn(gBefore, gInputNum, { doubleOut: liveRoom.double_out }) : null
@@ -435,7 +444,7 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName, t
           points: v.points, darts: sortedVisits[v.idx]?.darts ?? 3, bust: v.bust,
           before: v.bust ? v.remaining : v.remaining + v.points,
         })),
-      }))) },
+      })), liveRoom.double_out) },
       p2: { name: bigName(1), stats: computeMatchStatDetails(d.legsView.map((legVisits, i): StatLeg => ({
         starter: legVisits[0]?.team === 1,
         won: d.legWinners[i] === 1,
@@ -443,7 +452,7 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName, t
           points: v.points, darts: sortedVisits[v.idx]?.darts ?? 3, bust: v.bust,
           before: v.bust ? v.remaining : v.remaining + v.points,
         })),
-      }))) },
+      })), liveRoom.double_out) },
     } : null
 
     const curLeg = d.legsView[d.legsView.length - 1] ?? []
@@ -634,9 +643,21 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName, t
               <span>🎯</span>
               <p className="text-xs font-bold text-destructive">Хязгаарт хүрлээ (bull finish) — хэн хожив?</p>
             </div>
+            {decideVotePending && (
+              <p className="text-center text-xs text-muted-foreground">
+                {iAmDecideVoter
+                  ? decideVoteTimedOut
+                    ? "Эсрэг тал удаан хариу өгсөнгүй — доор дахин дарж өөрийн саналаараа үргэлжлүүлж болно"
+                    : "Таны саналыг илгээлээ — эсрэг талын баталгаажуулалтыг хүлээж байна"
+                  : canConfirmDecide
+                  ? `${bigName(liveRoom.decide_vote_team as number)} хожсон гэж эсрэг тал санал болголоо — баталгаажуулна уу`
+                  : "Багийн хамтрагч санал илгээсэн — хариуг хүлээнэ үү"}
+              </p>
+            )}
             <div className="grid grid-cols-2 gap-3">
               {[0, 1].map((t) => (
-                <button key={t} onClick={() => submitDecide(t)} disabled={submitting}
+                <button key={t} onClick={() => submitDecide(t)}
+                  disabled={submitting || (decideVotePending && (iAmDecideVoter ? (!decideVoteTimedOut || t !== liveRoom.decide_vote_team) : !canConfirmDecide))}
                   className={cn("py-3 rounded-xl border-2 font-bold text-sm transition-all disabled:opacity-40",
                     t === 0 ? "border-primary/40 hover:bg-primary/10 text-primary" : "border-blue-500/40 hover:bg-blue-500/10 text-blue-400")}>
                   {bigName(t)} хожсон

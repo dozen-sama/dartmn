@@ -7,11 +7,18 @@ export async function POST(req: NextRequest) {
   const signature = req.headers.get("byl-signature") ?? ""
   const secret = process.env.BYL_WEBHOOK_SECRET ?? ""
 
-  if (secret) {
-    const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex")
-    if (expected !== signature) {
-      return NextResponse.json({ error: "Invalid signature" }, { status: 401 })
-    }
+  if (!secret) {
+    return NextResponse.json({ error: "Webhook тохиргоо дутуу байна" }, { status: 503 })
+  }
+
+  const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex")
+  const expectedBuf = Buffer.from(expected, "hex")
+  const signatureBuf = Buffer.from(signature, "hex")
+  if (
+    expectedBuf.length !== signatureBuf.length ||
+    !crypto.timingSafeEqual(expectedBuf, signatureBuf)
+  ) {
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 })
   }
 
   const event = JSON.parse(rawBody)

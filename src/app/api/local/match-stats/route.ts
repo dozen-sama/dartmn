@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   const rows = linked.map((player) => {
     const opponent = player.id === p1.id ? p2 : p1
     const statLegs = localLegsToStatLegs(match.legs, player.id)
-    const stats = computeMatchStatDetails(statLegs)
+    const stats = computeMatchStatDetails(statLegs, session.doubleOut)
     return {
       player_id: player.profileId!,
       opponent_id: opponent.profileId ?? null,

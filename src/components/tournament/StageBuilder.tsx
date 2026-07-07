@@ -21,6 +21,7 @@ import {
   calculatePlayerFlow,
   validatePipeline,
 } from "@/lib/tournament/stage-types"
+import { computePlayInPlan } from "@/lib/tournament/play-in"
 
 export interface LocalStage {
   _id: string
@@ -111,11 +112,32 @@ function GameRulesEditor({ config, onChange }: {
   )
 }
 
+// ── "Дэвших тоо"-нд 2-ын зэрэгт ойрхон тоо санал болгох ────────────────────────
+// Клиг (play-in)-тэй elimination generator-ууд аль хэдийн 2-ын зэрэг биш N-ийг
+// зөв даана — гэхдээ round_robin/swiss-ийн дэвших тоо санаатайгаар 2-ын зэрэгт
+// тохирвол ард нь ирэх elimination шат клиг тоглолтгүйгээр цэвэрхэн эхэлнэ.
+function AdvanceCountSuggestion({ playersIn, value, onApply }: {
+  playersIn: number
+  value: number
+  onApply: (v: number) => void
+}) {
+  if (playersIn <= 1) return null
+  const suggested = computePlayInPlan(playersIn).targetSize
+  if (suggested <= 0 || suggested === value) return null
+  return (
+    <button type="button" onClick={() => onApply(suggested)}
+      className="self-end mb-[1px] px-2 py-1 rounded-md border border-primary/40 text-primary text-[11px] font-medium hover:bg-primary/10 transition-colors whitespace-nowrap">
+      Санал: {suggested} (2-ын зэрэгт тохирно)
+    </button>
+  )
+}
+
 // ── Stage-specific structural config ──────────────────────────────────────────
-function StageStructureEditor({ stageType, config, onChange }: {
+function StageStructureEditor({ stageType, config, onChange, playersIn }: {
   stageType: StageType
   config: StageConfig
   onChange: (patch: Partial<StageConfig>) => void
+  playersIn: number
 }) {
   if (stageType === "group") {
     const c = config as GroupStageConfig
@@ -167,12 +189,13 @@ function StageStructureEditor({ stageType, config, onChange }: {
     const c = config as RoundRobinStageConfig
     return (
       <div className="space-y-2">
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-3 items-end">
           <Stepper value={c.first_to} onChange={(v) => onChange({ first_to: v })} min={1} max={11} label="1st to" />
           {c.sets_enabled && (
             <Stepper value={c.legs_per_set} onChange={(v) => onChange({ legs_per_set: v })} min={1} max={11} label="Legs/set" />
           )}
           <Stepper value={c.advance_count} onChange={(v) => onChange({ advance_count: v })} min={0} max={128} label="Дэвших тоо" />
+          <AdvanceCountSuggestion playersIn={playersIn} value={c.advance_count} onApply={(v) => onChange({ advance_count: v })} />
         </div>
         <div className="flex flex-wrap gap-3">
           <CheckRow label="Sets" checked={c.sets_enabled} onChange={(v) => onChange({ sets_enabled: v })} />
@@ -190,10 +213,11 @@ function StageStructureEditor({ stageType, config, onChange }: {
   if (stageType === "swiss") {
     const c = config as SwissStageConfig
     return (
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3 items-end">
         <Stepper value={c.rounds_count} onChange={(v) => onChange({ rounds_count: v })} min={2} max={20} label="Тойргийн тоо" />
         <Stepper value={c.first_to} onChange={(v) => onChange({ first_to: v })} min={1} max={11} label="1st to" />
         <Stepper value={c.advance_count} onChange={(v) => onChange({ advance_count: v })} min={0} max={128} label="Дэвших тоо" />
+        <AdvanceCountSuggestion playersIn={playersIn} value={c.advance_count} onApply={(v) => onChange({ advance_count: v })} />
       </div>
     )
   }
@@ -356,6 +380,7 @@ export function StageBuilder({ stages, onChange, initialPlayers }: Props) {
               stageType={s.stage_type}
               config={s.config}
               onChange={(patch) => updateConfig(idx, patch)}
+              playersIn={f?.playersIn ?? initialPlayers}
             />
 
             {/* Game rules (format, double_out, limit_rounds, etc.) */}

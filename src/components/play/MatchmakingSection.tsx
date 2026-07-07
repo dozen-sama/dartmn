@@ -26,10 +26,12 @@ export function MatchmakingSection({ userId, ratingPoints, displayName }: Props)
   const [elapsed, setElapsed] = useState(0)
   const [supabase] = useState(() => createClient())
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
   const stopTimer = useCallback(() => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
+    if (heartbeatRef.current) { clearInterval(heartbeatRef.current); heartbeatRef.current = null }
   }, [])
 
   const cleanupChannel = useCallback(() => {
@@ -52,6 +54,21 @@ export function MatchmakingSection({ userId, ratingPoints, displayName }: Props)
     }
   }, [stopTimer, cleanupChannel])
 
+  // React's unmount cleanup above only fires on in-app navigation, not on an
+  // actual tab close/refresh/crash — that's exactly how ghost queue entries
+  // get left behind. sendBeacon on pagehide reaches the server even as the
+  // page is torn down; the server-side heartbeat staleness check in
+  // matchmaking_claim_match is the backstop if even this doesn't fire.
+  useEffect(() => {
+    if (phase !== "searching") return
+    const onPageHide = (e: PageTransitionEvent) => {
+      if (e.persisted) return // bfcache-д хадгалагдаж байгаа тул queue-г устгах шаардлагагүй
+      navigator.sendBeacon?.("/api/matchmaking/leave")
+    }
+    window.addEventListener("pagehide", onPageHide)
+    return () => window.removeEventListener("pagehide", onPageHide)
+  }, [phase])
+
   async function startMatchmaking() {
     setPhase("cam-check")
 
@@ -67,6 +84,9 @@ export function MatchmakingSection({ userId, ratingPoints, displayName }: Props)
     setPhase("searching")
     setElapsed(0)
     timerRef.current = setInterval(() => setElapsed((p) => p + 1), 1000)
+    heartbeatRef.current = setInterval(() => {
+      fetch("/api/matchmaking/heartbeat", { method: "POST" }).catch(() => {})
+    }, 5000)
 
     // Realtime — дараалалд өөрийн entry-г ажиглана
     const ch = supabase

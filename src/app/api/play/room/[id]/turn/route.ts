@@ -45,6 +45,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     limitRoundsEnabled: room.limit_rounds != null,
     limitRounds: room.limit_rounds ?? undefined,
     bullFinishAtLimit: room.bull_finish,
+    loserFirst: room.loser_first,
   }
 
   const state = deriveX01(visits, cfg)

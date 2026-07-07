@@ -61,7 +61,15 @@ export function Scoreboard() {
   const startScore  = session?.startScore ?? 501
 
   const currentLegIndex = match ? match.legs.filter((l) => l.winnerId !== null).length : 0
-  const currentLeg: Pick<LocalLeg, "throws" | "winnerId"> = match?.legs[currentLegIndex] ?? { throws: {}, winnerId: null }
+  const currentLeg: Pick<LocalLeg, "throws" | "winnerId" | "starterId"> = match?.legs[currentLegIndex] ?? { throws: {}, winnerId: null, starterId: null }
+
+  // loserFirst=true бол дараагийн leg-ийг хожигдогч эхэлнэ; эс бөгөөс энэ leg-ийг
+  // эхэлсэн тоглогчоос ээлжлэн (стандарт дартс) — ялалттай хамааралгүй
+  function nextLegStarter(winnerId: string): 0 | 1 {
+    if (session?.loserFirst) return winnerId === p1Id ? 1 : 0
+    const thisLegStarterId = currentLeg.starterId ?? p1Id
+    return thisLegStarterId === p1Id ? 1 : 0
+  }
 
   const p1Throws: LegThrow[] = currentLeg.throws?.[p1Id] ?? []
   const p2Throws: LegThrow[] = currentLeg.throws?.[p2Id] ?? []
@@ -119,8 +127,8 @@ export function Scoreboard() {
     if (freshSession && freshMatch && p1 && p2) {
       setStatsComparison({
         contextLabel: freshSession.name,
-        p1: { name: p1.name, stats: computeMatchStatDetails(localLegsToStatLegs(freshMatch.legs, p1Id)) },
-        p2: { name: p2.name, stats: computeMatchStatDetails(localLegsToStatLegs(freshMatch.legs, p2Id)) },
+        p1: { name: p1.name, stats: computeMatchStatDetails(localLegsToStatLegs(freshMatch.legs, p1Id), freshSession.doubleOut) },
+        p2: { name: p2.name, stats: computeMatchStatDetails(localLegsToStatLegs(freshMatch.legs, p2Id), freshSession.doubleOut) },
       })
       setShowStatsDialog(true)
       fetch("/api/local/match-stats", {
@@ -176,7 +184,7 @@ export function Scoreboard() {
       toast.success(result.setCompleted
         ? `Set — ${playerMap[activePlayerId]?.name} хожлоо!`
         : `Leg ${currentLegIndex + 1} — ${playerMap[activePlayerId]?.name} хожлоо!`)
-      setActivePlayer(p => p === 0 ? 1 : 0)
+      setActivePlayer(nextLegStarter(activePlayerId))
       setVisitRound(1)
     } else {
       if (isBust) toast.error("Bust!")
@@ -235,9 +243,7 @@ export function Scoreboard() {
       return
     }
     toast.success(`${playerMap[winnerId]?.name} хожлоо!`)
-    // Хожигч leg дууссаны дараа эсрэг тоглогч эхэлнэ
-    if (winnerId === p1Id) setActivePlayer(1)
-    else if (winnerId === p2Id) setActivePlayer(0)
+    setActivePlayer(nextLegStarter(winnerId))
     setVisitRound(1)
   }
 

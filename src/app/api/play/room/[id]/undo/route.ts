@@ -21,9 +21,12 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Зөвхөн өөрийн сүүлийн шидэлтийг буцаана" }, { status: 403 })
   }
 
-  // Claim — зөвхөн энэ нь хамгийн сүүлийн seq хэвээр байвал устгана (өрсөлдөгч завсар шидээгүй)
-  const { data: deleted } = await admin.from("room_visits")
-    .delete().eq("id", last.id).eq("seq", last.seq).select("id")
+  // Атомик RPC: устгах statement дотроо "энэ visit-ээс seq өндөр мөр байхгүй" гэдгийг
+  // шалгадаг тул (өрсөлдөгч дунд нь шинэ ээлж нэмсэн эсэхийг) race-гүйгээр баталгаажуулна.
+  const { data: deleted, error } = await admin.rpc("undo_last_room_visit", {
+    p_room_id: id, p_user_id: user.id,
+  })
+  if (error) return NextResponse.json({ error: "Алдаа гарлаа" }, { status: 500 })
   if (!deleted || deleted.length === 0) {
     return NextResponse.json({ error: "Аль хэдийн өөрчлөгдсөн" }, { status: 409 })
   }

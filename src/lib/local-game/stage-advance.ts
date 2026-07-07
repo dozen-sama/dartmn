@@ -51,11 +51,19 @@ export function computeQualifiedPlayerIds(session: LocalSession, stageIndex: num
   }
 
   if (stage.stage_type === "elimination") {
-    // round 998 (3-р байрны тоглолт) жинхэнэ финал биш тул maxRound тооцооноос хасна
-    const mainMs = stageMatches.filter((m) => !m.isLosersBracket && m.round < 200 && m.round !== 998)
-    if (mainMs.length === 0) return []
-    const maxRound = Math.max(...mainMs.map((m) => m.round))
-    return mainMs.filter((m) => m.round === maxRound).map((m) => m.winnerId).filter((id): id is string => !!id)
+    // Double elimination-д round 200 бол Их Финал — тэрнийг л финал гэж үзнэ.
+    // Single elimination-д round 200 байхгүй тул гол bracket-ын хамгийн сүүлийн round нь финал
+    // (round 998 нь 3-р байрны тоглолт тул жинхэнэ финал биш, maxRound тооцооноос хасна).
+    const grandFinalMs = stageMatches.filter((m) => m.round === 200)
+    const finalMs = grandFinalMs.length
+      ? grandFinalMs
+      : (() => {
+          const mainMs = stageMatches.filter((m) => !m.isLosersBracket && m.round < 200 && m.round !== 998)
+          if (mainMs.length === 0) return []
+          const maxRound = Math.max(...mainMs.map((m) => m.round))
+          return mainMs.filter((m) => m.round === maxRound)
+        })()
+    return finalMs.map((m) => m.winnerId).filter((id): id is string => !!id)
   }
 
   if (stage.stage_type === "round_robin" || stage.stage_type === "swiss") {

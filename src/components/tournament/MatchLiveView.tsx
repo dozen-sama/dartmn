@@ -25,6 +25,7 @@ interface RoomSnap {
   status: string
   winner_team: number | null
   legs_per_set: number | null
+  loser_first: boolean
 }
 
 interface Visit {
@@ -43,7 +44,7 @@ export function MatchLiveView({ roomId, side1EntrantId, side2EntrantId, entrants
 
   useEffect(() => {
     supabase.from("online_rooms")
-      .select("format, best_of, double_out, starter_team, limit_rounds, bull_finish, status, winner_team, legs_per_set")
+      .select("format, best_of, double_out, starter_team, limit_rounds, bull_finish, status, winner_team, legs_per_set, loser_first")
       .eq("id", roomId).maybeSingle()
       .then(({ data }) => { if (data) setRoom(data as RoomSnap) })
 
@@ -80,6 +81,7 @@ export function MatchLiveView({ roomId, side1EntrantId, side2EntrantId, entrants
       limitRoundsEnabled: room.limit_rounds != null,
       limitRounds: room.limit_rounds ?? undefined,
       bullFinishAtLimit: room.bull_finish,
+      loserFirst: room.loser_first,
     }
   ) : null
 
