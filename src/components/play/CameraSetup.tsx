@@ -5,6 +5,9 @@ import { AlertTriangle, Check, ChevronLeft, Loader2, Scan, Video } from "lucide-
 import { cn } from "@/lib/utils"
 import { saveCalibration, measureMotion } from "@/lib/dartboard"
 import { loadDartModel, isDartModelLoaded, detectBoardCorners, computeCalFromCorners } from "@/lib/dart-model"
+import { captureZoomedFrame } from "@/lib/camera-zoom"
+import { useZoom } from "@/hooks/useZoom"
+import { CameraControls } from "@/components/game/CameraControls"
 
 interface CameraSetupProps {
   onConfirmed: () => void
@@ -25,11 +28,15 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const prevFrameRef = useRef<ImageData | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const stableFrames = useRef(0)
+  const autoStarted = useRef(false)
 
   const [camError, setCamError] = useState<string | null>(null)
   const [phase, setPhase] = useState<SetupPhase>("checking")
   const [lightOk, setLightOk] = useState(false)
   const [scanMsg, setScanMsg] = useState("")
+  const [facing, setFacing] = useState<"environment" | "user">("environment")
+  const { zoom, zoomRef, zoomIn, zoomOut } = useZoom(3, 0.5)
 
   // Manual calibration
   const [calStep, setCalStep] = useState<0 | 1 | 2>(0)
@@ -41,7 +48,7 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
   useEffect(() => {
     let active = true
     navigator.mediaDevices
-      .getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } }, audio: false })
+      .getUserMedia({ video: { facingMode: { ideal: facing }, width: { ideal: 1280 } }, audio: false })
       .then((stream) => {
         if (!active) { stream.getTracks().forEach(t => t.stop()); return }
         streamRef.current = stream
@@ -49,22 +56,23 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
       })
       .catch(() => { if (active) setCamError("Камер нэвтэрч чадсангүй.") })
     return () => { active = false; streamRef.current?.getTracks().forEach(t => t.stop()) }
-  }, [])
+  }, [facing])
+
+  function flipCamera() {
+    stableFrames.current = 0
+    autoStarted.current = false
+    setFacing((f) => (f === "environment" ? "user" : "environment"))
+  }
 
   // ── Light + stability check → auto-scan ───────────────────────────────────
-  const stableFrames = useRef(0)
-  const autoStarted = useRef(false)
-
   const analyze = useCallback(() => {
     if (phase !== "checking") return
     const video = videoRef.current
     const canvas = canvasRef.current
     if (!video || !canvas || video.readyState < 2) return
 
-    canvas.width = 120; canvas.height = 90
-    const ctx = canvas.getContext("2d")!
-    ctx.drawImage(video, 0, 0, 120, 90)
-    const frame = ctx.getImageData(0, 0, 120, 90)
+    const frame = captureZoomedFrame(video, canvas, 120, 90, zoomRef.current)
+    if (!frame) return
 
     // Light check
     let sum = 0
@@ -108,10 +116,8 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
       for (let attempt = 0; attempt < 3; attempt++) {
         setScanMsg(`Самбар хайж байна… (${attempt + 1}/3)`)
         await new Promise(r => setTimeout(r, 400))
-        canvas.width = 320; canvas.height = 240
-        const ctx = canvas.getContext("2d")!
-        ctx.drawImage(video, 0, 0, 320, 240)
-        const frame = ctx.getImageData(0, 0, 320, 240)
+        const frame = captureZoomedFrame(video, canvas, 320, 240, zoomRef.current)
+        if (!frame) continue
         const corners = await detectBoardCorners(frame)
         cal = computeCalFromCorners(corners, 320, 240)
         if (cal) break
@@ -197,7 +203,11 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
             )}
             onClick={handleVideoTap}
           >
-            <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover pointer-events-none" />
+            <video
+              ref={videoRef} autoPlay muted playsInline
+              style={{ transform: zoom > 1 ? `scale(${zoom})` : undefined }}
+              className="w-full h-full object-cover pointer-events-none transition-transform duration-150"
+            />
             <canvas ref={canvasRef} className="hidden" />
 
             {/* Checking: board circle overlay */}
@@ -238,6 +248,11 @@ export function CameraSetup({ onConfirmed, onBack }: CameraSetupProps) {
                   </div>
                 </div>
               </>
+            )}
+
+            {/* Zoom + камер солих — суулгах явцад л (сканнердаж байх үед сэдэлгүй) */}
+            {(phase === "checking" || phase === "calibrate") && (
+              <CameraControls zoom={zoom} onZoomIn={zoomIn} onZoomOut={zoomOut} onFlip={flipCamera} />
             )}
           </div>
 

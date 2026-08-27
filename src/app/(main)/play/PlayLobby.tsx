@@ -54,17 +54,20 @@ const MODES = [
     bg: "bg-green-500/8",
     activeBg: "bg-green-500/12",
   },
-  {
-    id: "camera" as const,
-    icon: Camera,
-    label: "Камертай",
-    desc: "Dart тус бүр харагдана",
-    color: "text-blue-400",
-    border: "border-blue-500/30",
-    bg: "bg-blue-500/8",
-    activeBg: "bg-blue-500/12",
-    badge: "Beta",
-  },
+  // AI автомат оноо (камер) — түр хэрэглэхгүй тул идэвхгүй болгосон. Дахин
+  // нээхдээ энэ MODES-д буцааж нэмээд доорх "Camera expand" JSX блокийг
+  // uncomment хийнэ.
+  // {
+  //   id: "camera" as const,
+  //   icon: Camera,
+  //   label: "Камертай",
+  //   desc: "Dart тус бүр харагдана",
+  //   color: "text-blue-400",
+  //   border: "border-blue-500/30",
+  //   bg: "bg-blue-500/8",
+  //   activeBg: "bg-blue-500/12",
+  //   badge: "Beta",
+  // },
   {
     id: "online" as const,
     icon: Globe,
@@ -175,12 +178,7 @@ export function PlayLobby({ profile, activeRooms }: Props) {
               {m.live && (
                 <span className="absolute top-3 right-3 h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
               )}
-              {/* Badge */}
-              {m.badge && (
-                <span className="absolute top-3 right-3 text-[9px] font-bold border border-current/30 rounded px-1.5 py-0.5 text-blue-400">
-                  {m.badge}
-                </span>
-              )}
+              {/* Badge — "camera" горим идэвхгүй болсон тул одоогоор ямар ч badge ашиглагдахгүй */}
               <div className={cn("flex h-9 w-9 items-center justify-center rounded-xl", m.activeBg, m.border, "border")}>
                 <Icon className={cn("h-5 w-5", m.color)} />
               </div>
@@ -188,7 +186,7 @@ export function PlayLobby({ profile, activeRooms }: Props) {
                 <p className={cn("text-sm font-bold", isActive ? m.color : "text-foreground")}>{m.label}</p>
                 <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">{m.desc}</p>
               </div>
-              {(m.id === "camera" || m.id === "online") && (
+              {m.id === "online" && (
                 <ChevronRight className={cn(
                   "absolute bottom-3.5 right-3 h-3.5 w-3.5 transition-transform",
                   isActive ? `${m.color} rotate-90` : "text-muted-foreground/40"
@@ -199,7 +197,9 @@ export function PlayLobby({ profile, activeRooms }: Props) {
         })}
       </div>
 
-      {/* ── Camera expand ── */}
+      {/* ── Camera expand — AI автомат оноо, түр идэвхгүй болгосон. Дахин
+      нээхдээ энэ бүхэл JSX блокийн doc-comment-ийг устгаад, дээрх MODES
+      массивт "camera" мөрийг буцааж нэмнэ.
       {activeMode === "camera" && (
         <div className="rounded-2xl border border-blue-500/25 bg-card/80 overflow-hidden">
           {camFlow === "idle" && (
@@ -271,6 +271,7 @@ export function PlayLobby({ profile, activeRooms }: Props) {
           )}
         </div>
       )}
+      */}
 
       {/* ── Online expand ── */}
       {activeMode === "online" && (

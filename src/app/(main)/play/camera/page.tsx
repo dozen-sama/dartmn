@@ -16,6 +16,9 @@ import {
 } from "@/lib/dartboard"
 import { classifyTurn, getCheckout } from "@/lib/local-game/checkouts"
 import { useDartModel } from "@/hooks/useDartModel"
+import { captureZoomedFrame } from "@/lib/camera-zoom"
+import { useZoom } from "@/hooks/useZoom"
+import { CameraControls } from "@/components/game/CameraControls"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -90,6 +93,7 @@ function CameraGame() {
   const [detectUiState, setDetectUiState] = useState<DetectState>("idle")
   const [pendingScore, setPendingScore] = useState<DartScore | null>(null)
   const [winner, setWinner] = useState<0 | 1 | null>(null)
+  const { zoom, zoomRef, zoomIn, zoomOut } = useZoom(3, 0.5)
   const dartsRef = useRef(darts)
   const activeRef = useRef(active)
   useEffect(() => { dartsRef.current = darts }, [darts])
@@ -106,13 +110,11 @@ function CameraGame() {
   const captureFrame = useCallback((): ImageData | null => {
     const video = videoRef.current
     const canvas = canvasRef.current
-    if (!video || !canvas || video.readyState < 2) return null
-    // Use downsampled frame for speed
-    canvas.width = 320; canvas.height = 240
-    const ctx = canvas.getContext("2d")!
-    ctx.drawImage(video, 0, 0, 320, 240)
-    return ctx.getImageData(0, 0, 320, 240)
-  }, [])
+    if (!video || !canvas) return null
+    // Use downsampled frame for speed; zoom crops the source centrally so the
+    // preview (CSS-scaled video) and the detection frame stay in sync.
+    return captureZoomedFrame(video, canvas, 320, 240, zoomRef.current)
+  }, [zoomRef])
 
   const captureReference = useCallback(() => {
     const frame = captureFrame()
@@ -391,7 +393,11 @@ function CameraGame() {
         )}
         onClick={handleVideoTap}
       >
-        <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
+        <video
+          ref={videoRef} autoPlay muted playsInline
+          style={{ transform: zoom > 1 ? `scale(${zoom})` : undefined }}
+          className="w-full h-full object-cover transition-transform duration-150"
+        />
         <canvas ref={canvasRef} className="hidden" />
 
         {/* Dartboard circle overlay */}
@@ -405,6 +411,12 @@ function CameraGame() {
             )} />
           </div>
         </div>
+
+        {/* Зум — самбарыг тод харахад */}
+        <CameraControls
+          zoom={zoom} onZoomIn={zoomIn} onZoomOut={zoomOut}
+          className="bottom-auto right-auto top-3 left-3"
+        />
 
         {/* Game not ready yet — waiting for ref frame */}
         {!gameReady && (

@@ -87,6 +87,7 @@ export function TogetherGame() {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null)
   const [cameraError, setCameraError] = useState<string | null>(null)
   const localStreamRef = useRef<MediaStream | null>(null)
+  const facingRef = useRef<"environment" | "user">("environment")
 
   const { enabled: callerOn, supported: callerSupported, toggle: toggleCaller, announce } = useCaller()
 
@@ -101,7 +102,7 @@ export function TogetherGame() {
       setCameraError(null)
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: "environment" } },
+          video: { facingMode: { ideal: facingRef.current } },
           audio: false,
         })
         localStreamRef.current = stream
@@ -110,6 +111,23 @@ export function TogetherGame() {
       } catch {
         setCameraError("Камер нэвтэрч чадсангүй. Зөвшөөрөл шалгана уу.")
       }
+    }
+  }
+
+  async function flipCamera() {
+    if (!localStreamRef.current) return
+    const nextFacing = facingRef.current === "environment" ? "user" : "environment"
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: nextFacing } },
+        audio: false,
+      })
+      localStreamRef.current.getTracks().forEach((t) => t.stop())
+      localStreamRef.current = stream
+      facingRef.current = nextFacing
+      setLocalStream(stream)
+    } catch {
+      setCameraError("Камер солиход алдаа гарлаа.")
     }
   }
 
@@ -626,6 +644,7 @@ export function TogetherGame() {
               localStream={localStream}
               remoteStreams={new Map()}
               myLabel="Камер"
+              onFlipLocal={cameraOn ? flipCamera : undefined}
             />
             {!cameraOn && <p className="text-[11px] text-muted-foreground text-center py-1">Дартсны тавцан харуулах</p>}
           </div>
