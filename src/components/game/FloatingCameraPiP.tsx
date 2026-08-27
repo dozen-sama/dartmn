@@ -8,10 +8,9 @@ import { useZoom } from "@/hooks/useZoom"
 const COLLAPSE_MS = 3000
 
 function Tile({
-  stream, mirrored, label, zoom,
+  stream, label, zoom,
 }: {
   stream: MediaStream
-  mirrored?: boolean
   label?: string
   zoom?: number
 }) {
@@ -20,15 +19,13 @@ function Tile({
 
   return (
     <div className="relative flex-1 h-full overflow-hidden bg-zinc-900">
-      <div className={cn("w-full h-full", mirrored && "scale-x-[-1]")}>
-        <video
-          ref={ref} autoPlay muted playsInline
-          style={{ transform: zoom && zoom > 1 ? `scale(${zoom})` : undefined }}
-          className="w-full h-full object-cover transition-transform duration-150"
-        />
-      </div>
+      <video
+        ref={ref} autoPlay muted playsInline
+        style={{ transform: zoom && zoom > 1 ? `scale(${zoom})` : undefined }}
+        className="w-full h-full object-cover transition-transform duration-150"
+      />
       {label && (
-        <span className="absolute bottom-0.5 left-0.5 text-[8px] leading-none text-white/85 bg-black/60 px-1 py-0.5 rounded">
+        <span className="absolute bottom-0.5 left-0.5 text-[9px] leading-none text-white/85 bg-black/60 px-1 py-0.5 rounded">
           {label}
         </span>
       )}
@@ -47,8 +44,12 @@ interface FloatingCameraPiPProps {
   onToggleDual?: () => void
 }
 
-// Онооны самбарыг далдлахгүй жижигхэн PiP камер — дарахад томорч, камер
-// хаах/зумын товч гарна; 3 секунд ямар нэг үйлдэлгүй байвал буцаад жижигрнэ.
+// Онооны самбарыг ХЭЗЭЭ Ч далдлахгүйн тулд энгийн үедээ хуудасны урсгалд
+// (бусад блоктой адил, overlay биш) байрладаг жижигхэн зурвас — тиймээс
+// доор нь байгаа онооны самбар шахагдахгүй, зөвхөн хуудас арай урт болно.
+// Дарахад бүх дэлгэц дээгүүр том цонх (overlay) нээгдэж камер тохируулах
+// (зум, сэлгэх, хоёр камер) хялбар болно; 3 секунд үйлдэлгүй бол эсвэл
+// арын хар дэвсгэрийг дарвал буцаад жижигхэн зурвас руугаа орно.
 export function FloatingCameraPiP({
   localStream, remoteStreams, myLabel, getLabel, onFlipLocal, onTurnOffLocal,
   dualCamera, onToggleDual,
@@ -69,88 +70,103 @@ export function FloatingCameraPiP({
 
   if (count === 0) return null
 
-  function handleTap() {
+  function handleOpen() {
     setExpanded(true)
     scheduleCollapse()
   }
 
-  return (
+  const controls = (
     <div
-      onClick={handleTap}
-      className={cn(
-        "fixed z-40 bottom-20 right-3 flex gap-0.5 rounded-xl overflow-hidden",
-        "shadow-lg shadow-black/40 border border-white/10 bg-black/40 cursor-pointer",
-        "transition-[width,height] duration-200",
-        expanded
-          ? (count === 1 ? "w-28 h-32" : "w-52 h-32")
-          : (count === 1 ? "w-14 h-14" : "w-28 h-14"),
-      )}
+      className="absolute bottom-1.5 right-1.5 flex items-center gap-1"
+      onClick={(e) => e.stopPropagation()}
     >
-      {localStream && (
-        <Tile stream={localStream} mirrored={!dualCamera} label={expanded ? myLabel : undefined} zoom={zoom} />
-      )}
-      {remotes.map(([id, stream]) => (
-        <Tile key={id} stream={stream} label={expanded ? (getLabel?.(id) ?? "Тоглогч") : undefined} />
-      ))}
-
-      {expanded && (
-        <div
-          className="absolute bottom-1 right-1 flex items-center gap-1"
-          onClick={(e) => e.stopPropagation()}
+      {localStream && !dualCamera && onFlipLocal && (
+        <button
+          onClick={() => { onFlipLocal(); scheduleCollapse() }}
+          title="Камер солих"
+          className="h-7 w-7 rounded-full bg-black/60 text-white flex items-center justify-center active:scale-90 transition-transform"
         >
-          {localStream && !dualCamera && onFlipLocal && (
-            <button
-              onClick={() => { onFlipLocal(); scheduleCollapse() }}
-              title="Камер солих"
-              className="h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center active:scale-90 transition-transform"
-            >
-              <SwitchCamera className="h-3 w-3" />
-            </button>
+          <SwitchCamera className="h-3.5 w-3.5" />
+        </button>
+      )}
+      {onToggleDual && (
+        <button
+          onClick={() => { onToggleDual(); scheduleCollapse() }}
+          title={dualCamera ? "Ганц камер" : "Ар+урд камер хамт нээх"}
+          className={cn(
+            "h-7 w-7 rounded-full flex items-center justify-center active:scale-90 transition-transform",
+            dualCamera ? "bg-primary text-primary-foreground" : "bg-black/60 text-white",
           )}
-          {onToggleDual && (
-            <button
-              onClick={() => { onToggleDual(); scheduleCollapse() }}
-              title={dualCamera ? "Ганц камер" : "Ар+урд камер хамт нээх"}
-              className={cn(
-                "h-6 w-6 rounded-full flex items-center justify-center active:scale-90 transition-transform",
-                dualCamera ? "bg-primary text-primary-foreground" : "bg-black/60 text-white",
-              )}
-            >
-              <PictureInPicture2 className="h-3 w-3" />
-            </button>
-          )}
-          {localStream && (
-            <div className="flex items-center gap-0.5 bg-black/60 rounded-full px-0.5 py-0.5">
-              <button
-                onClick={() => { zoomOut(); scheduleCollapse() }}
-                title="Холдуулах"
-                className="h-6 w-6 rounded-full flex items-center justify-center text-white active:scale-90 transition-transform"
-              >
-                <Minus className="h-3 w-3" />
-              </button>
-              <span className="text-[8px] text-white/90 font-mono w-6 text-center leading-none select-none">
-                {zoom.toFixed(1)}x
-              </span>
-              <button
-                onClick={() => { zoomIn(); scheduleCollapse() }}
-                title="Ойртуулах"
-                className="h-6 w-6 rounded-full flex items-center justify-center text-white active:scale-90 transition-transform"
-              >
-                <Plus className="h-3 w-3" />
-              </button>
-            </div>
-          )}
-          {localStream && onTurnOffLocal && (
-            <button
-              onClick={() => onTurnOffLocal()}
-              title="Камер хаах"
-              className="h-6 w-6 rounded-full bg-destructive/80 text-white flex items-center justify-center active:scale-90 transition-transform"
-            >
-              <VideoOff className="h-3 w-3" />
-            </button>
-          )}
+        >
+          <PictureInPicture2 className="h-3.5 w-3.5" />
+        </button>
+      )}
+      {localStream && (
+        <div className="flex items-center gap-0.5 bg-black/60 rounded-full px-0.5 py-0.5">
+          <button
+            onClick={() => { zoomOut(); scheduleCollapse() }}
+            title="Холдуулах"
+            className="h-7 w-7 rounded-full flex items-center justify-center text-white active:scale-90 transition-transform"
+          >
+            <Minus className="h-3.5 w-3.5" />
+          </button>
+          <span className="text-[9px] text-white/90 font-mono w-6 text-center leading-none select-none">
+            {zoom.toFixed(1)}x
+          </span>
+          <button
+            onClick={() => { zoomIn(); scheduleCollapse() }}
+            title="Ойртуулах"
+            className="h-7 w-7 rounded-full flex items-center justify-center text-white active:scale-90 transition-transform"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
         </div>
       )}
+      {localStream && onTurnOffLocal && (
+        <button
+          onClick={() => onTurnOffLocal()}
+          title="Камер хаах"
+          className="h-7 w-7 rounded-full bg-destructive/80 text-white flex items-center justify-center active:scale-90 transition-transform"
+        >
+          <VideoOff className="h-3.5 w-3.5" />
+        </button>
+      )}
     </div>
+  )
+
+  return (
+    <>
+      {/* Байнга харагдах зурвас — хуудасны урсгалд, overlay биш тул онооны
+          самбарыг хэзээ ч далдлахгүй */}
+      <div
+        onClick={handleOpen}
+        className="shrink-0 flex gap-0.5 h-20 rounded-xl overflow-hidden border border-border/40 cursor-pointer"
+      >
+        {localStream && <Tile stream={localStream} label={myLabel} />}
+        {remotes.map(([id, stream]) => (
+          <Tile key={id} stream={stream} label={getLabel?.(id) ?? "Тоглогч"} />
+        ))}
+      </div>
+
+      {/* Дарахад гарах том тохируулгын цонх — бүх дэлгэц дээгүүр, 3с эсвэл
+          арын дэвсгэр дарахад хаагдаад дээрх зурвас руу буцна */}
+      {expanded && (
+        <div
+          onClick={() => setExpanded(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
+        >
+          <div
+            onClick={(e) => { e.stopPropagation(); scheduleCollapse() }}
+            className="relative w-full max-w-xs flex gap-1 h-72 rounded-2xl overflow-hidden border border-white/15 shadow-2xl"
+          >
+            {localStream && <Tile stream={localStream} label={myLabel} zoom={zoom} />}
+            {remotes.map(([id, stream]) => (
+              <Tile key={id} stream={stream} label={getLabel?.(id) ?? "Тоглогч"} />
+            ))}
+            {controls}
+          </div>
+        </div>
+      )}
+    </>
   )
 }
