@@ -18,6 +18,14 @@ is already baked in.
   reset, plus the original security hotfix migration and its rollback
   script (in `migration-archive/security/`). **Never apply anything from
   this directory.** See its own `README.md`.
+- Production's own `supabase_migrations.schema_migrations` ledger is **not**
+  1:1 with this directory and isn't expected to be — it still carries its
+  original granular history (the baseline file was never itself re-applied
+  there, since those objects already exist) and stamps each new migration
+  with its real apply timestamp rather than the filename's. For example,
+  `20260829120100_add_byl_payment_provider.sql` in this repo is recorded in
+  production as `20260829114247_add_byl_payment_provider`. This is expected;
+  don't rename local migration files to chase it.
 - `supabase/legacy/schema_pre_baseline.sql` — deprecated, hand-maintained
   schema snapshot that predates the baseline and was never kept in sync.
   Kept for historical reference only. **Never apply it.**
