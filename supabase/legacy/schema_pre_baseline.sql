@@ -1,5 +1,20 @@
 -- ============================================================
--- DartMN Database Schema
+-- DEPRECATED — DO NOT USE
+-- ============================================================
+-- This file is a historical, hand-maintained schema snapshot that predates
+-- the 2026-08-29 baseline recovery. It was NEVER kept in sync with the real
+-- migration history and does not reflect the current live schema (missing
+-- security hardening, missing tables added later, etc).
+--
+-- Active source of truth: supabase/migrations/ (see supabase/README.md).
+-- Historical migration history: supabase/migration-archive/ (read-only).
+--
+-- Kept here only for forensic/historical reference. Do not apply this file
+-- to any database.
+-- ============================================================
+--
+-- ============================================================
+-- DartMN Database Schema (original content below, unmodified)
 -- ============================================================
 
 -- Enable UUID extension
