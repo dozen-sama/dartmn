@@ -40,8 +40,12 @@ export function OrganizerPanel({ tournament, registrations }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState<string | null>(null)
   const [regs, setRegs] = useState(registrations)
-  const byl = useBylInvoice()
   const [feePaid, setFeePaid] = useState(tournament.platform_fee_paid)
+  const byl = useBylInvoice({ purpose: "platform_fee", tournamentId: tournament.id }, async () => {
+    setFeePaid(true)
+    toast.success("Шимтгэл төлөгдлөө — тэмцааныг эхлүүлж байна...")
+    await doStart()
+  })
   const [seeds, setSeeds] = useState<Record<string, number>>(
     Object.fromEntries(registrations.map((r) => [r.player_id, r.seed ?? 0]))
   )
@@ -77,14 +81,7 @@ export function OrganizerPanel({ tournament, registrations }: Props) {
 
   async function checkBylAndStart() {
     const paid = await byl.checkPayment()
-    if (paid) {
-      setFeePaid(true)
-      byl.reset()
-      toast.success("Шимтгэл төлөгдлөө — тэмцааныг эхлүүлж байна...")
-      await doStart()
-    } else {
-      toast.info("Төлбөр хүлээгдэж байна...")
-    }
+    if (!paid) toast.info("Төлбөр хүлээгдэж байна...")
   }
 
   async function doStart() {

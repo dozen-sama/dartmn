@@ -30,7 +30,23 @@ function CheckoutForm() {
   const amount = parseInt(params.get("amount") ?? "0")
   const type = params.get("type") ?? "player"
 
-  const byl = useBylInvoice()
+  const byl = useBylInvoice({ purpose: `subscription_${plan}` }, async (paidTxnId) => {
+    toast.success("Төлбөр амжилттай!")
+    if (type === "player") {
+      // Race-ээс сэргийлж userId state-д итгэхгүй, шинээр татна: энэ callback
+      // localStorage-с сэргээгдсэн (хуудас дахин ачаалагдсан) үед доорх auth
+      // useEffect-ээс өмнө ажиллаж, userId хараахан тавигдаагүй байж болно.
+      const { data: { user } } = await createClient().auth.getUser()
+      if (user) {
+        await fetch("/api/subscriptions/activate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ player_id: user.id, transaction_id: paidTxnId }),
+        })
+      }
+    }
+    setTimeout(() => router.push("/profile"), 2000)
+  })
   const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -56,19 +72,7 @@ function CheckoutForm() {
   async function checkPayment() {
     if (!byl.txnId) return
     const paid = await byl.checkPayment()
-    if (paid) {
-      toast.success("Төлбөр амжилттай!")
-      if (type === "player" && userId) {
-        await fetch("/api/subscriptions/activate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ player_id: userId, transaction_id: byl.txnId }),
-        })
-      }
-      setTimeout(() => router.push("/profile"), 2000)
-    } else {
-      toast.info("Төлбөр хүлээгдэж байна...")
-    }
+    if (!paid) toast.info("Төлбөр хүлээгдэж байна...")
   }
 
   if (byl.step === "paid") {
