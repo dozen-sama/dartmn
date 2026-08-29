@@ -3,1398 +3,2718 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export interface Database {
   public: {
     Tables: {
-      profiles: {
+      achievements: {
         Row: {
-          id: string
-          username: string
-          display_name: string
-          avatar_url: string | null
-          cover_url: string | null
-          phone: string | null
-          gender: "male" | "female" | "other" | null
-          date_of_birth: string | null
-          city: string | null
-          province: string | null
-          bio: string | null
-          role: "player" | "club_admin" | "admin" | "owner"
-          rating_points: number
-          matches_played: number
-          matches_won: number
-          tournament_wins: number
-          avraga_wins: number
-          average_score: number
-          checkout_percentage: number
-          highest_checkout: number
-          best_leg: number
-          count_180: number
-          career_points: number
-          career_darts: number
-          is_premium: boolean
-          premium_expires_at: string | null
-          primary_club_id: string | null
-          primary_club_logo: string | null
-          primary_club_tag: string | null
-          primary_club_tag_color: string | null
-          equipped_frame: string | null
-          name_color: string | null
-          name_font: string | null
-          name_animated: boolean
-          name_effect: string | null
-          created_at: string
-          updated_at: string
+          category: string
+          description: string
+          icon: string
+          key: string
+          name: string
+          sort_order: number
         }
         Insert: {
-          id: string
-          username: string
-          display_name: string
-          avatar_url?: string | null
-          cover_url?: string | null
-          phone?: string | null
-          gender?: "male" | "female" | "other" | null
-          date_of_birth?: string | null
-          city?: string | null
-          province?: string | null
-          bio?: string | null
-          role?: "player" | "club_admin" | "admin" | "owner"
+          category?: string
+          description: string
+          icon: string
+          key: string
+          name: string
+          sort_order?: number
         }
         Update: {
-          username?: string
-          display_name?: string
-          avatar_url?: string | null
-          cover_url?: string | null
-          phone?: string | null
-          gender?: "male" | "female" | "other" | null
-          date_of_birth?: string | null
-          city?: string | null
-          province?: string | null
-          bio?: string | null
-          role?: "player" | "club_admin" | "admin" | "owner"
-          rating_points?: number
-          average_score?: number
-          checkout_percentage?: number
-          highest_checkout?: number
-          best_leg?: number
-          count_180?: number
-          career_points?: number
-          career_darts?: number
-          matches_played?: number
-          matches_won?: number
-          tournament_wins?: number
-          avraga_wins?: number
-          is_premium?: boolean
-          premium_expires_at?: string | null
-          primary_club_id?: string | null
-          primary_club_logo?: string | null
-          primary_club_tag?: string | null
-          primary_club_tag_color?: string | null
-          equipped_frame?: string | null
-          name_color?: string | null
-          name_font?: string | null
-          name_animated?: boolean
-          name_effect?: string | null
-        }
-        Relationships: []
-      }
-      clubs: {
-        Row: {
-          id: string
-          name: string
-          slug: string
-          description: string | null
-          logo_url: string | null
-          cover_url: string | null
-          address: string | null
-          city: string | null
-          phone: string | null
-          email: string | null
-          website: string | null
-          owner_id: string
-          member_count: number
-          is_verified: boolean
-          club_score: number
-          club_rank: number | null
-          tag: string | null
-          tagline: string | null
-          features: Json
-          social_discord: string | null
-          social_facebook: string | null
-          social_instagram: string | null
-          subscription_plan: "basic" | "pro" | "enterprise" | null
-          subscription_expires_at: string | null
-          tag_color: string | null
-          equipped_frame: string | null
-          name_color: string | null
-          name_font: string | null
-          name_animated: boolean
-          name_effect: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          name: string
-          slug: string
-          description?: string | null
-          logo_url?: string | null
-          cover_url?: string | null
-          address?: string | null
-          city?: string | null
-          phone?: string | null
-          email?: string | null
-          website?: string | null
-          owner_id: string
-          tag?: string | null
-          tagline?: string | null
-          features?: Json
-          social_discord?: string | null
-          social_facebook?: string | null
-          social_instagram?: string | null
-        }
-        Update: {
+          category?: string
+          description?: string
+          icon?: string
+          key?: string
           name?: string
-          description?: string | null
-          logo_url?: string | null
-          cover_url?: string | null
-          address?: string | null
-          city?: string | null
-          phone?: string | null
-          email?: string | null
-          website?: string | null
-          is_verified?: boolean
-          tag?: string | null
-          tagline?: string | null
-          features?: Json
-          social_discord?: string | null
-          social_facebook?: string | null
-          social_instagram?: string | null
-          subscription_plan?: "basic" | "pro" | "enterprise" | null
-          subscription_expires_at?: string | null
-          tag_color?: string | null
-          equipped_frame?: string | null
-          name_color?: string | null
-          name_font?: string | null
-          name_animated?: boolean
-          name_effect?: string | null
+          sort_order?: number
         }
         Relationships: []
       }
-      club_members: {
+      caller_clips: {
         Row: {
-          id: string
-          club_id: string
-          player_id: string
-          role: "owner" | "admin" | "member"
-          joined_at: string
+          ext: string
+          key: string
+          updated_at: string
         }
         Insert: {
-          id?: string
-          club_id: string
-          player_id: string
-          role?: "owner" | "admin" | "member"
+          ext?: string
+          key: string
+          updated_at?: string
         }
         Update: {
-          role?: "owner" | "admin" | "member"
+          ext?: string
+          key?: string
+          updated_at?: string
         }
         Relationships: []
       }
       club_join_requests: {
         Row: {
-          id: string
           club_id: string
-          player_id: string
           created_at: string
+          id: string
+          player_id: string
         }
         Insert: {
-          id?: string
           club_id: string
+          created_at?: string
+          id?: string
           player_id: string
         }
-        Update: Record<string, never>
-        Relationships: []
+        Update: {
+          club_id?: string
+          created_at?: string
+          id?: string
+          player_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_join_requests_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "club_join_requests_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "club_join_requests_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+        ]
       }
-      synced_local_sessions: {
-        Row: { session_id: string; synced_at: string }
-        Insert: { session_id: string; synced_at?: string }
-        Update: Record<string, never>
-        Relationships: []
-      }
-      pending_match_results: {
+      club_members: {
         Row: {
+          club_id: string
           id: string
-          reporter_id: string
-          opponent_id: string
-          winner_id: string
-          format: string | null
-          payload: Json
-          status: string
-          created_at: string
+          joined_at: string
+          player_id: string
+          role: string
         }
         Insert: {
+          club_id: string
           id?: string
-          reporter_id: string
-          opponent_id: string
-          winner_id: string
-          format?: string | null
-          payload: Json
-          status?: string
+          joined_at?: string
+          player_id: string
+          role?: string
         }
-        Update: { status?: string }
-        Relationships: []
+        Update: {
+          club_id?: string
+          id?: string
+          joined_at?: string
+          player_id?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_members_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "club_members_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "club_members_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+        ]
       }
       club_messages: {
         Row: {
-          id: string
-          club_id: string
-          player_id: string
           body: string
+          club_id: string
           created_at: string
+          id: string
+          player_id: string
         }
         Insert: {
-          id?: string
-          club_id: string
-          player_id: string
           body: string
+          club_id: string
+          created_at?: string
+          id?: string
+          player_id: string
         }
         Update: {
           body?: string
+          club_id?: string
+          created_at?: string
+          id?: string
+          player_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "club_messages_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "club_messages_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "club_messages_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+        ]
       }
-      player_unlocks: {
+      club_subscriptions: {
         Row: {
+          amount: number
+          club_id: string
+          expires_at: string
           id: string
-          player_id: string
-          item_kind: string
-          item_key: string
-          unlocked_at: string
+          payment_id: string | null
+          plan: string
+          started_at: string
+          status: string
         }
         Insert: {
+          amount: number
+          club_id: string
+          expires_at: string
           id?: string
-          player_id: string
-          item_kind: string
-          item_key: string
+          payment_id?: string | null
+          plan: string
+          started_at?: string
+          status?: string
         }
         Update: {
-          item_kind?: string
-          item_key?: string
+          amount?: number
+          club_id?: string
+          expires_at?: string
+          id?: string
+          payment_id?: string | null
+          plan?: string
+          started_at?: string
+          status?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "club_subscriptions_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: true
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "club_subscriptions_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payment_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      cosmetic_passes: {
+      clubs: {
         Row: {
-          id: string
-          name: string
-          starts_at: string | null
-          ends_at: string | null
+          address: string | null
+          city: string | null
+          club_rank: number | null
+          club_score: number
+          cover_url: string | null
           created_at: string
+          description: string | null
+          email: string | null
+          equipped_frame: string | null
+          features: Json | null
+          id: string
+          is_verified: boolean
+          logo_url: string | null
+          member_count: number
+          name: string
+          name_animated: boolean
+          name_color: string | null
+          name_effect: string | null
+          name_font: string | null
+          owner_id: string
+          phone: string | null
+          slug: string
+          social_discord: string | null
+          social_facebook: string | null
+          social_instagram: string | null
+          subscription_expires_at: string | null
+          subscription_plan: string | null
+          tag: string | null
+          tag_color: string | null
+          tagline: string | null
+          updated_at: string
+          website: string | null
         }
         Insert: {
+          address?: string | null
+          city?: string | null
+          club_rank?: number | null
+          club_score?: number
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          email?: string | null
+          equipped_frame?: string | null
+          features?: Json | null
           id?: string
+          is_verified?: boolean
+          logo_url?: string | null
+          member_count?: number
           name: string
-          starts_at?: string | null
-          ends_at?: string | null
+          name_animated?: boolean
+          name_color?: string | null
+          name_effect?: string | null
+          name_font?: string | null
+          owner_id: string
+          phone?: string | null
+          slug: string
+          social_discord?: string | null
+          social_facebook?: string | null
+          social_instagram?: string | null
+          subscription_expires_at?: string | null
+          subscription_plan?: string | null
+          tag?: string | null
+          tag_color?: string | null
+          tagline?: string | null
+          updated_at?: string
+          website?: string | null
         }
         Update: {
+          address?: string | null
+          city?: string | null
+          club_rank?: number | null
+          club_score?: number
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          email?: string | null
+          equipped_frame?: string | null
+          features?: Json | null
+          id?: string
+          is_verified?: boolean
+          logo_url?: string | null
+          member_count?: number
           name?: string
-          starts_at?: string | null
-          ends_at?: string | null
+          name_animated?: boolean
+          name_color?: string | null
+          name_effect?: string | null
+          name_font?: string | null
+          owner_id?: string
+          phone?: string | null
+          slug?: string
+          social_discord?: string | null
+          social_facebook?: string | null
+          social_instagram?: string | null
+          subscription_expires_at?: string | null
+          subscription_plan?: string | null
+          tag?: string | null
+          tag_color?: string | null
+          tagline?: string | null
+          updated_at?: string
+          website?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "clubs_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clubs_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+        ]
       }
       cosmetic_effects: {
         Row: {
-          id: string
-          pass_id: string | null
-          key: string
-          name: string
-          lottie_url: string
-          xp: number
+          created_at: string
           fit: string
-          scale: number
-          scale_y: number
+          id: string
+          is_active: boolean
+          key: string
+          lottie_url: string
+          name: string
           offset_x: number
           offset_y: number
+          pass_id: string | null
+          scale: number
+          scale_y: number
           scope: string
           sort_order: number
-          is_active: boolean
-          created_at: string
+          xp: number
         }
         Insert: {
+          created_at?: string
+          fit?: string
           id?: string
-          pass_id?: string | null
+          is_active?: boolean
           key: string
-          name: string
           lottie_url: string
-          xp?: number
-          fit?: string
-          scale?: number
-          scale_y?: number
+          name: string
           offset_x?: number
           offset_y?: number
-          scope?: string
-          sort_order?: number
-          is_active?: boolean
-        }
-        Update: {
           pass_id?: string | null
-          key?: string
-          name?: string
-          lottie_url?: string
-          xp?: number
-          fit?: string
           scale?: number
           scale_y?: number
-          offset_x?: number
-          offset_y?: number
           scope?: string
           sort_order?: number
+          xp?: number
+        }
+        Update: {
+          created_at?: string
+          fit?: string
+          id?: string
           is_active?: boolean
-        }
-        Relationships: []
-      }
-      tournaments: {
-        Row: {
-          id: string
-          name: string
-          description: string | null
-          club_id: string | null
-          organizer_id: string
-          format: "501" | "301"
-          type: "singles" | "doubles" | "team"
-          bracket_type: "single_elimination" | "double_elimination" | "round_robin" | "swiss" | "groups_knockout"
-          status: "draft" | "registration" | "ongoing" | "completed" | "cancelled"
-          max_players: number
-          current_players: number
-          entry_fee: number
-          prize_pool: number
-          start_date: string
-          end_date: string | null
-          registration_deadline: string | null
-          location: string | null
-          banner_url: string | null
-          rules: string | null
-          join_code: string | null
-          password: string | null
-          is_private: boolean
-          first_to: number
-          sets_enabled: boolean
-          legs_per_set: number
-          limit_rounds: number | null
-          loser_first: boolean
-          show_average: boolean
-          auto_complete: boolean
-          confirm_opponent: boolean
-          allow_participant_score: boolean
-          show_index: boolean
-          point_won: number
-          point_draw: number
-          point_lost: number
-          win_points_are_legs: boolean
-          double_out: boolean
-          double_in: boolean
-          bull_finish_at_limit: boolean
-          enable_draw: boolean
-          third_place_match: boolean
-          groups_count: number
-          group_advance: number
-          players_per_group: number
-          rr_first_to: number
-          rr_sets_enabled: boolean
-          rr_legs_per_set: number
-          tournament_type: "open" | "league" | "national" | "club" | "friendly"
-          platform_fee: number
-          platform_fee_paid: boolean
-          organizer_bank_name: string | null
-          organizer_iban: string | null
-          organizer_account_number: string | null
-          organizer_account_holder: string | null
-          uses_stages: boolean
-          current_stage_id: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          name: string
-          description?: string | null
-          club_id?: string | null
-          organizer_id: string
-          format: "501" | "301"
-          type?: "singles" | "doubles" | "team"
-          bracket_type?: "single_elimination" | "double_elimination" | "round_robin" | "swiss" | "groups_knockout"
-          status?: "draft" | "registration" | "ongoing" | "completed" | "cancelled"
-          max_players?: number
-          entry_fee?: number
-          prize_pool?: number
-          start_date: string
-          end_date?: string | null
-          registration_deadline?: string | null
-          location?: string | null
-          banner_url?: string | null
-          rules?: string | null
-          join_code?: string | null
-          password?: string | null
-          is_private?: boolean
-          first_to?: number
-          sets_enabled?: boolean
-          legs_per_set?: number
-          limit_rounds?: number | null
-          loser_first?: boolean
-          show_average?: boolean
-          auto_complete?: boolean
-          confirm_opponent?: boolean
-          allow_participant_score?: boolean
-          show_index?: boolean
-          point_won?: number
-          point_draw?: number
-          point_lost?: number
-          win_points_are_legs?: boolean
-          double_out?: boolean
-          double_in?: boolean
-          bull_finish_at_limit?: boolean
-          enable_draw?: boolean
-          third_place_match?: boolean
-          groups_count?: number
-          group_advance?: number
-          players_per_group?: number
-          rr_first_to?: number
-          rr_sets_enabled?: boolean
-          rr_legs_per_set?: number
-          platform_fee?: number
-          organizer_bank_name?: string | null
-          organizer_iban?: string | null
-          organizer_account_number?: string | null
-          organizer_account_holder?: string | null
-          uses_stages?: boolean
-          current_stage_id?: string | null
-        }
-        Update: {
+          key?: string
+          lottie_url?: string
           name?: string
-          description?: string | null
-          status?: "draft" | "registration" | "ongoing" | "completed" | "cancelled"
-          max_players?: number
-          entry_fee?: number
-          prize_pool?: number
-          start_date?: string
-          end_date?: string | null
-          registration_deadline?: string | null
-          club_id?: string | null
-          location?: string | null
-          banner_url?: string | null
-          rules?: string | null
-          join_code?: string | null
-          password?: string | null
-          is_private?: boolean
-          format?: "501" | "301"
-          bracket_type?: "single_elimination" | "double_elimination" | "round_robin" | "swiss" | "groups_knockout"
-          first_to?: number
-          sets_enabled?: boolean
-          legs_per_set?: number
-          limit_rounds?: number | null
-          loser_first?: boolean
-          show_average?: boolean
-          auto_complete?: boolean
-          confirm_opponent?: boolean
-          allow_participant_score?: boolean
-          show_index?: boolean
-          point_won?: number
-          point_draw?: number
-          point_lost?: number
-          win_points_are_legs?: boolean
-          platform_fee_paid?: boolean
-          organizer_bank_name?: string | null
-          organizer_iban?: string | null
-          organizer_account_number?: string | null
-          organizer_account_holder?: string | null
-          uses_stages?: boolean
-          current_stage_id?: string | null
+          offset_x?: number
+          offset_y?: number
+          pass_id?: string | null
+          scale?: number
+          scale_y?: number
+          scope?: string
+          sort_order?: number
+          xp?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "cosmetic_effects_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
+            referencedRelation: "cosmetic_passes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      tournament_stages: {
+      cosmetic_passes: {
         Row: {
-          id: string
-          tournament_id: string
-          order_no: number
-          stage_type: "group" | "elimination" | "round_robin" | "swiss" | "semifinal" | "final"
-          config: Record<string, unknown>
-          status: "pending" | "active" | "completed"
           created_at: string
-        }
-        Insert: {
-          id?: string
-          tournament_id: string
-          order_no: number
-          stage_type: "group" | "elimination" | "round_robin" | "swiss" | "semifinal" | "final"
-          config?: Record<string, unknown>
-          status?: "pending" | "active" | "completed"
-        }
-        Update: {
-          order_no?: number
-          stage_type?: "group" | "elimination" | "round_robin" | "swiss" | "semifinal" | "final"
-          config?: Record<string, unknown>
-          status?: "pending" | "active" | "completed"
-        }
-        Relationships: []
-      }
-      tournament_registrations: {
-        Row: {
-          id: string
-          tournament_id: string
-          player_id: string
-          seed: number | null
-          payment_status: "pending" | "paid" | "refunded"
-          payment_id: string | null
-          registered_at: string
-        }
-        Insert: {
-          id?: string
-          tournament_id: string
-          player_id: string
-          seed?: number | null
-          payment_status?: "pending" | "paid" | "refunded"
-          payment_id?: string | null
-        }
-        Update: {
-          seed?: number | null
-          payment_status?: "pending" | "paid" | "refunded"
-          payment_id?: string | null
-        }
-        Relationships: []
-      }
-      tournament_entrants: {
-        Row: {
-          id: string
-          tournament_id: string
-          display_name: string
-          seed: number
-          group_no: number | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          tournament_id: string
-          display_name: string
-          seed: number
-          group_no?: number | null
-        }
-        Update: {
-          display_name?: string
-          seed?: number
-          group_no?: number | null
-        }
-        Relationships: []
-      }
-      tournament_entrant_players: {
-        Row: {
-          id: string
-          entrant_id: string
-          player_id: string
-          slot: number
-        }
-        Insert: {
-          id?: string
-          entrant_id: string
-          player_id: string
-          slot?: number
-        }
-        Update: {
-          slot?: number
-        }
-        Relationships: []
-      }
-      tournament_matches: {
-        Row: {
-          id: string
-          tournament_id: string
-          round: number
-          match_number: number
-          is_losers_bracket: boolean
-          group_no: number | null
-          side1_entrant_id: string | null
-          side2_entrant_id: string | null
-          side1_legs: number
-          side2_legs: number
-          winner_entrant_id: string | null
-          loser_entrant_id: string | null
-          status: "pending" | "ongoing" | "completed"
-          next_match_id: string | null
-          next_loser_match_id: string | null
-          room_id: string | null
-          stage_id: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          tournament_id: string
-          round: number
-          match_number: number
-          is_losers_bracket?: boolean
-          group_no?: number | null
-          side1_entrant_id?: string | null
-          side2_entrant_id?: string | null
-          side1_legs?: number
-          side2_legs?: number
-          winner_entrant_id?: string | null
-          loser_entrant_id?: string | null
-          status?: "pending" | "ongoing" | "completed"
-          next_match_id?: string | null
-          next_loser_match_id?: string | null
-          room_id?: string | null
-          stage_id?: string | null
-        }
-        Update: {
-          side1_entrant_id?: string | null
-          side2_entrant_id?: string | null
-          side1_legs?: number
-          side2_legs?: number
-          winner_entrant_id?: string | null
-          loser_entrant_id?: string | null
-          status?: "pending" | "ongoing" | "completed"
-          room_id?: string | null
-        }
-        Relationships: []
-      }
-      tournament_payout_accounts: {
-        Row: {
-          id: string
-          tournament_id: string
-          player_id: string
-          bank_name: string
-          iban: string | null
-          account_number: string
-          account_holder: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          tournament_id: string
-          player_id: string
-          bank_name: string
-          iban?: string | null
-          account_number: string
-          account_holder: string
-        }
-        Update: {
-          bank_name?: string
-          iban?: string | null
-          account_number?: string
-          account_holder?: string
-        }
-        Relationships: []
-      }
-      organizer_ratings: {
-        Row: {
-          id: string
-          tournament_id: string
-          organizer_id: string
-          rater_id: string
-          rating: number
-          payout_status: "paid" | "unpaid" | null
-          comment: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          tournament_id: string
-          organizer_id: string
-          rater_id: string
-          rating: number
-          payout_status?: "paid" | "unpaid" | null
-          comment?: string | null
-        }
-        Update: {
-          rating?: number
-          payout_status?: "paid" | "unpaid" | null
-          comment?: string | null
-        }
-        Relationships: []
-      }
-      matches: {
-        Row: {
-          id: string
-          tournament_id: string | null
-          league_id: string | null
-          round: number | null
-          match_number: number | null
-          player1_id: string
-          player2_id: string | null
-          format: "501" | "301"
-          best_of: number
-          player1_legs: number
-          player2_legs: number
-          winner_id: string | null
-          status: "scheduled" | "ongoing" | "completed" | "cancelled"
-          started_at: string | null
-          completed_at: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          tournament_id?: string | null
-          league_id?: string | null
-          round?: number | null
-          match_number?: number | null
-          player1_id: string
-          player2_id?: string | null
-          format: "501" | "301"
-          best_of?: number
-          winner_id?: string | null
-          status?: "scheduled" | "ongoing" | "completed" | "cancelled"
-          started_at?: string | null
-          completed_at?: string | null
-        }
-        Update: {
-          player1_legs?: number
-          player2_legs?: number
-          winner_id?: string | null
-          status?: "scheduled" | "ongoing" | "completed" | "cancelled"
-          started_at?: string | null
-          completed_at?: string | null
-        }
-        Relationships: []
-      }
-      match_legs: {
-        Row: {
-          id: string
-          match_id: string
-          leg_number: number
-          player1_score: number
-          player2_score: number
-          winner_id: string | null
-          player1_darts: number
-          player2_darts: number
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          match_id: string
-          leg_number: number
-          player1_score?: number
-          player2_score?: number
-          winner_id?: string | null
-          player1_darts?: number
-          player2_darts?: number
-        }
-        Update: {
-          player1_score?: number
-          player2_score?: number
-          winner_id?: string | null
-          player1_darts?: number
-          player2_darts?: number
-        }
-        Relationships: []
-      }
-      throws: {
-        Row: {
-          id: string
-          leg_id: string
-          player_id: string
-          throw_number: number
-          score: number
-          darts_used: number
-          remaining: number
-          is_checkout: boolean
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          leg_id: string
-          player_id: string
-          throw_number: number
-          score: number
-          darts_used?: number
-          remaining: number
-          is_checkout?: boolean
-        }
-        Update: Record<string, never>
-        Relationships: []
-      }
-      leagues: {
-        Row: {
+          ends_at: string | null
           id: string
           name: string
-          description: string | null
-          season: string
-          format: "501" | "301"
-          status: "upcoming" | "ongoing" | "completed"
-          max_teams: number
-          start_date: string
-          end_date: string | null
-          created_by: string
-          created_at: string
+          starts_at: string | null
         }
         Insert: {
+          created_at?: string
+          ends_at?: string | null
           id?: string
           name: string
-          description?: string | null
-          season: string
-          format: "501" | "301"
-          status?: "upcoming" | "ongoing" | "completed"
-          max_teams?: number
-          start_date: string
-          end_date?: string | null
-          created_by: string
+          starts_at?: string | null
         }
         Update: {
+          created_at?: string
+          ends_at?: string | null
+          id?: string
           name?: string
-          description?: string | null
-          status?: "upcoming" | "ongoing" | "completed"
-          end_date?: string | null
+          starts_at?: string | null
         }
         Relationships: []
       }
       league_standings: {
         Row: {
+          drawn: number
           id: string
           league_id: string
-          player_id: string
-          played: number
-          won: number
-          lost: number
-          drawn: number
-          legs_won: number
           legs_lost: number
+          legs_won: number
+          lost: number
+          played: number
+          player_id: string
           points: number
+          updated_at: string
+          won: number
+        }
+        Insert: {
+          drawn?: number
+          id?: string
+          league_id: string
+          legs_lost?: number
+          legs_won?: number
+          lost?: number
+          played?: number
+          player_id: string
+          points?: number
+          updated_at?: string
+          won?: number
+        }
+        Update: {
+          drawn?: number
+          id?: string
+          league_id?: string
+          legs_lost?: number
+          legs_won?: number
+          lost?: number
+          played?: number
+          player_id?: string
+          points?: number
+          updated_at?: string
+          won?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_standings_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_standings_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_standings_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+        ]
+      }
+      leagues: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          end_date: string | null
+          format: string
+          id: string
+          max_teams: number
+          name: string
+          season: string
+          start_date: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          end_date?: string | null
+          format: string
+          id?: string
+          max_teams?: number
+          name: string
+          season: string
+          start_date: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          end_date?: string | null
+          format?: string
+          id?: string
+          max_teams?: number
+          name?: string
+          season?: string
+          start_date?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leagues_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leagues_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+        ]
+      }
+      local_session_sync: {
+        Row: {
+          data: Json
+          password_hash: string | null
+          session_id: string
           updated_at: string
         }
         Insert: {
-          id?: string
-          league_id: string
-          player_id: string
-          played?: number
-          won?: number
-          lost?: number
-          drawn?: number
-          legs_won?: number
-          legs_lost?: number
-          points?: number
+          data: Json
+          password_hash?: string | null
+          session_id: string
+          updated_at?: string
         }
         Update: {
-          played?: number
-          won?: number
-          lost?: number
-          drawn?: number
-          legs_won?: number
-          legs_lost?: number
-          points?: number
+          data?: Json
+          password_hash?: string | null
+          session_id?: string
+          updated_at?: string
         }
         Relationships: []
       }
-      rating_history: {
+      match_legs: {
         Row: {
-          id: string
-          player_id: string
-          rating_before: number
-          rating_after: number
-          change: number
-          match_id: string | null
-          room_id: string | null
-          opponent_id: string | null
-          won: boolean | null
-          reason: string
           created_at: string
+          id: string
+          leg_number: number
+          match_id: string
+          player1_darts: number
+          player1_score: number
+          player2_darts: number
+          player2_score: number
+          winner_id: string | null
         }
         Insert: {
+          created_at?: string
           id?: string
-          player_id: string
-          rating_before: number
-          rating_after: number
-          change: number
-          match_id?: string | null
-          room_id?: string | null
-          opponent_id?: string | null
-          won?: boolean | null
-          reason?: string
+          leg_number: number
+          match_id: string
+          player1_darts?: number
+          player1_score?: number
+          player2_darts?: number
+          player2_score?: number
+          winner_id?: string | null
         }
-        Update: Record<string, never>
-        Relationships: []
+        Update: {
+          created_at?: string
+          id?: string
+          leg_number?: number
+          match_id?: string
+          player1_darts?: number
+          player1_score?: number
+          player2_darts?: number
+          player2_score?: number
+          winner_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_legs_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_legs_winner_id_fkey"
+            columns: ["winner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_legs_winner_id_fkey"
+            columns: ["winner_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+        ]
+      }
+      match_stat_details: {
+        Row: {
+          avg_first9: number
+          avg3: number
+          band_100: number
+          band_120: number
+          band_140: number
+          band_170: number
+          band_60: number
+          band_80: number
+          best_leg_darts: number | null
+          break_attempts: number
+          break_makes: number
+          checkout_attempts: number
+          checkout_makes: number
+          context_label: string | null
+          count_100_finishes: number
+          count_180: number
+          created_at: string
+          darts_thrown: number
+          double_out: boolean
+          format: string
+          high_finish: number
+          id: string
+          keep_attempts: number
+          keep_makes: number
+          legs_against: number
+          legs_for: number
+          local_match_id: string | null
+          local_session_id: string | null
+          match_key: string
+          opponent_id: string | null
+          opponent_name: string
+          player_id: string
+          points_scored: number
+          room_id: string | null
+          source: string
+          tournament_match_id: string | null
+          won: boolean
+          worst_leg_darts: number | null
+        }
+        Insert: {
+          avg_first9: number
+          avg3: number
+          band_100?: number
+          band_120?: number
+          band_140?: number
+          band_170?: number
+          band_60?: number
+          band_80?: number
+          best_leg_darts?: number | null
+          break_attempts?: number
+          break_makes?: number
+          checkout_attempts?: number
+          checkout_makes?: number
+          context_label?: string | null
+          count_100_finishes?: number
+          count_180?: number
+          created_at?: string
+          darts_thrown: number
+          double_out: boolean
+          format: string
+          high_finish?: number
+          id?: string
+          keep_attempts?: number
+          keep_makes?: number
+          legs_against: number
+          legs_for: number
+          local_match_id?: string | null
+          local_session_id?: string | null
+          match_key: string
+          opponent_id?: string | null
+          opponent_name: string
+          player_id: string
+          points_scored: number
+          room_id?: string | null
+          source: string
+          tournament_match_id?: string | null
+          won: boolean
+          worst_leg_darts?: number | null
+        }
+        Update: {
+          avg_first9?: number
+          avg3?: number
+          band_100?: number
+          band_120?: number
+          band_140?: number
+          band_170?: number
+          band_60?: number
+          band_80?: number
+          best_leg_darts?: number | null
+          break_attempts?: number
+          break_makes?: number
+          checkout_attempts?: number
+          checkout_makes?: number
+          context_label?: string | null
+          count_100_finishes?: number
+          count_180?: number
+          created_at?: string
+          darts_thrown?: number
+          double_out?: boolean
+          format?: string
+          high_finish?: number
+          id?: string
+          keep_attempts?: number
+          keep_makes?: number
+          legs_against?: number
+          legs_for?: number
+          local_match_id?: string | null
+          local_session_id?: string | null
+          match_key?: string
+          opponent_id?: string | null
+          opponent_name?: string
+          player_id?: string
+          points_scored?: number
+          room_id?: string | null
+          source?: string
+          tournament_match_id?: string | null
+          won?: boolean
+          worst_leg_darts?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_stat_details_opponent_id_fkey"
+            columns: ["opponent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_stat_details_opponent_id_fkey"
+            columns: ["opponent_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+          {
+            foreignKeyName: "match_stat_details_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_stat_details_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+          {
+            foreignKeyName: "match_stat_details_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "online_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_stat_details_tournament_match_id_fkey"
+            columns: ["tournament_match_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      matches: {
+        Row: {
+          best_of: number
+          completed_at: string | null
+          created_at: string
+          format: string
+          id: string
+          league_id: string | null
+          match_number: number | null
+          player1_id: string
+          player1_legs: number
+          player2_id: string | null
+          player2_legs: number
+          round: number | null
+          started_at: string | null
+          status: string
+          tournament_id: string | null
+          winner_id: string | null
+        }
+        Insert: {
+          best_of?: number
+          completed_at?: string | null
+          created_at?: string
+          format: string
+          id?: string
+          league_id?: string | null
+          match_number?: number | null
+          player1_id: string
+          player1_legs?: number
+          player2_id?: string | null
+          player2_legs?: number
+          round?: number | null
+          started_at?: string | null
+          status?: string
+          tournament_id?: string | null
+          winner_id?: string | null
+        }
+        Update: {
+          best_of?: number
+          completed_at?: string | null
+          created_at?: string
+          format?: string
+          id?: string
+          league_id?: string | null
+          match_number?: number | null
+          player1_id?: string
+          player1_legs?: number
+          player2_id?: string | null
+          player2_legs?: number
+          round?: number | null
+          started_at?: string | null
+          status?: string
+          tournament_id?: string | null
+          winner_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "matches_player1_id_fkey"
+            columns: ["player1_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_player1_id_fkey"
+            columns: ["player1_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+          {
+            foreignKeyName: "matches_player2_id_fkey"
+            columns: ["player2_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_player2_id_fkey"
+            columns: ["player2_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+          {
+            foreignKeyName: "matches_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_winner_id_fkey"
+            columns: ["winner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_winner_id_fkey"
+            columns: ["winner_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+        ]
       }
       matchmaking_queue: {
         Row: {
-          id: string
-          player_id: string
-          rating_points: number
-          format: string
           best_of: number
           double_out: boolean
-          room_id: string | null
-          status: "searching" | "matched"
+          format: string
+          id: string
           joined_at: string
           last_seen_at: string
-        }
-        Insert: {
-          id?: string
           player_id: string
           rating_points: number
-          format?: string
-          best_of?: number
-          double_out?: boolean
-          room_id?: string | null
-          status?: "searching" | "matched"
-          joined_at?: string
-          last_seen_at?: string
-        }
-        Update: {
-          rating_points?: number
-          format?: string
-          best_of?: number
-          double_out?: boolean
-          room_id?: string | null
-          status?: "searching" | "matched"
-          joined_at?: string
-          last_seen_at?: string
-        }
-        Relationships: []
-      }
-      payment_transactions: {
-        Row: {
-          id: string
-          player_id: string
-          tournament_id: string | null
-          amount: number
-          currency: string
-          provider: "qpay" | "socialpay" | "bonum"
-          status: "pending" | "paid" | "failed" | "refunded"
-          invoice_id: string | null
-          qr_text: string | null
-          deep_link: string | null
-          metadata: Json
-          created_at: string
-          updated_at: string
-          consumed_at: string | null
+          room_id: string | null
+          status: string
         }
         Insert: {
+          best_of?: number
+          double_out?: boolean
+          format?: string
           id?: string
+          joined_at?: string
+          last_seen_at?: string
           player_id: string
-          tournament_id?: string | null
-          amount: number
-          currency?: string
-          provider: "qpay" | "socialpay" | "bonum"
-          status?: "pending" | "paid" | "failed" | "refunded"
-          invoice_id?: string | null
-          qr_text?: string | null
-          deep_link?: string | null
-          metadata?: Json
+          rating_points: number
+          room_id?: string | null
+          status?: string
         }
         Update: {
-          status?: "pending" | "paid" | "failed" | "refunded"
-          invoice_id?: string | null
-          qr_text?: string | null
-          deep_link?: string | null
-          consumed_at?: string | null
+          best_of?: number
+          double_out?: boolean
+          format?: string
+          id?: string
+          joined_at?: string
+          last_seen_at?: string
+          player_id?: string
+          rating_points?: number
+          room_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "matchmaking_queue_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "online_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          data: Json | null
+          icon: string | null
+          id: string
+          is_read: boolean
+          link: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          data?: Json | null
+          icon?: string | null
+          id?: string
+          is_read?: boolean
+          link?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          data?: Json | null
+          icon?: string | null
+          id?: string
+          is_read?: boolean
+          link?: string | null
+          title?: string
+          type?: string
+          user_id?: string
         }
         Relationships: []
       }
       online_rooms: {
         Row: {
-          id: string
-          room_code: string
-          host_id: string
-          guest_id: string | null
-          format: "501" | "301" | "170"
           best_of: number
-          status: "waiting" | "bulloff" | "ongoing" | "completed"
-          mode: "1v1" | "2v2" | "3v3"
-          double_out: boolean
-          limit_rounds: number | null
           bull_finish: boolean
-          loser_first: boolean
-          start_method: "random" | "bulloff"
-          starter_team: number | null
-          winner_team: number | null
-          match_id: string | null
-          tournament_match_id: string | null
-          legs_per_set: number | null
           created_at: string
-          decide_vote_team: number | null
-          decide_vote_by: string | null
           decide_vote_at: string | null
+          decide_vote_by: string | null
+          decide_vote_team: number | null
+          double_out: boolean
+          format: string
+          guest_id: string | null
+          host_id: string
+          id: string
+          legs_per_set: number | null
+          limit_rounds: number | null
+          loser_first: boolean
+          match_id: string | null
+          mode: string
+          room_code: string
+          start_method: string
+          starter_team: number | null
+          status: string
+          tournament_match_id: string | null
+          winner_team: number | null
         }
         Insert: {
-          id?: string
-          room_code: string
-          host_id: string
-          guest_id?: string | null
-          format: "501" | "301" | "170"
           best_of?: number
-          status?: "waiting" | "bulloff" | "ongoing" | "completed"
-          mode?: "1v1" | "2v2" | "3v3"
-          double_out?: boolean
-          limit_rounds?: number | null
           bull_finish?: boolean
-          loser_first?: boolean
-          start_method?: "random" | "bulloff"
-          starter_team?: number | null
-          winner_team?: number | null
-          match_id?: string | null
-          tournament_match_id?: string | null
+          created_at?: string
+          decide_vote_at?: string | null
+          decide_vote_by?: string | null
+          decide_vote_team?: number | null
+          double_out?: boolean
+          format: string
+          guest_id?: string | null
+          host_id: string
+          id?: string
           legs_per_set?: number | null
+          limit_rounds?: number | null
+          loser_first?: boolean
+          match_id?: string | null
+          mode?: string
+          room_code: string
+          start_method?: string
+          starter_team?: number | null
+          status?: string
+          tournament_match_id?: string | null
+          winner_team?: number | null
         }
         Update: {
-          guest_id?: string | null
-          status?: "waiting" | "bulloff" | "ongoing" | "completed"
-          starter_team?: number | null
-          winner_team?: number | null
-          match_id?: string | null
-          legs_per_set?: number | null
-          decide_vote_team?: number | null
-          decide_vote_by?: string | null
+          best_of?: number
+          bull_finish?: boolean
+          created_at?: string
           decide_vote_at?: string | null
-        }
-        Relationships: []
-      }
-      room_players: {
-        Row: {
-          id: string
-          room_id: string
-          player_id: string
-          team: number
-          slot: number
-          is_ready: boolean
-          bulloff: number | null
-          joined_at: string
-        }
-        Insert: {
+          decide_vote_by?: string | null
+          decide_vote_team?: number | null
+          double_out?: boolean
+          format?: string
+          guest_id?: string | null
+          host_id?: string
           id?: string
-          room_id: string
-          player_id: string
-          team: number
-          slot: number
-          is_ready?: boolean
-          bulloff?: number | null
+          legs_per_set?: number | null
+          limit_rounds?: number | null
+          loser_first?: boolean
+          match_id?: string | null
+          mode?: string
+          room_code?: string
+          start_method?: string
+          starter_team?: number | null
+          status?: string
+          tournament_match_id?: string | null
+          winner_team?: number | null
         }
-        Update: { is_ready?: boolean; bulloff?: number | null }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "online_rooms_decide_vote_by_fkey"
+            columns: ["decide_vote_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "online_rooms_decide_vote_by_fkey"
+            columns: ["decide_vote_by"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+          {
+            foreignKeyName: "online_rooms_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "online_rooms_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+          {
+            foreignKeyName: "online_rooms_host_id_fkey"
+            columns: ["host_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "online_rooms_host_id_fkey"
+            columns: ["host_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+          {
+            foreignKeyName: "online_rooms_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "online_rooms_tournament_match_id_fkey"
+            columns: ["tournament_match_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_matches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      room_invites: {
+      organizer_ratings: {
         Row: {
-          id: string
-          room_id: string
-          inviter_id: string
-          invitee_id: string
-          team: number
-          slot: number
-          status: "pending" | "accepted" | "declined"
+          comment: string | null
           created_at: string
-        }
-        Insert: {
-          id?: string
-          room_id: string
-          inviter_id: string
-          invitee_id: string
-          team: number
-          slot: number
-          status?: "pending" | "accepted" | "declined"
-        }
-        Update: { status?: "pending" | "accepted" | "declined" }
-        Relationships: []
-      }
-      room_visits: {
-        Row: {
           id: string
-          room_id: string
-          seq: number
-          team: number
-          slot: number
-          points: number
-          darts: number
-          created_by: string
-          created_at: string
+          organizer_id: string
+          payout_status: string | null
+          rater_id: string
+          rating: number
+          tournament_id: string
         }
         Insert: {
+          comment?: string | null
+          created_at?: string
           id?: string
-          room_id: string
-          seq: number
-          team: number
-          slot: number
-          points: number
-          darts?: number
-          created_by: string
+          organizer_id: string
+          payout_status?: string | null
+          rater_id: string
+          rating: number
+          tournament_id: string
         }
-        Update: { points?: number; darts?: number }
-        Relationships: []
+        Update: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          organizer_id?: string
+          payout_status?: string | null
+          rater_id?: string
+          rating?: number
+          tournament_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organizer_ratings_organizer_id_fkey"
+            columns: ["organizer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organizer_ratings_organizer_id_fkey"
+            columns: ["organizer_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+          {
+            foreignKeyName: "organizer_ratings_rater_id_fkey"
+            columns: ["rater_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organizer_ratings_rater_id_fkey"
+            columns: ["rater_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+          {
+            foreignKeyName: "organizer_ratings_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      achievements: {
+      payment_transactions: {
         Row: {
-          key: string
-          name: string
-          description: string
-          icon: string
-          category: string
-          sort_order: number
+          amount: number
+          consumed_at: string | null
+          created_at: string
+          currency: string
+          deep_link: string | null
+          id: string
+          invoice_id: string | null
+          metadata: Json
+          player_id: string
+          provider: string
+          qr_text: string | null
+          status: string
+          tournament_id: string | null
+          updated_at: string
         }
         Insert: {
-          key: string
-          name: string
-          description: string
-          icon: string
-          category?: string
-          sort_order?: number
+          amount: number
+          consumed_at?: string | null
+          created_at?: string
+          currency?: string
+          deep_link?: string | null
+          id?: string
+          invoice_id?: string | null
+          metadata?: Json
+          player_id: string
+          provider: string
+          qr_text?: string | null
+          status?: string
+          tournament_id?: string | null
+          updated_at?: string
         }
-        Update: { name?: string; description?: string; icon?: string; sort_order?: number }
-        Relationships: []
+        Update: {
+          amount?: number
+          consumed_at?: string | null
+          created_at?: string
+          currency?: string
+          deep_link?: string | null
+          id?: string
+          invoice_id?: string | null
+          metadata?: Json
+          player_id?: string
+          provider?: string
+          qr_text?: string | null
+          status?: string
+          tournament_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_transactions_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pending_match_results: {
+        Row: {
+          created_at: string
+          format: string | null
+          id: string
+          opponent_id: string
+          payload: Json
+          reporter_id: string
+          status: string
+          winner_id: string
+        }
+        Insert: {
+          created_at?: string
+          format?: string | null
+          id?: string
+          opponent_id: string
+          payload: Json
+          reporter_id: string
+          status?: string
+          winner_id: string
+        }
+        Update: {
+          created_at?: string
+          format?: string | null
+          id?: string
+          opponent_id?: string
+          payload?: Json
+          reporter_id?: string
+          status?: string
+          winner_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_match_results_opponent_id_fkey"
+            columns: ["opponent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_match_results_opponent_id_fkey"
+            columns: ["opponent_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+          {
+            foreignKeyName: "pending_match_results_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_match_results_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+          {
+            foreignKeyName: "pending_match_results_winner_id_fkey"
+            columns: ["winner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_match_results_winner_id_fkey"
+            columns: ["winner_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+        ]
       }
       player_achievements: {
         Row: {
-          id: string
-          player_id: string
           achievement_key: string
           earned_at: string
+          id: string
+          player_id: string
         }
         Insert: {
-          id?: string
-          player_id: string
           achievement_key: string
           earned_at?: string
-        }
-        Update: Record<string, never>
-        Relationships: []
-      }
-      notifications: {
-        Row: {
-          id: string
-          user_id: string
-          type: string
-          title: string
-          body: string | null
-          is_read: boolean
-          link: string | null
-          icon: string | null
-          data: Json
-          created_at: string
-        }
-        Insert: {
           id?: string
-          user_id: string
-          type: string
-          title: string
-          body?: string | null
-          is_read?: boolean
-          link?: string | null
-          icon?: string | null
-          data?: Json
+          player_id: string
         }
-        Update: { is_read?: boolean }
-        Relationships: []
+        Update: {
+          achievement_key?: string
+          earned_at?: string
+          id?: string
+          player_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_achievements_achievement_key_fkey"
+            columns: ["achievement_key"]
+            isOneToOne: false
+            referencedRelation: "achievements"
+            referencedColumns: ["key"]
+          },
+          {
+            foreignKeyName: "player_achievements_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_achievements_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+        ]
       }
       player_subscriptions: {
         Row: {
-          id: string
-          player_id: string
-          status: "active" | "cancelled" | "expired"
-          started_at: string
-          expires_at: string
           amount: number
+          expires_at: string
+          id: string
           payment_id: string | null
+          player_id: string
+          started_at: string
+          status: string
         }
         Insert: {
-          id?: string
-          player_id: string
-          status?: "active" | "cancelled" | "expired"
-          expires_at: string
           amount?: number
+          expires_at: string
+          id?: string
           payment_id?: string | null
+          player_id: string
+          started_at?: string
+          status?: string
         }
         Update: {
-          status?: "active" | "cancelled" | "expired"
+          amount?: number
           expires_at?: string
+          id?: string
+          payment_id?: string | null
+          player_id?: string
+          started_at?: string
+          status?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "player_subscriptions_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payment_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_subscriptions_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_subscriptions_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: true
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+        ]
       }
-      match_stat_details: {
+      player_unlocks: {
         Row: {
           id: string
+          item_key: string
+          item_kind: string
           player_id: string
-          opponent_id: string | null
-          opponent_name: string
-          won: boolean
-          legs_for: number
-          legs_against: number
-          source: "online" | "local"
-          room_id: string | null
-          local_session_id: string | null
-          local_match_id: string | null
-          tournament_match_id: string | null
-          context_label: string | null
-          match_key: string
-          format: string
-          double_out: boolean
-          darts_thrown: number
-          points_scored: number
-          avg3: number
-          avg_first9: number
-          band_60: number
-          band_80: number
-          band_100: number
-          band_120: number
-          band_140: number
-          band_170: number
-          count_180: number
-          high_finish: number
-          count_100_finishes: number
-          best_leg_darts: number | null
-          worst_leg_darts: number | null
-          checkout_attempts: number
-          checkout_makes: number
-          keep_attempts: number
-          keep_makes: number
-          break_attempts: number
-          break_makes: number
-          created_at: string
+          unlocked_at: string
         }
         Insert: {
           id?: string
+          item_key: string
+          item_kind: string
           player_id: string
-          opponent_id?: string | null
-          opponent_name: string
-          won: boolean
-          legs_for: number
-          legs_against: number
-          source: "online" | "local"
-          room_id?: string | null
-          local_session_id?: string | null
-          local_match_id?: string | null
-          tournament_match_id?: string | null
-          context_label?: string | null
-          match_key: string
-          format: string
-          double_out: boolean
-          darts_thrown: number
-          points_scored: number
-          avg3: number
-          avg_first9: number
-          band_60?: number
-          band_80?: number
-          band_100?: number
-          band_120?: number
-          band_140?: number
-          band_170?: number
-          count_180?: number
-          high_finish?: number
-          count_100_finishes?: number
-          best_leg_darts?: number | null
-          worst_leg_darts?: number | null
-          checkout_attempts?: number
-          checkout_makes?: number
-          keep_attempts?: number
-          keep_makes?: number
-          break_attempts?: number
-          break_makes?: number
+          unlocked_at?: string
         }
-        Update: Record<string, never>
-        Relationships: []
+        Update: {
+          id?: string
+          item_key?: string
+          item_kind?: string
+          player_id?: string
+          unlocked_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_unlocks_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_unlocks_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+        ]
       }
       practice_sessions: {
         Row: {
+          created_at: string
+          duration_seconds: number | null
+          headline_metric: number
+          id: string
+          mode: string
+          player_id: string
+          summary: Json
+        }
+        Insert: {
+          created_at?: string
+          duration_seconds?: number | null
+          headline_metric: number
+          id?: string
+          mode: string
+          player_id: string
+          summary?: Json
+        }
+        Update: {
+          created_at?: string
+          duration_seconds?: number | null
+          headline_metric?: number
+          id?: string
+          mode?: string
+          player_id?: string
+          summary?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "practice_sessions_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "practice_sessions_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          average_score: number
+          avraga_wins: number
+          best_leg: number
+          bio: string | null
+          career_darts: number
+          career_points: number
+          checkout_percentage: number
+          city: string | null
+          count_180: number
+          cover_url: string | null
+          created_at: string
+          date_of_birth: string | null
+          display_name: string
+          equipped_frame: string | null
+          gender: string | null
+          highest_checkout: number
+          id: string
+          is_premium: boolean
+          matches_played: number
+          matches_won: number
+          name_animated: boolean
+          name_color: string | null
+          name_effect: string | null
+          name_font: string | null
+          phone: string | null
+          premium_expires_at: string | null
+          primary_club_id: string | null
+          primary_club_logo: string | null
+          primary_club_tag: string | null
+          primary_club_tag_color: string | null
+          province: string | null
+          rating_points: number
+          role: string
+          tournament_wins: number
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          average_score?: number
+          avraga_wins?: number
+          best_leg?: number
+          bio?: string | null
+          career_darts?: number
+          career_points?: number
+          checkout_percentage?: number
+          city?: string | null
+          count_180?: number
+          cover_url?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          display_name: string
+          equipped_frame?: string | null
+          gender?: string | null
+          highest_checkout?: number
+          id: string
+          is_premium?: boolean
+          matches_played?: number
+          matches_won?: number
+          name_animated?: boolean
+          name_color?: string | null
+          name_effect?: string | null
+          name_font?: string | null
+          phone?: string | null
+          premium_expires_at?: string | null
+          primary_club_id?: string | null
+          primary_club_logo?: string | null
+          primary_club_tag?: string | null
+          primary_club_tag_color?: string | null
+          province?: string | null
+          rating_points?: number
+          role?: string
+          tournament_wins?: number
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          avatar_url?: string | null
+          average_score?: number
+          avraga_wins?: number
+          best_leg?: number
+          bio?: string | null
+          career_darts?: number
+          career_points?: number
+          checkout_percentage?: number
+          city?: string | null
+          count_180?: number
+          cover_url?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          display_name?: string
+          equipped_frame?: string | null
+          gender?: string | null
+          highest_checkout?: number
+          id?: string
+          is_premium?: boolean
+          matches_played?: number
+          matches_won?: number
+          name_animated?: boolean
+          name_color?: string | null
+          name_effect?: string | null
+          name_font?: string | null
+          phone?: string | null
+          premium_expires_at?: string | null
+          primary_club_id?: string | null
+          primary_club_logo?: string | null
+          primary_club_tag?: string | null
+          primary_club_tag_color?: string | null
+          province?: string | null
+          rating_points?: number
+          role?: string
+          tournament_wins?: number
+          updated_at?: string
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_primary_club_id_fkey"
+            columns: ["primary_club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rating_history: {
+        Row: {
+          change: number
+          created_at: string
+          id: string
+          match_id: string | null
+          opponent_id: string | null
+          player_id: string
+          rating_after: number
+          rating_before: number
+          reason: string
+          room_id: string | null
+          won: boolean | null
+        }
+        Insert: {
+          change: number
+          created_at?: string
+          id?: string
+          match_id?: string | null
+          opponent_id?: string | null
+          player_id: string
+          rating_after: number
+          rating_before: number
+          reason?: string
+          room_id?: string | null
+          won?: boolean | null
+        }
+        Update: {
+          change?: number
+          created_at?: string
+          id?: string
+          match_id?: string | null
+          opponent_id?: string | null
+          player_id?: string
+          rating_after?: number
+          rating_before?: number
+          reason?: string
+          room_id?: string | null
+          won?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rating_history_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rating_history_opponent_id_fkey"
+            columns: ["opponent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rating_history_opponent_id_fkey"
+            columns: ["opponent_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+          {
+            foreignKeyName: "rating_history_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rating_history_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+          {
+            foreignKeyName: "rating_history_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "online_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      room_invites: {
+        Row: {
+          created_at: string
+          id: string
+          invitee_id: string
+          inviter_id: string
+          room_id: string
+          slot: number
+          status: string
+          team: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invitee_id: string
+          inviter_id: string
+          room_id: string
+          slot: number
+          status?: string
+          team: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invitee_id?: string
+          inviter_id?: string
+          room_id?: string
+          slot?: number
+          status?: string
+          team?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_invites_invitee_id_fkey"
+            columns: ["invitee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "room_invites_invitee_id_fkey"
+            columns: ["invitee_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+          {
+            foreignKeyName: "room_invites_inviter_id_fkey"
+            columns: ["inviter_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "room_invites_inviter_id_fkey"
+            columns: ["inviter_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+          {
+            foreignKeyName: "room_invites_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "online_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      room_players: {
+        Row: {
+          bulloff: number | null
+          id: string
+          is_ready: boolean
+          joined_at: string
+          player_id: string
+          room_id: string
+          slot: number
+          team: number
+        }
+        Insert: {
+          bulloff?: number | null
+          id?: string
+          is_ready?: boolean
+          joined_at?: string
+          player_id: string
+          room_id: string
+          slot: number
+          team: number
+        }
+        Update: {
+          bulloff?: number | null
+          id?: string
+          is_ready?: boolean
+          joined_at?: string
+          player_id?: string
+          room_id?: string
+          slot?: number
+          team?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_players_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "room_players_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+          {
+            foreignKeyName: "room_players_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "online_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      room_visits: {
+        Row: {
+          created_at: string
+          created_by: string
+          darts: number
+          id: string
+          points: number
+          room_id: string
+          seq: number
+          slot: number
+          team: number
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          darts?: number
+          id?: string
+          points: number
+          room_id: string
+          seq: number
+          slot: number
+          team: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          darts?: number
+          id?: string
+          points?: number
+          room_id?: string
+          seq?: number
+          slot?: number
+          team?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_visits_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "room_visits_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+          {
+            foreignKeyName: "room_visits_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "online_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      synced_local_sessions: {
+        Row: {
+          session_id: string
+          synced_at: string
+        }
+        Insert: {
+          session_id: string
+          synced_at?: string
+        }
+        Update: {
+          session_id?: string
+          synced_at?: string
+        }
+        Relationships: []
+      }
+      throws: {
+        Row: {
+          created_at: string
+          darts_used: number
+          id: string
+          is_checkout: boolean
+          leg_id: string
+          player_id: string
+          remaining: number
+          score: number
+          throw_number: number
+        }
+        Insert: {
+          created_at?: string
+          darts_used?: number
+          id?: string
+          is_checkout?: boolean
+          leg_id: string
+          player_id: string
+          remaining: number
+          score: number
+          throw_number: number
+        }
+        Update: {
+          created_at?: string
+          darts_used?: number
+          id?: string
+          is_checkout?: boolean
+          leg_id?: string
+          player_id?: string
+          remaining?: number
+          score?: number
+          throw_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "throws_leg_id_fkey"
+            columns: ["leg_id"]
+            isOneToOne: false
+            referencedRelation: "match_legs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "throws_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "throws_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+        ]
+      }
+      tournament_entrant_players: {
+        Row: {
+          entrant_id: string
           id: string
           player_id: string
-          mode: string
-          headline_metric: number
-          summary: Json
-          duration_seconds: number | null
+          slot: number
+        }
+        Insert: {
+          entrant_id: string
+          id?: string
+          player_id: string
+          slot?: number
+        }
+        Update: {
+          entrant_id?: string
+          id?: string
+          player_id?: string
+          slot?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_entrant_players_entrant_id_fkey"
+            columns: ["entrant_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_entrants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_entrant_players_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_entrant_players_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+        ]
+      }
+      tournament_entrants: {
+        Row: {
           created_at: string
+          display_name: string
+          group_no: number | null
+          id: string
+          seed: number
+          tournament_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          group_no?: number | null
+          id?: string
+          seed: number
+          tournament_id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          group_no?: number | null
+          id?: string
+          seed?: number
+          tournament_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_entrants_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tournament_matches: {
+        Row: {
+          created_at: string
+          group_no: number | null
+          id: string
+          is_losers_bracket: boolean
+          loser_entrant_id: string | null
+          match_number: number
+          next_loser_match_id: string | null
+          next_match_id: string | null
+          room_id: string | null
+          round: number
+          side1_entrant_id: string | null
+          side1_legs: number
+          side2_entrant_id: string | null
+          side2_legs: number
+          stage_id: string | null
+          status: string
+          tournament_id: string
+          winner_entrant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          group_no?: number | null
+          id?: string
+          is_losers_bracket?: boolean
+          loser_entrant_id?: string | null
+          match_number: number
+          next_loser_match_id?: string | null
+          next_match_id?: string | null
+          room_id?: string | null
+          round: number
+          side1_entrant_id?: string | null
+          side1_legs?: number
+          side2_entrant_id?: string | null
+          side2_legs?: number
+          stage_id?: string | null
+          status?: string
+          tournament_id: string
+          winner_entrant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          group_no?: number | null
+          id?: string
+          is_losers_bracket?: boolean
+          loser_entrant_id?: string | null
+          match_number?: number
+          next_loser_match_id?: string | null
+          next_match_id?: string | null
+          room_id?: string | null
+          round?: number
+          side1_entrant_id?: string | null
+          side1_legs?: number
+          side2_entrant_id?: string | null
+          side2_legs?: number
+          stage_id?: string | null
+          status?: string
+          tournament_id?: string
+          winner_entrant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_matches_loser_entrant_id_fkey"
+            columns: ["loser_entrant_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_entrants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_matches_next_loser_match_id_fkey"
+            columns: ["next_loser_match_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_matches_next_match_id_fkey"
+            columns: ["next_match_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_matches_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "online_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_matches_side1_entrant_id_fkey"
+            columns: ["side1_entrant_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_entrants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_matches_side2_entrant_id_fkey"
+            columns: ["side2_entrant_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_entrants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_matches_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_matches_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_matches_winner_entrant_id_fkey"
+            columns: ["winner_entrant_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_entrants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tournament_payout_accounts: {
+        Row: {
+          account_holder: string
+          account_number: string
+          bank_name: string
+          created_at: string
+          iban: string | null
+          id: string
+          player_id: string
+          tournament_id: string
+        }
+        Insert: {
+          account_holder: string
+          account_number: string
+          bank_name: string
+          created_at?: string
+          iban?: string | null
+          id?: string
+          player_id: string
+          tournament_id: string
+        }
+        Update: {
+          account_holder?: string
+          account_number?: string
+          bank_name?: string
+          created_at?: string
+          iban?: string | null
+          id?: string
+          player_id?: string
+          tournament_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_payout_accounts_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_payout_accounts_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+          {
+            foreignKeyName: "tournament_payout_accounts_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tournament_registrations: {
+        Row: {
+          id: string
+          payment_id: string | null
+          payment_status: string
+          player_id: string
+          registered_at: string
+          seed: number | null
+          tournament_id: string
         }
         Insert: {
           id?: string
+          payment_id?: string | null
+          payment_status?: string
           player_id: string
-          mode: string
-          headline_metric: number
-          summary?: Json
-          duration_seconds?: number | null
-          created_at?: string
+          registered_at?: string
+          seed?: number | null
+          tournament_id: string
         }
-        Update: Record<string, never>
+        Update: {
+          id?: string
+          payment_id?: string | null
+          payment_status?: string
+          player_id?: string
+          registered_at?: string
+          seed?: number | null
+          tournament_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_registrations_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_registrations_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+          {
+            foreignKeyName: "tournament_registrations_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tournament_stages: {
+        Row: {
+          config: Json
+          created_at: string
+          id: string
+          order_no: number
+          stage_type: string
+          status: string
+          tournament_id: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          id?: string
+          order_no?: number
+          stage_type: string
+          status?: string
+          tournament_id: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          id?: string
+          order_no?: number
+          stage_type?: string
+          status?: string
+          tournament_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_stages_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tournaments: {
+        Row: {
+          allow_participant_score: boolean
+          auto_complete: boolean
+          banner_url: string | null
+          bracket_type: string
+          bull_finish_at_limit: boolean
+          club_id: string | null
+          confirm_opponent: boolean
+          created_at: string
+          current_players: number
+          current_stage_id: string | null
+          description: string | null
+          double_in: boolean
+          double_out: boolean
+          enable_draw: boolean
+          end_date: string | null
+          entry_fee: number
+          first_to: number
+          format: string
+          group_advance: number
+          groups_count: number
+          id: string
+          is_private: boolean
+          join_code: string | null
+          legs_per_set: number
+          limit_rounds: number | null
+          location: string | null
+          loser_first: boolean
+          max_players: number
+          name: string
+          organizer_account_holder: string | null
+          organizer_account_number: string | null
+          organizer_bank_name: string | null
+          organizer_iban: string | null
+          organizer_id: string
+          password: string | null
+          platform_fee: number
+          platform_fee_paid: boolean
+          players_per_group: number
+          point_draw: number
+          point_lost: number
+          point_won: number
+          prize_pool: number
+          registration_deadline: string | null
+          rr_first_to: number
+          rr_legs_per_set: number
+          rr_sets_enabled: boolean
+          rules: string | null
+          sets_enabled: boolean
+          show_average: boolean
+          show_index: boolean
+          start_date: string
+          stats_enabled: boolean
+          status: string
+          third_place_match: boolean
+          tournament_type: string
+          type: string
+          updated_at: string
+          uses_stages: boolean | null
+          win_points_are_legs: boolean
+        }
+        Insert: {
+          allow_participant_score?: boolean
+          auto_complete?: boolean
+          banner_url?: string | null
+          bracket_type?: string
+          bull_finish_at_limit?: boolean
+          club_id?: string | null
+          confirm_opponent?: boolean
+          created_at?: string
+          current_players?: number
+          current_stage_id?: string | null
+          description?: string | null
+          double_in?: boolean
+          double_out?: boolean
+          enable_draw?: boolean
+          end_date?: string | null
+          entry_fee?: number
+          first_to?: number
+          format: string
+          group_advance?: number
+          groups_count?: number
+          id?: string
+          is_private?: boolean
+          join_code?: string | null
+          legs_per_set?: number
+          limit_rounds?: number | null
+          location?: string | null
+          loser_first?: boolean
+          max_players?: number
+          name: string
+          organizer_account_holder?: string | null
+          organizer_account_number?: string | null
+          organizer_bank_name?: string | null
+          organizer_iban?: string | null
+          organizer_id: string
+          password?: string | null
+          platform_fee?: number
+          platform_fee_paid?: boolean
+          players_per_group?: number
+          point_draw?: number
+          point_lost?: number
+          point_won?: number
+          prize_pool?: number
+          registration_deadline?: string | null
+          rr_first_to?: number
+          rr_legs_per_set?: number
+          rr_sets_enabled?: boolean
+          rules?: string | null
+          sets_enabled?: boolean
+          show_average?: boolean
+          show_index?: boolean
+          start_date: string
+          stats_enabled?: boolean
+          status?: string
+          third_place_match?: boolean
+          tournament_type?: string
+          type?: string
+          updated_at?: string
+          uses_stages?: boolean | null
+          win_points_are_legs?: boolean
+        }
+        Update: {
+          allow_participant_score?: boolean
+          auto_complete?: boolean
+          banner_url?: string | null
+          bracket_type?: string
+          bull_finish_at_limit?: boolean
+          club_id?: string | null
+          confirm_opponent?: boolean
+          created_at?: string
+          current_players?: number
+          current_stage_id?: string | null
+          description?: string | null
+          double_in?: boolean
+          double_out?: boolean
+          enable_draw?: boolean
+          end_date?: string | null
+          entry_fee?: number
+          first_to?: number
+          format?: string
+          group_advance?: number
+          groups_count?: number
+          id?: string
+          is_private?: boolean
+          join_code?: string | null
+          legs_per_set?: number
+          limit_rounds?: number | null
+          location?: string | null
+          loser_first?: boolean
+          max_players?: number
+          name?: string
+          organizer_account_holder?: string | null
+          organizer_account_number?: string | null
+          organizer_bank_name?: string | null
+          organizer_iban?: string | null
+          organizer_id?: string
+          password?: string | null
+          platform_fee?: number
+          platform_fee_paid?: boolean
+          players_per_group?: number
+          point_draw?: number
+          point_lost?: number
+          point_won?: number
+          prize_pool?: number
+          registration_deadline?: string | null
+          rr_first_to?: number
+          rr_legs_per_set?: number
+          rr_sets_enabled?: boolean
+          rules?: string | null
+          sets_enabled?: boolean
+          show_average?: boolean
+          show_index?: boolean
+          start_date?: string
+          stats_enabled?: boolean
+          status?: string
+          third_place_match?: boolean
+          tournament_type?: string
+          type?: string
+          updated_at?: string
+          uses_stages?: boolean | null
+          win_points_are_legs?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournaments_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournaments_current_stage_id_fkey"
+            columns: ["current_stage_id"]
+            isOneToOne: false
+            referencedRelation: "tournament_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournaments_organizer_id_fkey"
+            columns: ["organizer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournaments_organizer_id_fkey"
+            columns: ["organizer_id"]
+            isOneToOne: false
+            referencedRelation: "province_rankings"
+            referencedColumns: ["player_id"]
+          },
+        ]
+      }
+    }
+    Views: {
+      province_rankings: {
+        Row: {
+          avatar_url: string | null
+          average_score: number | null
+          display_name: string | null
+          matches_played: number | null
+          matches_won: number | null
+          player_id: string | null
+          province: string | null
+          province_rank: number | null
+          rating_points: number | null
+          username: string | null
+        }
         Relationships: []
       }
     }
-    Views: {}
     Functions: {
+      advance_tournament_match: {
+        Args: {
+          p_match_id: string
+          p_side1_legs: number
+          p_side2_legs: number
+          p_winning_side: number
+        }
+        Returns: undefined
+      }
+      apply_match_result: {
+        Args: { p_history: Json; p_updates: Json }
+        Returns: undefined
+      }
+      calculate_elo_change: {
+        Args: {
+          k_factor?: number
+          opponent_rating: number
+          player_rating: number
+          won: boolean
+        }
+        Returns: number
+      }
+      check_achievements: { Args: { p_player_id: string }; Returns: string[] }
+      club_tier_idx: { Args: { score: number }; Returns: number }
       get_player_stat_summary: {
         Args: { p_player_id: string }
         Returns: {
-          matches: number
-          legs_for: number
-          legs_against: number
-          darts_thrown: number
-          points_scored: number
-          avg3: number
           avg_first9: number
-          band_60: number
-          band_80: number
+          avg3: number
           band_100: number
           band_120: number
           band_140: number
           band_170: number
-          count_180: number
-          high_finish: number
-          count_100_finishes: number
-          best_leg_darts: number | null
-          worst_leg_darts: number | null
-          checkout_attempts: number
-          checkout_makes: number
-          keep_attempts: number
-          keep_makes: number
+          band_60: number
+          band_80: number
+          best_leg_darts: number
           break_attempts: number
           break_makes: number
+          checkout_attempts: number
+          checkout_makes: number
+          count_100_finishes: number
+          count_180: number
+          darts_thrown: number
+          high_finish: number
+          keep_attempts: number
+          keep_makes: number
+          legs_against: number
+          legs_for: number
+          matches: number
+          points_scored: number
+          worst_leg_darts: number
         }[]
       }
       get_practice_stat_summary: {
         Args: { p_player_id: string }
         Returns: {
+          best_metric: number
+          last_played: string
           mode: string
           session_count: number
-          best_metric: number
           worst_metric: number
-          last_played: string
-        }[]
-      }
-      undo_last_room_visit: {
-        Args: { p_room_id: string; p_user_id: string }
-        Returns: {
-          id: string
-          room_id: string
-          seq: number
-          team: number
-          slot: number
-          points: number
-          darts: number
-          created_by: string
-          created_at: string
         }[]
       }
       matchmaking_claim_match: {
         Args: {
-          p_player_id: string
-          p_rating: number
-          p_format: string
           p_best_of: number
           p_double_out: boolean
           p_elo_window: number
+          p_format: string
+          p_player_id: string
+          p_rating: number
         }
         Returns: {
-          room_id: string | null
           matched: boolean
+          room_id: string
         }[]
       }
       matchmaking_heartbeat: {
-        Args: {
-          p_player_id: string
-        }
+        Args: { p_player_id: string }
         Returns: undefined
       }
       matchmaking_join_queue: {
         Args: {
-          p_player_id: string
-          p_rating: number
-          p_format: string
           p_best_of: number
           p_double_out: boolean
+          p_format: string
+          p_player_id: string
+          p_rating: number
         }
         Returns: undefined
       }
+      refresh_premium_status: {
+        Args: { p_player_id: string }
+        Returns: undefined
+      }
+      seed_knockout: {
+        Args: { p_assignments: Json; p_tournament_id: string }
+        Returns: undefined
+      }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
+      start_tournament: {
+        Args: {
+          p_entrant_players: Json
+          p_entrants: Json
+          p_matches: Json
+          p_tournament_id: string
+        }
+        Returns: undefined
+      }
+      undo_last_room_visit: {
+        Args: { p_room_id: string; p_user_id: string }
+        Returns: {
+          created_at: string
+          created_by: string
+          darts: number
+          id: string
+          points: number
+          room_id: string
+          seq: number
+          slot: number
+          team: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "room_visits"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      update_club_score: { Args: { p_club_id: string }; Returns: undefined }
     }
-    Enums: {}
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
 }
 
@@ -1406,6 +2726,7 @@ export type Profile = Tables<"profiles">
 export type Club = Tables<"clubs">
 export type ClubMember = Tables<"club_members">
 export type Tournament = Tables<"tournaments">
+export type TournamentStatus = "draft" | "registration" | "ongoing" | "completed" | "cancelled"
 export type TournamentRegistration = Tables<"tournament_registrations">
 export type Match = Tables<"matches">
 export type MatchLeg = Tables<"match_legs">
