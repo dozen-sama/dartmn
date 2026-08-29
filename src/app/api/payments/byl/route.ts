@@ -16,7 +16,13 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Нэвтрээгүй байна" }, { status: 401 })
 
   const { tournament_id, player_id, amount, purpose } = await req.json()
-  if (!tournament_id || !player_id || typeof amount !== "number" || amount < 0) {
+  // Subscription худалдан авалт (жишээ нь "subscription_premium") нь ямар ч
+  // тэмцээнтэй холбоогүй тул tournament_id шаардахгүй. payment_transactions.
+  // tournament_id багана null зөвшөөрдөг (FK ON DELETE SET NULL) — өмнө нь
+  // checkout хуудас байхгүй тэмцээний sentinel UUID дамжуулж FK constraint
+  // зөрчиж байсныг доор null болгож засав.
+  const isSubscription = typeof purpose === "string" && purpose.startsWith("subscription_")
+  if (!player_id || typeof amount !== "number" || amount < 0 || (!isSubscription && !tournament_id)) {
     return NextResponse.json({ error: "Missing params" }, { status: 400 })
   }
   if (player_id !== user.id) return NextResponse.json({ error: "Зөвшөөрөлгүй" }, { status: 403 })
@@ -32,10 +38,10 @@ export async function POST(req: NextRequest) {
     .from("payment_transactions")
     .insert({
       player_id,
-      tournament_id,
+      tournament_id: isSubscription ? null : tournament_id,
       amount,
       currency: "MNT",
-      provider: "bonum",
+      provider: "byl",
       status: "pending",
       metadata: purpose ? { purpose } : {},
     })

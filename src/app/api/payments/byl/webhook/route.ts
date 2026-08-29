@@ -21,7 +21,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 })
   }
 
-  const event = JSON.parse(rawBody)
+  let event: { type?: string; data?: { object?: { description?: string } } }
+  try {
+    event = JSON.parse(rawBody)
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
+  }
   if (event.type !== "invoice.paid") {
     return NextResponse.json({ ok: true })
   }
@@ -34,16 +39,19 @@ export async function POST(req: NextRequest) {
 
   const supabase = await createAdminClient()
 
-  await supabase
+  // provider="byl" + status="pending" нөхцөлтэй нэг атомик UPDATE:
+  // - өөр provider-ийн (жишээ нь qpay) ижил id-тай мөрийг санамсаргүй өөрчлөхгүй
+  // - давхардсан "invoice.paid" webhook хэд ч удаа ирсэн, зөвхөн НЭГ л удаа
+  //   доорх талбар шинэчлэлт (platform_fee_paid/registration) ажиллана —
+  //   давхар credit/бүртгэл үүсэхгүй
+  const { data: txn } = await supabase
     .from("payment_transactions")
     .update({ status: "paid" })
     .eq("id", txnId)
-
-  const { data: txn } = await supabase
-    .from("payment_transactions")
+    .eq("provider", "byl")
+    .eq("status", "pending")
     .select("player_id, tournament_id, metadata")
-    .eq("id", txnId)
-    .single()
+    .maybeSingle()
 
   if (!txn?.tournament_id) return NextResponse.json({ ok: true })
 

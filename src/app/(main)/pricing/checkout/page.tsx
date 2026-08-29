@@ -13,6 +13,7 @@ import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
+import { useBylInvoice } from "@/hooks/useBylInvoice"
 
 const PLAN_LABELS: Record<string, string> = {
   basic: "Club Basic",
@@ -29,8 +30,7 @@ function CheckoutForm() {
   const amount = parseInt(params.get("amount") ?? "0")
   const type = params.get("type") ?? "player"
 
-  const [step, setStep] = useState<"idle" | "loading" | "waiting" | "paid">("idle")
-  const [txnId, setTxnId] = useState<string | null>(null)
+  const byl = useBylInvoice()
   const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -45,50 +45,24 @@ function CheckoutForm() {
 
   async function createInvoice() {
     if (!userId) return
-    setStep("loading")
-    try {
-      const res = await fetch("/api/payments/byl", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          player_id: userId,
-          tournament_id: "00000000-0000-0000-0000-000000000000",
-          amount: total,
-          purpose: `subscription_${plan}`,
-        }),
-      })
-      const data = await res.json()
-      if (data.payment_url) {
-        setTxnId(data.transaction_id)
-        setStep("waiting")
-        window.open(data.payment_url, "_blank", "noopener,noreferrer")
-      } else {
-        toast.error(data.error ?? "Төлбөрийн холболт амжилтгүй")
-        setStep("idle")
-      }
-    } catch {
-      toast.error("Алдаа гарлаа")
-      setStep("idle")
-    }
+    const result = await byl.createInvoice({
+      playerId: userId,
+      amount: total,
+      purpose: `subscription_${plan}`,
+    })
+    if (!result.ok) toast.error(result.error ?? "Төлбөрийн холболт амжилтгүй")
   }
 
   async function checkPayment() {
-    if (!txnId) return
-    const supabase = createClient()
-    const { data } = await supabase
-      .from("payment_transactions")
-      .select("status")
-      .eq("id", txnId)
-      .single()
-
-    if (data?.status === "paid") {
-      setStep("paid")
+    if (!byl.txnId) return
+    const paid = await byl.checkPayment()
+    if (paid) {
       toast.success("Төлбөр амжилттай!")
       if (type === "player" && userId) {
         await fetch("/api/subscriptions/activate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ player_id: userId, transaction_id: txnId }),
+          body: JSON.stringify({ player_id: userId, transaction_id: byl.txnId }),
         })
       }
       setTimeout(() => router.push("/profile"), 2000)
@@ -97,7 +71,7 @@ function CheckoutForm() {
     }
   }
 
-  if (step === "paid") {
+  if (byl.step === "paid") {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
         <div className="h-16 w-16 rounded-full bg-green-500/20 flex items-center justify-center">
@@ -160,21 +134,21 @@ function CheckoutForm() {
             Төлбөр
           </h2>
 
-          {step === "idle" && (
+          {byl.step === "idle" && (
             <Button onClick={createInvoice} className="w-full glow-primary" size="lg">
               <CreditCard className="h-4 w-4 mr-2" />
               Онлайнаар {formatCurrency(total)} төлөх
             </Button>
           )}
 
-          {step === "loading" && (
+          {byl.step === "loading" && (
             <Button disabled className="w-full" size="lg">
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               Нэхэмжлэл үүсгэж байна...
             </Button>
           )}
 
-          {step === "waiting" && (
+          {byl.step === "waiting" && (
             <div className="space-y-3">
               <p className="text-xs text-muted-foreground text-center">
                 Төлбөрийн хуудас шинэ цонхонд нээгдлээ.<br />
@@ -190,6 +164,13 @@ function CheckoutForm() {
                 </Button>
               </div>
             </div>
+          )}
+
+          {byl.step === "checking" && (
+            <Button disabled className="w-full" size="lg">
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Шалгаж байна...
+            </Button>
           )}
         </CardContent>
       </Card>

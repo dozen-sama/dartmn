@@ -19,6 +19,7 @@ import { createClient } from "@/lib/supabase/client"
 import { Tournament, TournamentRegistration, Profile } from "@/types/database"
 import { formatCurrency } from "@/lib/utils/format"
 import { tournamentStatusLabel } from "@/locales/mn"
+import { useBylInvoice } from "@/hooks/useBylInvoice"
 
 type Reg = TournamentRegistration & {
   profiles: Pick<Profile, "id" | "display_name" | "username" | "avatar_url" | "rating_points"> | null
@@ -39,8 +40,7 @@ export function OrganizerPanel({ tournament, registrations }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState<string | null>(null)
   const [regs, setRegs] = useState(registrations)
-  const [bylStep, setBylStep] = useState<"idle" | "loading" | "waiting" | "checking">("idle")
-  const [bylTxnId, setBylTxnId] = useState<string | null>(null)
+  const byl = useBylInvoice()
   const [feePaid, setFeePaid] = useState(tournament.platform_fee_paid)
   const [seeds, setSeeds] = useState<Record<string, number>>(
     Object.fromEntries(registrations.map((r) => [r.player_id, r.seed ?? 0]))
@@ -66,50 +66,24 @@ export function OrganizerPanel({ tournament, registrations }: Props) {
   }, [tournament.id, tournament.entry_fee])
 
   async function createBylInvoice() {
-    setBylStep("loading")
-    try {
-      const res = await fetch("/api/payments/byl", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tournament_id: tournament.id,
-          player_id: tournament.organizer_id,
-          amount: tournament.platform_fee,
-          purpose: "platform_fee",
-        }),
-      })
-      const data = await res.json()
-      if (data.payment_url) {
-        setBylTxnId(data.transaction_id)
-        setBylStep("waiting")
-        window.open(data.payment_url, "_blank", "noopener,noreferrer")
-      } else {
-        toast.error(data.error ?? "Төлбөрийн холболт амжилтгүй болоо")
-        setBylStep("idle")
-      }
-    } catch {
-      toast.error("Төлбөрийн холболт амжилтгүй болоо")
-      setBylStep("idle")
-    }
+    const result = await byl.createInvoice({
+      tournamentId: tournament.id,
+      playerId: tournament.organizer_id,
+      amount: tournament.platform_fee,
+      purpose: "platform_fee",
+    })
+    if (!result.ok) toast.error(result.error ?? "Төлбөрийн холболт амжилтгүй болоо")
   }
 
   async function checkBylAndStart() {
-    if (!bylTxnId) return
-    setBylStep("checking")
-    const supabase = createClient()
-    const { data } = await supabase
-      .from("payment_transactions")
-      .select("status")
-      .eq("id", bylTxnId)
-      .single()
-    if (data?.status === "paid") {
+    const paid = await byl.checkPayment()
+    if (paid) {
       setFeePaid(true)
-      setBylStep("idle")
+      byl.reset()
       toast.success("Шимтгэл төлөгдлөө — тэмцааныг эхлүүлж байна...")
       await doStart()
     } else {
       toast.info("Төлбөр хүлээгдэж байна...")
-      setBylStep("waiting")
     }
   }
 
@@ -235,26 +209,26 @@ export function OrganizerPanel({ tournament, registrations }: Props) {
           </div>
 
           {/* Платформ шимтгэл */}
-          {bylStep !== "idle" && tournament.platform_fee > 0 && !feePaid && (
+          {byl.step !== "idle" && tournament.platform_fee > 0 && !feePaid && (
             <div className="space-y-3 p-3 border border-[oklch(0.78_0.16_85)]/30 bg-[oklch(0.78_0.16_85)]/5 rounded-xl">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold">Платформ шимтгэл</p>
                   <p className="text-xs text-muted-foreground">{formatCurrency(tournament.platform_fee)}</p>
                 </div>
-                {bylStep === "waiting" && (
+                {byl.step === "waiting" && (
                   <span className="text-[10px] bg-yellow-500/15 text-yellow-400 border border-yellow-500/30 rounded-full px-2 py-0.5">Хүлээгдэж байна</span>
                 )}
               </div>
 
-              {bylStep === "loading" && (
+              {byl.step === "loading" && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Нэхэмжлэл үүсгэж байна...
                 </div>
               )}
 
-              {bylStep === "waiting" && (
+              {byl.step === "waiting" && (
                 <>
                   <p className="text-xs text-muted-foreground">
                     Нэхэмжлэл шинэ цонхонд нээгдлээ. Дэмжигдсэн аппаараа төлж буцаарай.
@@ -266,7 +240,7 @@ export function OrganizerPanel({ tournament, registrations }: Props) {
                 </>
               )}
 
-              {bylStep === "checking" && (
+              {byl.step === "checking" && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Шалгаж байна...
@@ -274,7 +248,7 @@ export function OrganizerPanel({ tournament, registrations }: Props) {
               )}
 
               <Button size="sm" variant="ghost" className="w-full text-muted-foreground text-xs"
-                onClick={() => { setBylStep("idle"); setBylTxnId(null) }}>
+                onClick={() => byl.reset()}>
                 Болих
               </Button>
             </div>
