@@ -1,3 +1,20 @@
+-- LEGACY / HISTORICAL REFERENCE ONLY
+-- DO NOT APPLY
+-- This change is fully represented in the recovered migration history, split
+-- across two migrations:
+--   - supabase/migration-archive/20260615135916_online_rooms_teams.sql
+--     (online_rooms.mode/double_out/starter_team/winner_team, room_players,
+--     room_invites, room_visits tables + policies + realtime membership)
+--   - supabase/migration-archive/20260618094105_online_tournament_bracket_tables.sql
+--     (online_rooms.tournament_match_id FK — added in this file but actually
+--     applied live via the later migration above, not the original one)
+-- and in the active baseline (supabase/migrations/20260829120000_baseline.sql),
+-- which recreates all of the above tables/columns/policies in their final form.
+--
+-- This file was a hand-maintained "apply manually" draft kept loose at
+-- supabase/ root, ahead of the formal migration split; moved here during
+-- Baseline Recovery follow-up cleanup (2026-08-29).
+
 -- ============================================================
 -- Online rooms: team support (1v1/2v2/3v3) + ready-up + realtime play
 -- Safe to re-run (IF NOT EXISTS / guarded).
