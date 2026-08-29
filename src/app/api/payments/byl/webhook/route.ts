@@ -21,27 +21,34 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 })
   }
 
-  let event: { type?: string; data?: { description?: string; object?: { description?: string } } }
+  let event: { type?: string; data?: { object?: Record<string, unknown> } }
   try {
     event = JSON.parse(rawBody)
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
   }
-  if (event.type !== "invoice.paid") {
+
+  // Баталгаажсан BYL payload бүтэц (byl.mn/docs/webhook.html):
+  // { type, data: { object: { ... } } }.
+  const obj = event.data?.object
+  let txnId: string | undefined
+
+  if (event.type === "invoice.paid") {
+    // Хуучин Invoices API-аар үүссэн invoice-үүд (одоо Checkouts API руу
+    // шилжсэн ч хуучин/цуцлагдаагүй pending гүйлгээ байж болзошгүй тул
+    // хадгалж үлдээв): description-д txn.id-г "[uuid]" хэлбэрээр шигтгэсэн.
+    const description = typeof obj?.description === "string" ? obj.description : ""
+    txnId = description.match(/\[([0-9a-f-]{36})\]$/)?.[1]
+  } else if (event.type === "checkout.completed" && obj?.status === "complete") {
+    // Checkouts API: client_reference_id нь зориулалтын талбар тул шууд
+    // txn.id-г дамжуулна — description дэх UUID регexp hack хэрэггүй.
+    txnId = typeof obj?.client_reference_id === "string" ? obj.client_reference_id : undefined
+  } else {
     return NextResponse.json({ ok: true })
   }
 
-  // invoice description-д txn.id байгаа тул татна: "... [uuid]". BYL-ийн
-  // бодит REST API хариу (invoice үүсгэх үед) талбаруудыг шууд "data"-ийн
-  // дор хавтгайруулж буцаадаг нь баталгаажсан (data.object биш) тул эхлээд
-  // тэрийг шалгаж, хуучин Stripe-маягийн "data.object" таамаглалыг
-  // баталгаажаагүй ч fallback болгож үлдээв — webhook-ийн бодит payload
-  // хараахан баталгаажаагүй байгаа тул аль аль замыг барина.
-  const description: string = event.data?.description ?? event.data?.object?.description ?? ""
-  const match = description.match(/\[([0-9a-f-]{36})\]$/)
-  const txnId = match?.[1]
   if (!txnId) {
-    console.error("[byl webhook] could not extract txn id from invoice.paid payload", { keys: Object.keys(event.data ?? {}) })
+    console.error("[byl webhook] could not extract txn id", { type: event.type, keys: Object.keys(obj ?? {}) })
     return NextResponse.json({ ok: true })
   }
 

@@ -6,6 +6,20 @@ const BYL_BASE = "https://byl.mn/api/v1"
 const BYL_TOKEN = process.env.BYL_TOKEN ?? ""
 const BYL_PROJECT_ID = process.env.BYL_PROJECT_ID ?? ""
 
+// Төлбөр амжилттай/цуцлагдсаны дараа BYL хэрэглэгчийг буцааж илгээх хаяг.
+// Checkouts API-ийн success_url/cancel_url-д ашиглана (docs: byl.mn/docs/api/checkouts.html) —
+// Invoices API-д ийм талбар байхгүй тул хэрэглэгч BYL-ийн hosted хуудсан дээр
+// "гацдаг" (dartmn руу автоматаар буцаж ирдэггүй) байсныг эндээс шийднэ.
+function buildRedirectUrls(origin: string, purpose: string | undefined, tournamentId: string | null) {
+  if (typeof purpose === "string" && purpose.startsWith("subscription_")) {
+    return { success_url: `${origin}/profile`, cancel_url: `${origin}/pricing` }
+  }
+  if (tournamentId) {
+    return { success_url: `${origin}/tournaments/${tournamentId}`, cancel_url: `${origin}/tournaments/${tournamentId}` }
+  }
+  return { success_url: `${origin}/`, cancel_url: `${origin}/` }
+}
+
 export async function POST(req: NextRequest) {
   if (!BYL_TOKEN || !BYL_PROJECT_ID) {
     return NextResponse.json({ error: "byl.mn гэрээ хийгдээгүй байна" }, { status: 503 })
@@ -57,15 +71,33 @@ export async function POST(req: NextRequest) {
       ? `DartMN платформ шимтгэл`
       : `DartMN тэмцааний хураамж`
 
-    const res = await fetch(`${BYL_BASE}/projects/${BYL_PROJECT_ID}/invoices`, {
+    const { success_url, cancel_url } = buildRedirectUrls(req.nextUrl.origin, purpose, tournament_id ?? null)
+
+    // Invoices API (/invoices)-аас Checkouts API (/checkouts) руу шилжив —
+    // сүүлийнх нь success_url/cancel_url дэмждэг цорын ганц BYL endpoint
+    // (docs: byl.mn/docs/api/checkouts.html). client_reference_id нь манай
+    // дотоод txn.id-г шууд, зориулалтын талбараар дамжуулах боломж өгдөг тул
+    // өмнөх шиг тайлбар (description) талбарт UUID шигтгэх "[uuid]" hack
+    // хэрэггүй болсон — webhook талд client_reference_id-аар шууд тааруулна.
+    const res = await fetch(`${BYL_BASE}/projects/${BYL_PROJECT_ID}/checkouts`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${BYL_TOKEN}`,
       },
       body: JSON.stringify({
-        amount,
-        description: `${description} [${txn.id}]`,
+        items: [
+          {
+            price_data: {
+              unit_amount: amount,
+              product_data: { name: description },
+            },
+            quantity: 1,
+          },
+        ],
+        client_reference_id: txn.id,
+        success_url,
+        cancel_url,
       }),
     })
 
@@ -78,22 +110,21 @@ export async function POST(req: NextRequest) {
       // gateway error) — fall through with an empty object, rawBody is
       // still logged below for diagnosis.
     }
-    // BYL wraps the invoice under a top-level "data" key
-    // (confirmed live: {"data":{"id":73310,"url":"https://byl.mn/h/invoice/..."}}),
-    // not at the response root — this was the actual bug causing every
-    // successful (201) invoice creation to be misreported as a failure.
-    const invoice = parsed.data ?? {}
+    // BYL wraps the checkout under a top-level "data" key
+    // (confirmed live: {"data":{"id":73310,"url":"https://byl.mn/h/..."}}),
+    // not at the response root.
+    const checkout = parsed.data ?? {}
 
-    if (invoice.id && invoice.url) {
+    if (checkout.id && checkout.url) {
       await supabase
         .from("payment_transactions")
-        .update({ invoice_id: String(invoice.id) })
+        .update({ invoice_id: String(checkout.id) })
         .eq("id", txn.id)
 
       return NextResponse.json({
         transaction_id: txn.id,
-        invoice_id: invoice.id,
-        payment_url: invoice.url,
+        invoice_id: checkout.id,
+        payment_url: checkout.url,
       })
     }
 
@@ -101,7 +132,7 @@ export async function POST(req: NextRequest) {
     // алдааны мэдээлэл товч ("byl.mn invoice амжилтгүй") учир Vercel logs
     // шалгахгүйгээр бодит шалтгааныг (401 буруу token, 404 буруу project id
     // гэх мэт) олж харах боломжгүй байсныг засав.
-    console.error("[byl] invoice creation failed", { status: res.status, body: rawBody.slice(0, 2000) })
+    console.error("[byl] checkout creation failed", { status: res.status, body: rawBody.slice(0, 2000) })
     return NextResponse.json({ error: "byl.mn invoice амжилтгүй", details: parsed }, { status: 502 })
   } catch (err) {
     console.error("[byl] API request threw", err)
