@@ -20,7 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { createClient } from "@/lib/supabase/client"
-import { mn } from "@/locales/mn"
+import { mn, tournamentStatusLabel } from "@/locales/mn"
 import { Tournament, TournamentRegistration, Profile } from "@/types/database"
 import { formatCurrency, formatDateTime } from "@/lib/utils/format"
 import { OrganizerPanel } from "@/components/tournament/OrganizerPanel"
@@ -142,7 +142,7 @@ export function TournamentDetail({ tournament: t, registrations, currentUserId, 
             <div className="space-y-2">
               <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="outline" className={`text-xs ${statusColors[t.status]}`}>
-                  {mn.tournament.status[t.status]}
+                  {tournamentStatusLabel(t.status)}
                 </Badge>
                 {t.status === "ongoing" && ongoingCount > 0 && (
                   <Badge className="text-xs bg-primary/15 text-primary border-primary/30 gap-1 pulse-live">

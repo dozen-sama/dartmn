@@ -248,3 +248,10 @@ export const mn = {
 } as const
 
 export type MnLocale = typeof mn
+
+// tournaments.status is a CHECK-constrained text column, not a Postgres enum,
+// so the generated DB type is a plain `string`. Falls back to the raw value
+// for any status outside the known set instead of rendering `undefined`.
+export function tournamentStatusLabel(status: string): string {
+  return (mn.tournament.status as Record<string, string>)[status] ?? status
+}

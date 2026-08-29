@@ -17,7 +17,7 @@ import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
 import { Tournament } from "@/types/database"
-import { mn } from "@/locales/mn"
+import { tournamentStatusLabel } from "@/locales/mn"
 import Link from "next/link"
 
 interface Props {
@@ -258,7 +258,7 @@ export function TournamentEditForm({ tournament: t, clubs }: Props) {
             </h1>
             <div className="flex items-center gap-2 mt-0.5">
               <Badge variant="outline" className={`text-xs ${statusColors[t.status]}`}>
-                {mn.tournament.status[t.status]}
+                {tournamentStatusLabel(t.status)}
               </Badge>
               <span className="text-xs text-muted-foreground">{t.name}</span>
             </div>

@@ -24,6 +24,12 @@ interface Props {
   canRate: boolean // registered participant, completed, биш зохион байгуулагч
 }
 
+// payout_status is a CHECK-constrained text column (ANY('paid','unpaid')), not
+// a Postgres enum, so the generated DB type is `string | null`.
+function toPayoutStatus(v: string | null): "paid" | "unpaid" | null {
+  return v === "paid" || v === "unpaid" ? v : null
+}
+
 export function OrganizerRating({ tournamentId, organizerId, currentUserId, canRate }: Props) {
   const [loading, setLoading] = useState(false)
   const [myRating, setMyRating] = useState<number | null>(null)
@@ -46,7 +52,7 @@ export function OrganizerRating({ tournamentId, organizerId, currentUserId, canR
     }
     setStats({ count: rows.length, avg: rows.length ? sum / rows.length : 0, dist, paid, unpaid })
     const mine = rows.find((r) => r.rater_id === currentUserId)
-    if (mine) { setMyRating(mine.rating); setPick(mine.rating); setComment(mine.comment ?? ""); setPayoutPick(mine.payout_status ?? null) }
+    if (mine) { setMyRating(mine.rating); setPick(mine.rating); setComment(mine.comment ?? ""); setPayoutPick(toPayoutStatus(mine.payout_status)) }
   }
 
   useEffect(() => {

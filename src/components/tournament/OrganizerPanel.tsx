@@ -18,7 +18,7 @@ import { Separator } from "@/components/ui/separator"
 import { createClient } from "@/lib/supabase/client"
 import { Tournament, TournamentRegistration, Profile } from "@/types/database"
 import { formatCurrency } from "@/lib/utils/format"
-import { mn } from "@/locales/mn"
+import { tournamentStatusLabel } from "@/locales/mn"
 
 type Reg = TournamentRegistration & {
   profiles: Pick<Profile, "id" | "display_name" | "username" | "avatar_url" | "rating_points"> | null
@@ -140,7 +140,7 @@ export function OrganizerPanel({ tournament, registrations }: Props) {
       .update({ status: newStatus })
       .eq("id", tournament.id)
     if (error) toast.error("Алдаа гарлаа")
-    else { toast.success(`Статус: ${mn.tournament.status[newStatus]}`); router.refresh() }
+    else { toast.success(`Статус: ${tournamentStatusLabel(newStatus)}`); router.refresh() }
     setLoading(null)
   }
 
@@ -217,7 +217,7 @@ export function OrganizerPanel({ tournament, registrations }: Props) {
                 tournament.status === "completed" ? "bg-green-500/15 text-green-400 border-green-500/30" :
                 "bg-muted text-muted-foreground"
               }`}>
-                {mn.tournament.status[tournament.status]}
+                {tournamentStatusLabel(tournament.status)}
               </Badge>
             </div>
             {nextStatus && tournament.status !== "cancelled" && (

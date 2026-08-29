@@ -21,6 +21,7 @@ import { createClient } from "@/lib/supabase/client"
 import { computePlatformFee, computeMultiStageFee } from "@/lib/tournament/platform-fee"
 import { StageBuilder, LocalStage } from "@/components/tournament/StageBuilder"
 import { DEFAULT_CONFIGS } from "@/lib/tournament/stage-types"
+import type { Json } from "@/types/database"
 import Link from "next/link"
 
 interface Props {
@@ -322,7 +323,7 @@ export function CreateTournamentForm({ userId, userProfile }: Props) {
         tournament_id: data.id,
         order_no: i,
         stage_type: s.stage_type,
-        config: s.config as unknown as Record<string, unknown>,
+        config: s.config as unknown as Json,
         status: "pending" as const,
       }))
       const { error: stageErr } = await supabase.from("tournament_stages").insert(stageRows)

@@ -7,7 +7,7 @@ import { buttonVariants } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
-import { mn } from "@/locales/mn"
+import { mn, tournamentStatusLabel } from "@/locales/mn"
 import { Profile, Tournament } from "@/types/database"
 import { formatCurrency, formatDate, formatNumber, formatAverage } from "@/lib/utils/format"
 import { cn } from "@/lib/utils"
@@ -61,7 +61,7 @@ function TournamentRow({ t }: { t: TournamentWithOrganizer }) {
           <div className="flex items-center gap-2">
             <p className="font-medium text-sm truncate">{t.name}</p>
             <Badge variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${statusColors[t.status]}`}>
-              {mn.tournament.status[t.status]}
+              {tournamentStatusLabel(t.status)}
             </Badge>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
