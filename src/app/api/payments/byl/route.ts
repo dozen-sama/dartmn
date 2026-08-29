@@ -70,19 +70,24 @@ export async function POST(req: NextRequest) {
     })
 
     const rawBody = await res.text()
-    let invoice: { id?: string; url?: string } = {}
+    let parsed: { data?: { id?: string | number; url?: string } } = {}
     try {
-      invoice = JSON.parse(rawBody)
+      parsed = JSON.parse(rawBody)
     } catch {
       // BYL error responses are not always JSON (e.g. an HTML/plain-text
       // gateway error) — fall through with an empty object, rawBody is
       // still logged below for diagnosis.
     }
+    // BYL wraps the invoice under a top-level "data" key
+    // (confirmed live: {"data":{"id":73310,"url":"https://byl.mn/h/invoice/..."}}),
+    // not at the response root — this was the actual bug causing every
+    // successful (201) invoice creation to be misreported as a failure.
+    const invoice = parsed.data ?? {}
 
     if (invoice.id && invoice.url) {
       await supabase
         .from("payment_transactions")
-        .update({ invoice_id: invoice.id })
+        .update({ invoice_id: String(invoice.id) })
         .eq("id", txn.id)
 
       return NextResponse.json({
@@ -97,7 +102,7 @@ export async function POST(req: NextRequest) {
     // шалгахгүйгээр бодит шалтгааныг (401 буруу token, 404 буруу project id
     // гэх мэт) олж харах боломжгүй байсныг засав.
     console.error("[byl] invoice creation failed", { status: res.status, body: rawBody.slice(0, 2000) })
-    return NextResponse.json({ error: "byl.mn invoice амжилтгүй", details: invoice }, { status: 502 })
+    return NextResponse.json({ error: "byl.mn invoice амжилтгүй", details: parsed }, { status: 502 })
   } catch (err) {
     console.error("[byl] API request threw", err)
     return NextResponse.json({ error: "byl.mn API холболтын алдаа" }, { status: 502 })

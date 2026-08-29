@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 })
   }
 
-  let event: { type?: string; data?: { object?: { description?: string } } }
+  let event: { type?: string; data?: { description?: string; object?: { description?: string } } }
   try {
     event = JSON.parse(rawBody)
   } catch {
@@ -31,11 +31,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
-  // invoice description-д txn.id байгаа тул татна: "... [uuid]"
-  const description: string = event.data?.object?.description ?? ""
+  // invoice description-д txn.id байгаа тул татна: "... [uuid]". BYL-ийн
+  // бодит REST API хариу (invoice үүсгэх үед) талбаруудыг шууд "data"-ийн
+  // дор хавтгайруулж буцаадаг нь баталгаажсан (data.object биш) тул эхлээд
+  // тэрийг шалгаж, хуучин Stripe-маягийн "data.object" таамаглалыг
+  // баталгаажаагүй ч fallback болгож үлдээв — webhook-ийн бодит payload
+  // хараахан баталгаажаагүй байгаа тул аль аль замыг барина.
+  const description: string = event.data?.description ?? event.data?.object?.description ?? ""
   const match = description.match(/\[([0-9a-f-]{36})\]$/)
   const txnId = match?.[1]
-  if (!txnId) return NextResponse.json({ ok: true })
+  if (!txnId) {
+    console.error("[byl webhook] could not extract txn id from invoice.paid payload", { keys: Object.keys(event.data ?? {}) })
+    return NextResponse.json({ ok: true })
+  }
 
   const supabase = await createAdminClient()
 
