@@ -69,7 +69,15 @@ export async function POST(req: NextRequest) {
       }),
     })
 
-    const invoice = await res.json()
+    const rawBody = await res.text()
+    let invoice: { id?: string; url?: string } = {}
+    try {
+      invoice = JSON.parse(rawBody)
+    } catch {
+      // BYL error responses are not always JSON (e.g. an HTML/plain-text
+      // gateway error) — fall through with an empty object, rawBody is
+      // still logged below for diagnosis.
+    }
 
     if (invoice.id && invoice.url) {
       await supabase
@@ -84,8 +92,14 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    // res.status/rawBody-г серверийн лог руу бичиж байна — client рүү буцаах
+    // алдааны мэдээлэл товч ("byl.mn invoice амжилтгүй") учир Vercel logs
+    // шалгахгүйгээр бодит шалтгааныг (401 буруу token, 404 буруу project id
+    // гэх мэт) олж харах боломжгүй байсныг засав.
+    console.error("[byl] invoice creation failed", { status: res.status, body: rawBody.slice(0, 2000) })
     return NextResponse.json({ error: "byl.mn invoice амжилтгүй", details: invoice }, { status: 502 })
-  } catch {
+  } catch (err) {
+    console.error("[byl] API request threw", err)
     return NextResponse.json({ error: "byl.mn API холболтын алдаа" }, { status: 502 })
   }
 }
