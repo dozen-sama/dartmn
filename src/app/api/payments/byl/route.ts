@@ -109,6 +109,10 @@ export async function POST(req: NextRequest) {
           },
         ],
         client_reference_id: txn.id,
+        // Нэвтэрсэн хэрэглэгчийн и-мэйлийг BYL-ийн hosted checkout дээрх
+        // "И-мэйл хаяг" талбарт урьдчилан бөглөнө — тэгэхгүй бол хэрэглэгч
+        // өөрийн и-мэйлээ дахин гараар бичих шаардлагатай болдог байсан.
+        customer_email: user.email,
         success_url,
         cancel_url,
       }),
