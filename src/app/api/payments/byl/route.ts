@@ -10,9 +10,17 @@ const BYL_PROJECT_ID = process.env.BYL_PROJECT_ID ?? ""
 // Checkouts API-ийн success_url/cancel_url-д ашиглана (docs: byl.mn/docs/api/checkouts.html) —
 // Invoices API-д ийм талбар байхгүй тул хэрэглэгч BYL-ийн hosted хуудсан дээр
 // "гацдаг" (dartmn руу автоматаар буцаж ирдэггүй) байсныг эндээс шийднэ.
-function buildRedirectUrls(origin: string, purpose: string | undefined, tournamentId: string | null) {
+//
+// Subscription-ий хувьд success_url-г шууд /profile руу биш, ЭХНИЙ checkout
+// хуудас руугаа (returnPath) буцаадаг — учир нь тухайн хуудасны useBylInvoice
+// mount-effect л localStorage-с txnId уншиж "Төлбөр амжилттай!" баталгаажуулах
+// дэлгэц харуулаад, /api/subscriptions/activate-г дуудаж premium-г идэвхжүүлдэг.
+// Шууд /profile руу үсэрвэл энэ бүх логик алгасагдаж, хэрэглэгч "төлсөн ч юу ч
+// болоогүй мэт" profile хуудсан дээр гарч ирдэг байсныг эндээс засав.
+function buildRedirectUrls(origin: string, purpose: string | undefined, tournamentId: string | null, returnPath: string | null) {
   if (typeof purpose === "string" && purpose.startsWith("subscription_")) {
-    return { success_url: `${origin}/profile`, cancel_url: `${origin}/pricing` }
+    const safeReturnPath = returnPath && returnPath.startsWith("/") && !returnPath.startsWith("//") ? returnPath : "/profile"
+    return { success_url: `${origin}${safeReturnPath}`, cancel_url: `${origin}/pricing` }
   }
   if (tournamentId) {
     return { success_url: `${origin}/tournaments/${tournamentId}`, cancel_url: `${origin}/tournaments/${tournamentId}` }
@@ -29,7 +37,7 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await auth.auth.getUser()
   if (!user) return NextResponse.json({ error: "Нэвтрээгүй байна" }, { status: 401 })
 
-  const { tournament_id, player_id, amount, purpose } = await req.json()
+  const { tournament_id, player_id, amount, purpose, return_path } = await req.json()
   // Subscription худалдан авалт (жишээ нь "subscription_premium") нь ямар ч
   // тэмцээнтэй холбоогүй тул tournament_id шаардахгүй. payment_transactions.
   // tournament_id багана null зөвшөөрдөг (FK ON DELETE SET NULL) — өмнө нь
@@ -71,7 +79,12 @@ export async function POST(req: NextRequest) {
       ? `DartMN платформ шимтгэл`
       : `DartMN тэмцааний хураамж`
 
-    const { success_url, cancel_url } = buildRedirectUrls(req.nextUrl.origin, purpose, tournament_id ?? null)
+    const { success_url, cancel_url } = buildRedirectUrls(
+      req.nextUrl.origin,
+      purpose,
+      tournament_id ?? null,
+      typeof return_path === "string" ? return_path : null,
+    )
 
     // Invoices API (/invoices)-аас Checkouts API (/checkouts) руу шилжив —
     // сүүлийнх нь success_url/cancel_url дэмждэг цорын ганц BYL endpoint

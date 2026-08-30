@@ -10,6 +10,7 @@ interface CreateInvoiceParams {
   playerId: string
   amount: number
   purpose?: string
+  returnPath?: string
 }
 
 interface PersistParams {
@@ -116,6 +117,7 @@ export function useBylInvoice(persist?: PersistParams, onPaid?: (txnId: string) 
           player_id: params.playerId,
           amount: params.amount,
           purpose: params.purpose,
+          return_path: params.returnPath,
         }),
       })
       const data = await res.json()

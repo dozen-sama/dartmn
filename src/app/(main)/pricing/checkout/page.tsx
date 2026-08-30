@@ -65,6 +65,7 @@ function CheckoutForm() {
       playerId: userId,
       amount: total,
       purpose: `subscription_${plan}`,
+      returnPath: `${window.location.pathname}${window.location.search}`,
     })
     if (!result.ok) toast.error(result.error ?? "Төлбөрийн холболт амжилтгүй")
   }
