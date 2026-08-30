@@ -2577,6 +2577,13 @@ export interface Database {
       }
     }
     Functions: {
+      activate_subscription_from_payment: {
+        Args: { p_player_id: string; p_transaction_id: string }
+        Returns: {
+          expires_at: string | null
+          result: string
+        }[]
+      }
       advance_tournament_match: {
         Args: {
           p_match_id: string

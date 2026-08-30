@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
 import crypto from "crypto"
+import { activateSubscriptionFromPayment } from "@/lib/payments/activate-subscription"
 
 export async function POST(req: NextRequest) {
   const rawBody = await req.text()
@@ -68,9 +69,33 @@ export async function POST(req: NextRequest) {
     .select("player_id, tournament_id, metadata")
     .maybeSingle()
 
-  if (!txn?.tournament_id) return NextResponse.json({ ok: true })
+  if (!txn) return NextResponse.json({ ok: true })
 
   const purpose = (txn.metadata as Record<string, string> | null)?.purpose
+
+  // Хувийн Premium захиалга tournament_id-гүй (subscription-д тэмцээн
+  // байдаггүй) тул доорх tournament_id шаардсан салбаруудаас өмнө энд тусад
+  // нь салгана. Идэвхжүүлэлт server-authoritative: browser буцаж ирэхийг
+  // хүлээхгүйгээр энд шууд идэвхжинэ (activate_subscription_from_payment
+  // RPC-ийн атомик claim нь давхар webhook/client race-ээс хамгаална).
+  if (purpose === "subscription_premium") {
+    try {
+      const result = await activateSubscriptionFromPayment(supabase, txnId, txn.player_id)
+      if (!result.ok) {
+        console.error("[byl webhook] subscription activation returned invalid", { txnId })
+      }
+    } catch (err) {
+      // Аль хэдийн "paid" болгож бичсэн тул давтан ирвэл дээрх UPDATE 0 мөр
+      // өөрчилж энэ салбарт орохгүй (idempotent) — 500 буцаах нь зөвхөн BYL-г
+      // ДАВТАЖ илгээхийг санал болгож, идэвхжүүлэлт "consumed ч subscription
+      // үүсээгүй" хагас төлөвт мөнхөд үлдэхээс сэргийлнэ.
+      console.error("[byl webhook] subscription activation threw", err)
+      return NextResponse.json({ error: "activation failed" }, { status: 500 })
+    }
+    return NextResponse.json({ ok: true })
+  }
+
+  if (!txn.tournament_id) return NextResponse.json({ ok: true })
 
   if (purpose === "platform_fee") {
     await supabase
