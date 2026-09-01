@@ -6,7 +6,7 @@ import { Loader2, Search, Video, VideoOff, X, Zap } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
-import { canHandleMatched } from "@/lib/matchmaking/session-guard"
+import { canHandleMatched, shouldReconcile, classifyRoomPlayersInsert } from "@/lib/matchmaking/session-guard"
 
 type Phase =
   | "idle"          // товч харуулна
@@ -38,6 +38,25 @@ export function MatchmakingSection({ userId, ratingPoints, displayName }: Props)
   // Guards against navigating twice within the SAME session when both the
   // realtime event and the reconciliation read observe "matched".
   const navigatedRef = useRef(false)
+  // matchmaking_queue is NOT in the supabase_realtime publication, so a
+  // postgres_changes subscription on it can never fire — confirmed against
+  // production (pg_publication_tables). room_players IS published and both
+  // rows are inserted atomically with the room, so it's the durable signal
+  // instead. These three refs support that: the server-clock timestamp this
+  // search began at (so reconciliation can't pick up a stale room_players
+  // row from an earlier abandoned search), whether the room_players channel
+  // has reached SUBSCRIBED, and a one-shot guard on the reconciliation read
+  // itself (it must run exactly once per search, once both are true).
+  const searchStartedAtRef = useRef<string | null>(null)
+  const subscribedRef = useRef(false)
+  const reconciledRef = useRef(false)
+  // A live room_players INSERT can arrive before searchStartedAt is known
+  // (the opponent's claim can complete, and its INSERT reach us, before our
+  // own /join response — which carries searchStartedAt — gets back to the
+  // browser). classifyRoomPlayersInsert returns "pending" in that case; this
+  // holds the one relevant in-flight row so it can be re-evaluated the
+  // moment searchStartedAt becomes available, instead of being dropped.
+  const pendingInsertRef = useRef<{ roomId: string; joinedAt: string } | null>(null)
 
   const stopTimer = useCallback(() => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
@@ -66,6 +85,60 @@ export function MatchmakingSection({ userId, ratingPoints, displayName }: Props)
     setPhase("matched")
     router.push(`/play/${roomId}`)
   }, [stopTimer, cleanupChannel, router])
+
+  // One-time authoritative catch-up read, run once the room_players channel
+  // is confirmed SUBSCRIBED and we know this search's own server-clock start
+  // time. Only a room_players row created AFTER this search began, in a
+  // matchmaking-created ('random') room, counts — this is what stops it from
+  // navigating into an old, abandoned room_players row left over from a
+  // previous search the user never actually entered (seen in production:
+  // rooms stuck in status='waiting' with a stale membership row). Any match
+  // that happens after this point is instead caught live by the INSERT
+  // subscription itself, so running this exactly once — not on a timer — is
+  // sufficient: it only needs to cover the gap before the channel is live.
+  const tryReconcile = useCallback((mySession: number) => {
+    if (!shouldReconcile(subscribedRef.current, searchStartedAtRef.current, reconciledRef.current)) return
+    reconciledRef.current = true
+    supabase
+      .from("room_players")
+      .select("room_id, joined_at, online_rooms!inner(start_method)")
+      .eq("player_id", userId)
+      .eq("online_rooms.start_method", "random")
+      .gte("joined_at", searchStartedAtRef.current)
+      .order("joined_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.room_id) handleMatched(data.room_id, mySession)
+      })
+  }, [supabase, userId, handleMatched])
+
+  // Shared verdict-application for a room_players row this player was just
+  // added to (either the live INSERT event or the replay of one that had to
+  // wait on searchStartedAt) — same rule, same outcome, regardless of which
+  // path is currently evaluating it.
+  const applyInsertVerdict = useCallback((roomId: string, joinedAt: string, startMethod: string | null, mySession: number) => {
+    const verdict = classifyRoomPlayersInsert(startMethod, joinedAt, searchStartedAtRef.current)
+    if (verdict === "accept") {
+      pendingInsertRef.current = null
+      handleMatched(roomId, mySession)
+    } else if (verdict === "pending") {
+      pendingInsertRef.current = { roomId, joinedAt }
+    }
+    // "reject": unrelated non-matchmaking room, or a stale row from an
+    // earlier abandoned search — silently ignored, nothing to navigate to.
+  }, [handleMatched])
+
+  // Reads and clears the held INSERT, if any. Kept as its own function
+  // (rather than reading pendingInsertRef.current inline inside
+  // startMatchmaking) so a later read isn't seen by TS as narrowed to the
+  // `null` assigned at the top of that same function's control flow — that
+  // assignment predates any of the async callbacks that can actually set it.
+  const consumePendingInsert = useCallback(() => {
+    const pending = pendingInsertRef.current
+    pendingInsertRef.current = null
+    return pending
+  }, [])
 
   const leave = useCallback(async () => {
     invalidateSession()
@@ -114,6 +187,10 @@ export function MatchmakingSection({ userId, ratingPoints, displayName }: Props)
 
     const mySession = ++sessionRef.current
     navigatedRef.current = false
+    reconciledRef.current = false
+    subscribedRef.current = false
+    searchStartedAtRef.current = null
+    pendingInsertRef.current = null
 
     setPhase("searching")
     setElapsed(0)
@@ -122,34 +199,38 @@ export function MatchmakingSection({ userId, ratingPoints, displayName }: Props)
       fetch("/api/matchmaking/heartbeat", { method: "POST" }).catch(() => {})
     }, 5000)
 
-    // Realtime — дараалалд өөрийн entry-г ажиглана (хурдан зам)
+    // Realtime — room_players INSERT ажиглана (matchmaking_queue биш: тэр
+    // хүснэгт supabase_realtime publication-д алга тул postgres_changes
+    // event хэзээ ч ирэхгүй байсан нь production дээр баталгаажсан — 2
+    // тоглогчийн мөр хоёулаа room_players-д НЭГ транзакцад орж бичигддэг тул
+    // энэ хүснэгт бодит, найдвартай эх сурвалж).
     const ch = supabase
-      .channel(`mmq-${userId}`)
+      .channel(`room-players-mm-${userId}`)
       .on("postgres_changes", {
-        event: "UPDATE",
+        event: "INSERT",
         schema: "public",
-        table: "matchmaking_queue",
+        table: "room_players",
         filter: `player_id=eq.${userId}`,
       }, (payload) => {
-        const row = payload.new as { status: string; room_id: string | null }
-        if (row.status === "matched" && row.room_id) handleMatched(row.room_id, mySession)
+        const row = payload.new as { room_id: string | null; joined_at: string }
+        if (!row.room_id) return
+        // The INSERT payload only carries room_players' own columns — a
+        // small extra read of the referenced room is needed to confirm it's
+        // matchmaking-created ('random') and not e.g. an invite accepted in
+        // another tab while this search is running.
+        supabase
+          .from("online_rooms")
+          .select("start_method")
+          .eq("id", row.room_id)
+          .maybeSingle()
+          .then(({ data: room }) => {
+            applyInsertVerdict(row.room_id!, row.joined_at, room?.start_method ?? null, mySession)
+          })
       })
       .subscribe((status) => {
         if (status !== "SUBSCRIBED") return
-        // Channel-ийн UPDATE event бол зөвхөн ирээдүйн өөрчлөлтийг илрүүлдэг —
-        // SUBSCRIBED болохоос өмнө аль хэдийн matched болсон бол (эсрэг
-        // тоглогчийн join нь бидний subscribe идэвхжихээс өмнө гүйцэтгэгдсэн
-        // бол) энэ event хэзээ ч ирэхгүй. Идэвхжсэн даруйдаа өөрийн мөрийг
-        // нэг удаа шууд уншиж, аль хэдийн matched эсэхийг шалгана — realtime
-        // "холбогдох цонх"-ыг хаах цорын ганц зорилготой, тасралтгүй polling биш.
-        supabase
-          .from("matchmaking_queue")
-          .select("status, room_id")
-          .eq("player_id", userId)
-          .maybeSingle()
-          .then(({ data }) => {
-            if (data?.status === "matched" && data.room_id) handleMatched(data.room_id, mySession)
-          })
+        subscribedRef.current = true
+        tryReconcile(mySession)
       })
     channelRef.current = ch
 
@@ -160,9 +241,22 @@ export function MatchmakingSection({ userId, ratingPoints, displayName }: Props)
       body: JSON.stringify({ format: "501", bestOf: 3, doubleOut: true }),
     })
     const data = await res.json().catch(() => ({}))
+    if (typeof data.searchStartedAt === "string") {
+      searchStartedAtRef.current = data.searchStartedAt
+      // A live INSERT may have arrived (and been provisionally validated as
+      // a 'random' room) before this response — and its searchStartedAt —
+      // came back. Re-evaluate it now that we can actually tell whether it
+      // belongs to this attempt, instead of leaving it stranded.
+      const pending = consumePendingInsert()
+      if (pending) applyInsertVerdict(pending.roomId, pending.joinedAt, "random", mySession)
+    }
 
-    if (data.matched && data.roomId) handleMatched(data.roomId, mySession)
-    // Тохирохгүй бол Realtime/reconciliation-ийн хариуг хүлээнэ
+    if (data.matched && data.roomId) { handleMatched(data.roomId, mySession); return }
+    // Тохирохгүй бол Realtime INSERT-ийг хүлээнэ; channel аль хэдийн
+    // SUBSCRIBED болсон бол дээрх join хариу ирэхээс өмнө таарсан байж
+    // болзошгүйг энд шалгана (subscribedRef аль хэдийн true бол
+    // searchStartedAt дөнгөж ирсэн энэ мөчид reconcile хийнэ).
+    tryReconcile(mySession)
   }
 
   const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`

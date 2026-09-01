@@ -38,6 +38,19 @@ export async function POST(req: NextRequest) {
     p_double_out: doubleOut,
   })
 
+  // Postgres-ийн өөрийнх нь бичсэн joined_at (server clock) — client-д энэ
+  // хайлтын "эхэлсэн цаг"-ын найдвартай, clock-skew-гүй лавлагаа болгож
+  // буцаана. room_players дэх ижил тоглогчийн мөрийг хожим reconcile хийхдээ
+  // (channel SUBSCRIBED болсны дараах нэг удаагийн шалгалт) зөвхөн ЭНЭ
+  // хайлтын дараа үүссэн мөрийг л зөв гэж үзэхийн тулд ашиглана — өмнөх,
+  // орхигдсон (stale) матчинд буруу шилжихээс сэргийлнэ.
+  const { data: queueRow } = await admin
+    .from("matchmaking_queue")
+    .select("joined_at")
+    .eq("player_id", user.id)
+    .maybeSingle()
+  const searchStartedAt = queueRow?.joined_at ?? new Date().toISOString()
+
   // Таарах тоглогч хайх + өрөө үүсгэх + queue шинэчлэхийг NЭГ транзакцад
   // (FOR UPDATE SKIP LOCKED) хийдэг тул хоёр тоглогч зэрэг join хийхэд
   // нэг л оппонентыг хоёул "барьж" авах (давхар өрөө үүсгэх) боломжгүй.
@@ -57,8 +70,8 @@ export async function POST(req: NextRequest) {
   const { room_id: roomId, matched } = result as { room_id: string | null; matched: boolean }
 
   if (!matched || !roomId) {
-    return NextResponse.json({ matched: false })
+    return NextResponse.json({ matched: false, searchStartedAt })
   }
 
-  return NextResponse.json({ matched: true, roomId })
+  return NextResponse.json({ matched: true, roomId, searchStartedAt })
 }
