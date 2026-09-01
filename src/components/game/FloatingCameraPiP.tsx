@@ -1,18 +1,19 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Minus, PictureInPicture2, Plus, SwitchCamera, VideoOff } from "lucide-react"
+import { Minus, PictureInPicture2, Plus, SwitchCamera, VideoOff, WifiOff } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useZoom } from "@/hooks/useZoom"
 
 const COLLAPSE_MS = 3000
 
 function Tile({
-  stream, label, zoom,
+  stream, label, zoom, failed,
 }: {
   stream: MediaStream
   label?: string
   zoom?: number
+  failed?: boolean
 }) {
   const ref = useRef<HTMLVideoElement>(null)
   useEffect(() => { if (ref.current) ref.current.srcObject = stream }, [stream])
@@ -29,6 +30,12 @@ function Tile({
           {label}
         </span>
       )}
+      {failed && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/70">
+          <WifiOff className="h-4 w-4 text-destructive" />
+          <span className="text-[9px] leading-none text-destructive font-semibold">Холболт тасарлаа</span>
+        </div>
+      )}
     </div>
   )
 }
@@ -42,6 +49,7 @@ interface FloatingCameraPiPProps {
   onTurnOffLocal?: () => void
   dualCamera?: boolean
   onToggleDual?: () => void
+  remoteIceStates?: Map<string, RTCIceConnectionState>
 }
 
 // Онооны самбарыг ХЭЗЭЭ Ч далдлахгүйн тулд энгийн үедээ хуудасны урсгалд
@@ -52,7 +60,7 @@ interface FloatingCameraPiPProps {
 // арын хар дэвсгэрийг дарвал буцаад жижигхэн зурвас руугаа орно.
 export function FloatingCameraPiP({
   localStream, remoteStreams, myLabel, getLabel, onFlipLocal, onTurnOffLocal,
-  dualCamera, onToggleDual,
+  dualCamera, onToggleDual, remoteIceStates,
 }: FloatingCameraPiPProps) {
   const [expanded, setExpanded] = useState(false)
   const collapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -144,7 +152,8 @@ export function FloatingCameraPiP({
       >
         {localStream && <Tile stream={localStream} label={myLabel} />}
         {remotes.map(([id, stream]) => (
-          <Tile key={id} stream={stream} label={getLabel?.(id) ?? "Тоглогч"} />
+          <Tile key={id} stream={stream} label={getLabel?.(id) ?? "Тоглогч"}
+            failed={remoteIceStates?.get(id) === "failed"} />
         ))}
       </div>
 

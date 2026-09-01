@@ -2,11 +2,31 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { SupabaseClient } from "@supabase/supabase-js"
+import { GOOGLE_STUN_FALLBACK, isValidIceServers } from "@/lib/webrtc/ice-servers"
 
-const ICE_SERVERS = [
-  { urls: "stun:stun.l.google.com:19302" },
-  { urls: "stun:stun1.l.google.com:19302" },
-]
+// Camera/WebRTC session бүрд НЭГ Л удаа дуудагдана (off→on шилжилтэд).
+// Cloudflare-с TURN+STUN авахыг оролдоод, амжилтгүй бол (timeout, network,
+// 401/403/503, буруу бүтэцтэй/хоосон payload гэх мэт) чимээгүй Google
+// STUN-only руу буцна — алдаа хэзээ ч throw хийхгүй тул дуудагч тал үргэлж
+// ашиглах боломжтой массив авна.
+async function fetchIceServers(roomId: string): Promise<RTCIceServer[]> {
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 5000)
+    const res = await fetch(`/api/play/room/${roomId}/turn-credentials`, {
+      method: "POST", signal: controller.signal,
+    })
+    clearTimeout(timeout)
+    if (!res.ok) throw new Error("turn-credentials request failed")
+    const data = await res.json()
+    if (!isValidIceServers(data?.iceServers)) throw new Error("invalid iceServers shape")
+    return data.iceServers
+  } catch {
+    // Sanitized log — Cloudflare алдаа/response/credential хэзээ ч энд ирдэггүй
+    console.warn("[camera] TURN credential боломжгүй — Google STUN-only fallback ашиглаж байна")
+    return GOOGLE_STUN_FALLBACK
+  }
+}
 
 // Ар болон урд камерыг зэрэг нээхэд ихэнх утас нэг физик камер л зэрэг
 // нээхийг зөвшөөрдөг тул хоёр stream-ийг WebRTC-д тусдаа track болгож
@@ -73,10 +93,14 @@ export function useWebRTCCamera(supabase: SupabaseClient, roomId: string, myId: 
   const [localStream, setLocalStream] = useState<MediaStream | null>(null)
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map())
   const [cameraError, setCameraError] = useState<string | null>(null)
+  const [iceStates, setIceStates] = useState<Map<string, RTCIceConnectionState>>(new Map())
 
   const localRef = useRef<MediaStream | null>(null)
   const dualCleanupRef = useRef<(() => void) | null>(null)
   const pcsRef = useRef<Map<string, RTCPeerConnection>>(new Map())
+  // Энэ session-д (камер off→on-оос дараагийн бүрмөсөн унтрах хүртэл) ашиглах
+  // ICE server жагсаалт — нэг л удаа fetchIceServers()-ээр тогтооно.
+  const iceServersRef = useRef<RTCIceServer[]>(GOOGLE_STUN_FALLBACK)
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const myIdRef = useRef(myId)
   myIdRef.current = myId
@@ -95,6 +119,7 @@ export function useWebRTCCamera(supabase: SupabaseClient, roomId: string, myId: 
     pcsRef.current.forEach((pc) => pc.close())
     pcsRef.current.clear()
     setRemoteStreams(new Map())
+    setIceStates(new Map())
     if (broadcastOff) {
       channelRef.current?.send({
         type: "broadcast", event: "cam-off",
@@ -109,10 +134,14 @@ export function useWebRTCCamera(supabase: SupabaseClient, roomId: string, myId: 
     } else {
       setCameraError(null)
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: facingRef.current } },
-          audio: false,
-        })
+        const [stream, iceServers] = await Promise.all([
+          navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: facingRef.current } },
+            audio: false,
+          }),
+          fetchIceServers(roomId),
+        ])
+        iceServersRef.current = iceServers
         localRef.current = stream
         setLocalStream(stream)
         setCameraOn(true)
@@ -124,7 +153,7 @@ export function useWebRTCCamera(supabase: SupabaseClient, roomId: string, myId: 
         setCameraError("Камер нэвтэрч чадсангүй. Зөвшөөрөл шалгана уу.")
       }
     }
-  }, [stopCamera])
+  }, [stopCamera, roomId])
 
   // Ар/урд камер сэлгэх — идэвхтэй peer холболтууд дээрх video track-г
   // шинэ камерынхаар сольж, дахин offer/answer солилцохгүйгээр үргэлжлүүлнэ.
@@ -176,6 +205,10 @@ export function useWebRTCCamera(supabase: SupabaseClient, roomId: string, myId: 
     const { stream: composite, cleanup } = composeDualStream(rear, front)
     const newTrack = composite.getVideoTracks()[0]
     const wasOn = !!localRef.current
+    // Шинэ session эхэлж байгаа тохиолдолд (өмнө камер бүрмөсөн унтарсан
+    // байсан) л дахин mint хийнэ — session дундуур single↔dual сэлгэхэд
+    // хуучин credential-аа дахин ашиглана.
+    if (!wasOn) iceServersRef.current = await fetchIceServers(roomId)
 
     localRef.current?.getTracks().forEach((t) => t.stop())
     dualCleanupRef.current = cleanup
@@ -195,14 +228,22 @@ export function useWebRTCCamera(supabase: SupabaseClient, roomId: string, myId: 
         payload: { from: myIdRef.current },
       })
     }
-  }, [stopCamera])
+  }, [stopCamera, roomId])
 
   useEffect(() => {
     function createPc(remoteId: string): RTCPeerConnection {
       const existing = pcsRef.current.get(remoteId)
       if (existing && existing.signalingState !== "closed") return existing
 
-      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS })
+      const pc = new RTCPeerConnection({ iceServers: iceServersRef.current })
+
+      pc.oniceconnectionstatechange = () => {
+        setIceStates((prev) => {
+          const next = new Map(prev)
+          next.set(remoteId, pc.iceConnectionState)
+          return next
+        })
+      }
 
       pc.ontrack = ({ streams }) => {
         const stream = streams[0]
@@ -252,10 +293,14 @@ export function useWebRTCCamera(supabase: SupabaseClient, roomId: string, myId: 
       })
     })
 
-    // Received offer from a remote player
+    // Received offer from a remote player. localRef.current шалгалт нь
+    // cam-on handler-тай ижил — iceServersRef.current нь ЗААВАЛ localRef.current
+    // тохируулагдсантай ЗЭРЭГ (toggleCamera/toggleDualCamera доторх синхрон
+    // блокт) шинэчлэгддэг тул энэ шалгалт createPc()-г session-ий fetch
+    // дуусаагүй байхад хэзээ ч дуудагдахгүй гэдгийг баталгаажуулна (race guard).
     ch.on("broadcast", { event: "offer" }, async ({ payload }) => {
       const { from, to, sdp } = payload as { from: string; to: string; sdp: RTCSessionDescriptionInit }
-      if (to !== myIdRef.current) return
+      if (to !== myIdRef.current || !localRef.current) return
       const pc = createPc(from)
       addLocalTracks(pc)
       await pc.setRemoteDescription(new RTCSessionDescription(sdp))
@@ -296,6 +341,11 @@ export function useWebRTCCamera(supabase: SupabaseClient, roomId: string, myId: 
         next.delete(from)
         return next
       })
+      setIceStates((prev) => {
+        const next = new Map(prev)
+        next.delete(from)
+        return next
+      })
     })
 
     ch.subscribe()
@@ -317,6 +367,6 @@ export function useWebRTCCamera(supabase: SupabaseClient, roomId: string, myId: 
 
   return {
     cameraOn, dualCamera, localStream, remoteStreams,
-    toggleCamera, flipCamera, toggleDualCamera, cameraError,
+    toggleCamera, flipCamera, toggleDualCamera, cameraError, iceStates,
   }
 }

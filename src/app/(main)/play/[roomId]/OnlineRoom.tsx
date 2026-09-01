@@ -85,7 +85,7 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName, t
 
   const mode = liveRoom.mode as RoomMode
   const { enabled: callerOn, supported: callerSupported, toggle: toggleCaller, announce } = useCaller()
-  const { cameraOn, dualCamera, localStream, remoteStreams, toggleCamera, flipCamera, toggleDualCamera, cameraError } = useWebRTCCamera(supabase, room.id, currentUserId)
+  const { cameraOn, dualCamera, localStream, remoteStreams, toggleCamera, flipCamera, toggleDualCamera, cameraError, iceStates } = useWebRTCCamera(supabase, room.id, currentUserId)
   useEffect(() => { if (cameraError) toast.error(cameraError) }, [cameraError])
   const n = teamSize(mode)
   const me = livePlayers.find((p) => p.player_id === currentUserId) ?? null
@@ -536,6 +536,7 @@ export function OnlineRoom({ room, players, myInvite, currentUserId, hostName, t
           onTurnOffLocal={cameraOn ? toggleCamera : undefined}
           dualCamera={dualCamera}
           onToggleDual={toggleDualCamera}
+          remoteIceStates={iceStates}
         />
 
         {/* Winner banner */}
