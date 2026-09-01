@@ -1,5 +1,6 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server"
 import { isValidIceServers } from "@/lib/webrtc/ice-servers"
+import { isUuid } from "@/lib/http/uuid"
 import { NextRequest, NextResponse } from "next/server"
 
 // Cloudflare Realtime TURN — богино хугацааны ICE credential mint хийнэ.
@@ -15,13 +16,26 @@ function json(body: unknown, status: number) {
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+  // room_players.room_id бол uuid багана — room_code (жишээ нь "B3E5C4") гэх
+  // мэт буруу төрлийн id-г шууд .eq()-д дамжуулбал Postgres query error
+  // (invalid input syntax for type uuid) буцаадаг байсан бөгөөд хуучин код
+  // энэ алдааг чимээгүй хаяж, "гишүүнчлэлгүй" (403)-той ялгаагүй харагддаг
+  // байсан. Production incident-ээр батлагдсан — доор энэ хоёрыг ил тод ялгана.
+  if (!isUuid(id)) return json({ error: "Буруу өрөөний ID" }, 400)
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return json({ error: "Нэвтрээгүй байна" }, 401)
 
   const admin = await createAdminClient()
-  const { data: mine } = await admin.from("room_players")
+  const { data: mine, error: membershipError } = await admin.from("room_players")
     .select("id").eq("room_id", id).eq("player_id", user.id).maybeSingle()
+  if (membershipError) {
+    // Sanitized — Postgres/Supabase-ийн бодит алдааны текст (schema, багана
+    // нэр гэх мэт) клиент рүү хэзээ ч гарахгүй, зөвхөн серверийн лог руу.
+    console.error("[turn-credentials] room_players membership query алдаа:", membershipError.code)
+    return json({ error: "Гишүүнчлэл шалгаж чадсангүй" }, 502)
+  }
   if (!mine) return json({ error: "Та энэ өрөөнд байхгүй" }, 403)
 
   const keyId = process.env.CLOUDFLARE_TURN_KEY_ID
