@@ -6,6 +6,7 @@ import { Loader2, Search, Video, VideoOff, X, Zap } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
+import { canHandleMatched } from "@/lib/matchmaking/session-guard"
 
 type Phase =
   | "idle"          // товч харуулна
@@ -28,6 +29,15 @@ export function MatchmakingSection({ userId, ratingPoints, displayName }: Props)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+  // Bumped on every new search and on cancel/unmount. Any async callback
+  // (join response, realtime event, reconciliation read) captures the
+  // session id live at its own start and must recheck it before acting —
+  // this is what stops a stale callback from a cancelled or superseded
+  // search from navigating or touching state that belongs to a later one.
+  const sessionRef = useRef(0)
+  // Guards against navigating twice within the SAME session when both the
+  // realtime event and the reconciliation read observe "matched".
+  const navigatedRef = useRef(false)
 
   const stopTimer = useCallback(() => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
@@ -38,21 +48,42 @@ export function MatchmakingSection({ userId, ratingPoints, displayName }: Props)
     if (channelRef.current) { supabase.removeChannel(channelRef.current); channelRef.current = null }
   }, [supabase])
 
+  // Bumps the session counter so any callback still in flight from the
+  // search being torn down (join response, realtime event, reconciliation
+  // read) fails its session check and no-ops instead of navigating.
+  const invalidateSession = useCallback(() => { sessionRef.current++ }, [])
+
+  // Single path to "we have a room, go there" — used by the HTTP-matched
+  // response, the realtime UPDATE event, and the post-SUBSCRIBED
+  // reconciliation read alike, so all three navigate exactly once, the same
+  // way, and none of them can act on behalf of a search that's since been
+  // cancelled or superseded.
+  const handleMatched = useCallback((roomId: string, mySession: number) => {
+    if (!canHandleMatched(sessionRef.current, mySession, navigatedRef.current)) return
+    navigatedRef.current = true
+    stopTimer()
+    cleanupChannel()
+    setPhase("matched")
+    router.push(`/play/${roomId}`)
+  }, [stopTimer, cleanupChannel, router])
+
   const leave = useCallback(async () => {
+    invalidateSession()
     stopTimer()
     cleanupChannel()
     setPhase("idle")
     setElapsed(0)
     await fetch("/api/matchmaking/leave", { method: "POST" }).catch(() => {})
-  }, [stopTimer, cleanupChannel])
+  }, [stopTimer, cleanupChannel, invalidateSession])
 
   useEffect(() => {
     return () => {
+      invalidateSession()
       stopTimer()
       cleanupChannel()
       fetch("/api/matchmaking/leave", { method: "POST" }).catch(() => {})
     }
-  }, [stopTimer, cleanupChannel])
+  }, [stopTimer, cleanupChannel, invalidateSession])
 
   // React's unmount cleanup above only fires on in-app navigation, not on an
   // actual tab close/refresh/crash — that's exactly how ghost queue entries
@@ -81,6 +112,9 @@ export function MatchmakingSection({ userId, ratingPoints, displayName }: Props)
       return
     }
 
+    const mySession = ++sessionRef.current
+    navigatedRef.current = false
+
     setPhase("searching")
     setElapsed(0)
     timerRef.current = setInterval(() => setElapsed((p) => p + 1), 1000)
@@ -88,7 +122,7 @@ export function MatchmakingSection({ userId, ratingPoints, displayName }: Props)
       fetch("/api/matchmaking/heartbeat", { method: "POST" }).catch(() => {})
     }, 5000)
 
-    // Realtime — дараалалд өөрийн entry-г ажиглана
+    // Realtime — дараалалд өөрийн entry-г ажиглана (хурдан зам)
     const ch = supabase
       .channel(`mmq-${userId}`)
       .on("postgres_changes", {
@@ -98,14 +132,25 @@ export function MatchmakingSection({ userId, ratingPoints, displayName }: Props)
         filter: `player_id=eq.${userId}`,
       }, (payload) => {
         const row = payload.new as { status: string; room_id: string | null }
-        if (row.status === "matched" && row.room_id) {
-          stopTimer()
-          cleanupChannel()
-          setPhase("matched")
-          router.push(`/play/${row.room_id}`)
-        }
+        if (row.status === "matched" && row.room_id) handleMatched(row.room_id, mySession)
       })
-      .subscribe()
+      .subscribe((status) => {
+        if (status !== "SUBSCRIBED") return
+        // Channel-ийн UPDATE event бол зөвхөн ирээдүйн өөрчлөлтийг илрүүлдэг —
+        // SUBSCRIBED болохоос өмнө аль хэдийн matched болсон бол (эсрэг
+        // тоглогчийн join нь бидний subscribe идэвхжихээс өмнө гүйцэтгэгдсэн
+        // бол) энэ event хэзээ ч ирэхгүй. Идэвхжсэн даруйдаа өөрийн мөрийг
+        // нэг удаа шууд уншиж, аль хэдийн matched эсэхийг шалгана — realtime
+        // "холбогдох цонх"-ыг хаах цорын ганц зорилготой, тасралтгүй polling биш.
+        supabase
+          .from("matchmaking_queue")
+          .select("status, room_id")
+          .eq("player_id", userId)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (data?.status === "matched" && data.room_id) handleMatched(data.room_id, mySession)
+          })
+      })
     channelRef.current = ch
 
     // Дараалалд нэмэгдэнэ — шууд тохирвол roomId буцаана
@@ -116,13 +161,8 @@ export function MatchmakingSection({ userId, ratingPoints, displayName }: Props)
     })
     const data = await res.json().catch(() => ({}))
 
-    if (data.matched && data.roomId) {
-      stopTimer()
-      cleanupChannel()
-      setPhase("matched")
-      router.push(`/play/${data.roomId}`)
-    }
-    // Тохирохгүй бол Realtime-ийн хариуг хүлээнэ
+    if (data.matched && data.roomId) handleMatched(data.roomId, mySession)
+    // Тохирохгүй бол Realtime/reconciliation-ийн хариуг хүлээнэ
   }
 
   const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`
