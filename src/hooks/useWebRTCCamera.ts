@@ -3,6 +3,21 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { GOOGLE_STUN_FALLBACK, isValidIceServers } from "@/lib/webrtc/ice-servers"
+import { resolveIncomingOffer } from "@/lib/webrtc/offer-collision"
+import {
+  shouldInitiateRecovery,
+  shouldAttemptIceRestart,
+  shouldRebuildAfterRecoveryTimeout,
+  canAttemptRebuild,
+} from "@/lib/webrtc/ice-recovery"
+
+// "disconnected" төлөв энэ хугацаанд арилаагүй хэвээр байвал л ICE-restart
+// эхлүүлнэ (богино тасалдал өөрөө засардаг тул шууд бус, түр хүлээнэ).
+const ICE_DISCONNECTED_GRACE_MS = 3000
+// ICE-restart offer илгээснээс хойш энэ хугацаанд connected/completed
+// болоогүй бол peer connection-г бүрмөсөн шинээр босгоно (bounded, endless
+// retry биш).
+const ICE_RECOVERY_TIMEOUT_MS = 8000
 
 // Camera/WebRTC session бүрд НЭГ Л удаа дуудагдана (off→on шилжилтэд).
 // Cloudflare-с TURN+STUN авахыг оролдоод, амжилтгүй бол (timeout, network,
@@ -98,6 +113,32 @@ export function useWebRTCCamera(supabase: SupabaseClient, roomId: string, myId: 
   const localRef = useRef<MediaStream | null>(null)
   const dualCleanupRef = useRef<(() => void) | null>(null)
   const pcsRef = useRef<Map<string, RTCPeerConnection>>(new Map())
+  // Peer тус бүрийн ICE-сэргээлтийн timer-үүд (grace + bounded recovery
+  // timeout) — хоёул зэрэг идэвхтэй байж болохгүй, доорх recovery-логик үүнийг
+  // хангана. rebuildCountRef нь тухайн episode-д хэдэн удаа pc бүрмөсөн
+  // шинээр босгосныг хадгална (canAttemptRebuild-ээр 1-ээр хязгаарлана).
+  // inFlight: сэргээх шийдвэр гарсан мөчөөс (grace/failed) bounded timeout
+  // дуустал синхроноор true байна — attemptIceRestart-ийн createOffer/
+  // setLocalDescription хараахан дуусаагүй байхад ижил peer-д хоёр дахь
+  // restart санамсаргүй эхлэхээс сэргийлнэ (timeout handle бүртгэгдэхийг
+  // хүлээхгүйгээр шууд шалгах боломжтой).
+  const recoveryTimersRef = useRef<
+    Map<
+      string,
+      { grace?: ReturnType<typeof setTimeout>; timeout?: ReturnType<typeof setTimeout>; inFlight?: boolean }
+    >
+  >(new Map())
+  const rebuildCountRef = useRef<Map<string, number>>(new Map())
+
+  // Тухайн peer-ийн бүх ICE-сэргээлтийн timer/төлвийг цэвэрлэнэ — cam-off,
+  // stopCamera, эсвэл hook unmount үед orphaned timer үлдэхээс сэргийлнэ.
+  const clearRecoveryState = useCallback((remoteId: string) => {
+    const t = recoveryTimersRef.current.get(remoteId)
+    if (t?.grace) clearTimeout(t.grace)
+    if (t?.timeout) clearTimeout(t.timeout)
+    recoveryTimersRef.current.delete(remoteId)
+    rebuildCountRef.current.delete(remoteId)
+  }, [])
   // Энэ session-д (камер off→on-оос дараагийн бүрмөсөн унтрах хүртэл) ашиглах
   // ICE server жагсаалт — нэг л удаа fetchIceServers()-ээр тогтооно.
   const iceServersRef = useRef<RTCIceServer[]>(GOOGLE_STUN_FALLBACK)
@@ -117,6 +158,7 @@ export function useWebRTCCamera(supabase: SupabaseClient, roomId: string, myId: 
     setDualCamera(false)
     setCameraError(null)
     pcsRef.current.forEach((pc) => pc.close())
+    Array.from(recoveryTimersRef.current.keys()).forEach(clearRecoveryState)
     pcsRef.current.clear()
     setRemoteStreams(new Map())
     setIceStates(new Map())
@@ -126,7 +168,7 @@ export function useWebRTCCamera(supabase: SupabaseClient, roomId: string, myId: 
         payload: { from: myIdRef.current },
       })
     }
-  }, [])
+  }, [clearRecoveryState])
 
   const toggleCamera = useCallback(async () => {
     if (localRef.current) {
@@ -149,7 +191,10 @@ export function useWebRTCCamera(supabase: SupabaseClient, roomId: string, myId: 
           type: "broadcast", event: "cam-on",
           payload: { from: myIdRef.current },
         })
-      } catch {
+      } catch (err) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[camera] toggle-camera error:", (err as DOMException)?.name)
+        }
         setCameraError("Камер нэвтэрч чадсангүй. Зөвшөөрөл шалгана уу.")
       }
     }
@@ -160,24 +205,67 @@ export function useWebRTCCamera(supabase: SupabaseClient, roomId: string, myId: 
   const flipCamera = useCallback(async () => {
     if (!localRef.current || dualCleanupRef.current) return
     const nextFacing = facingRef.current === "environment" ? "user" : "environment"
+    // Ихэнх гар утасны камер driver нэг физик камерт зэрэг нэг л reader
+    // зөвшөөрдөг тул шинэ камерыг нээхээсээ ӨМНӨ хуучныг заавал бүрмөсөн
+    // зогсоох ёстой — эсрэгээр (шинийг нээгээд дараа нь хуучныг зогсоох)
+    // хийвэл зарим Android/iOS дээр камер хараахан чөлөөлөгдөөгүй байхад
+    // хоёр дахь нээх хүсэлт NotReadableError-тай бүтэлгүйтдэг.
+    localRef.current.getTracks().forEach((t) => t.stop())
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: nextFacing } },
         audio: false,
       })
       const newTrack = stream.getVideoTracks()[0]
-      localRef.current.getTracks().forEach((t) => t.stop())
       localRef.current = stream
       facingRef.current = nextFacing
       setLocalStream(stream)
-      pcsRef.current.forEach((pc) => {
-        const sender = pc.getSenders().find((s) => s.track?.kind === "video")
-        sender?.replaceTrack(newTrack).catch(() => {})
-      })
-    } catch {
+
+      // Локал камер аль хэдийн шинэчлэгдсэн (localStream шинэ камерыг харуулж
+      // байгаа) тул үүнийг цуцлахгүй — гэхдээ аль нэг peer рүү шинэ track-г
+      // дамжуулж чадаагүй бол (sender.replaceTrack reject) тухайн холболтыг
+      // "амьд" мэт үлдээж болохгүй: амжилтгүй болсон sender нь зогссон хуучин
+      // track-аа хэвээр агуулна ("frozen" видео нөгөө талд харагдана) —
+      // тиймээс амжилтгүй болсон peer connection-г эвдэрсэн гэж үзэж хааж,
+      // remote төлвөөс хасаад, хэрэглэгчид алдаа харуулна.
+      const entries = Array.from(pcsRef.current.entries())
+      const results = await Promise.allSettled(
+        entries.map(([, pc]) => {
+          const sender = pc.getSenders().find((s) => s.track?.kind === "video")
+          return sender ? sender.replaceTrack(newTrack) : Promise.resolve()
+        }),
+      )
+      const failedPeerIds = entries.filter((_, i) => results[i].status === "rejected").map(([id]) => id)
+      if (failedPeerIds.length > 0) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[camera] flip-camera replaceTrack failed for peer count:", failedPeerIds.length)
+        }
+        failedPeerIds.forEach((remoteId) => {
+          pcsRef.current.get(remoteId)?.close()
+          pcsRef.current.delete(remoteId)
+          setRemoteStreams((prev) => {
+            const next = new Map(prev)
+            next.delete(remoteId)
+            return next
+          })
+          setIceStates((prev) => {
+            const next = new Map(prev)
+            next.delete(remoteId)
+            return next
+          })
+        })
+        setCameraError("Камер солигдлоо, гэхдээ зарим тоглогчид дамжуулахад алдаа гарлаа.")
+      }
+    } catch (err) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[camera] flip-camera error:", (err as DOMException)?.name)
+      }
+      // Хуучин камерыг аль хэдийн зогсоосон тул хагас төлөвт үлдэхгүйн тулд
+      // бүрмөсөн унтраагаад алдаагаа харуулна.
+      stopCamera(true)
       setCameraError("Камер солиход алдаа гарлаа.")
     }
-  }, [])
+  }, [stopCamera])
 
   // Ар, урд хоёр камерыг зэрэг нээх — ихэнх утас нэг л физик камер тус
   // бүрийг зэрэг нээхийг зөвшөөрдөг тул хоёуланг нь нэг canvas frame-д
@@ -190,18 +278,31 @@ export function useWebRTCCamera(supabase: SupabaseClient, roomId: string, myId: 
     }
 
     setCameraError(null)
-    let rear: MediaStream
-    let front: MediaStream
-    try {
-      ;[rear, front] = await Promise.all([
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false }),
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "user" } }, audio: false }),
-      ])
-    } catch {
+    // Promise.all ашиглавал НЭГ нь rejected болмогц нөгөө нь аль хэдийн
+    // амжилттай нээгдсэн байсан ч мэдэгдэхгүй, тухайн track "далд" ажиллаж
+    // үлдэнэ (жинхэнэ leak). Тиймээс allSettled ашиглаж хоёуланг нь үргэлж
+    // шалгаад, амжилттай нээгдсэн ч гэсэн нөгөө нь бүтэлгүйтвэл шууд зогсооно.
+    const [rearResult, frontResult] = await Promise.allSettled([
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false }),
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "user" } }, audio: false }),
+    ])
+
+    if (rearResult.status === "rejected" || frontResult.status === "rejected") {
+      if (rearResult.status === "fulfilled") rearResult.value.getTracks().forEach((t) => t.stop())
+      if (frontResult.status === "fulfilled") frontResult.value.getTracks().forEach((t) => t.stop())
+      if (process.env.NODE_ENV !== "production") {
+        const names = [
+          rearResult.status === "rejected" ? (rearResult.reason as DOMException)?.name : null,
+          frontResult.status === "rejected" ? (frontResult.reason as DOMException)?.name : null,
+        ].filter(Boolean)
+        console.warn("[camera] toggle-dual-camera error:", names.join(", "))
+      }
       setCameraError("Энэ төхөөрөмж дээр хоёр камерыг зэрэг ажиллуулах боломжгүй байна.")
       return
     }
 
+    const rear = rearResult.value
+    const front = frontResult.value
     const { stream: composite, cleanup } = composeDualStream(rear, front)
     const newTrack = composite.getVideoTracks()[0]
     const wasOn = !!localRef.current
@@ -238,11 +339,13 @@ export function useWebRTCCamera(supabase: SupabaseClient, roomId: string, myId: 
       const pc = new RTCPeerConnection({ iceServers: iceServersRef.current })
 
       pc.oniceconnectionstatechange = () => {
+        const state = pc.iceConnectionState
         setIceStates((prev) => {
           const next = new Map(prev)
-          next.set(remoteId, pc.iceConnectionState)
+          next.set(remoteId, state)
           return next
         })
+        handleIceStateChange(remoteId, pc, state)
       }
 
       pc.ontrack = ({ streams }) => {
@@ -274,6 +377,144 @@ export function useWebRTCCamera(supabase: SupabaseClient, roomId: string, myId: 
       localRef.current.getTracks().forEach((t) => pc.addTrack(t, localRef.current!))
     }
 
+    // Wi-Fi↔cellular шилжилт эсвэл түр тасалдал зэргээс болж ICE холболт
+    // тасрахад камерын stream-д огт хүрэлгүйгээр тухайн НЭГ peer connection-г
+    // сэргээхийг оролдоно. Шийдвэрийг зөвхөн ice-recovery.ts-ийн цэвэр
+    // функцууд гаргана — энд зөвхөн timer/RTCPeerConnection wiring.
+    function handleIceStateChange(remoteId: string, pc: RTCPeerConnection, state: RTCIceConnectionState) {
+      // Хуучин (аль хэдийн rebuild-ээр сольсон/хаасан) pc-ийн хоцорсон event
+      // бол юу ч хийхгүй — шинэ pc-ийн recovery төлвийг санамсаргүй
+      // цэвэрлэх/дарахаас сэргийлнэ.
+      if (pcsRef.current.get(remoteId) !== pc) return
+
+      const isInitiator = shouldInitiateRecovery(myIdRef.current, remoteId)
+      const timers = recoveryTimersRef.current.get(remoteId) ?? {}
+
+      if (state === "connected" || state === "completed") {
+        if (timers.grace) clearTimeout(timers.grace)
+        if (timers.timeout) clearTimeout(timers.timeout)
+        recoveryTimersRef.current.delete(remoteId)
+        rebuildCountRef.current.set(remoteId, 0) // амжилттай сэргэсэн тул дараагийн эвдрэл шинэ episode
+        return
+      }
+
+      if (state === "closed") {
+        clearRecoveryState(remoteId)
+        return
+      }
+
+      if (state === "checking" || state === "new") return // бие даан сэргээлт эхлүүлэхгүй
+
+      if (state === "failed") {
+        // "failed" эцсийн байдал тул хүлээгдэж буй grace timer-г цуцлаад
+        // шууд шийднэ — гэхдээ аль хэдийн restart/rebuild хүлээж байвал
+        // (inFlight) шинээр давхардуулахгүй.
+        if (timers.grace) { clearTimeout(timers.grace); timers.grace = undefined }
+        if (!timers.inFlight && shouldAttemptIceRestart(state, isInitiator)) {
+          timers.inFlight = true
+          recoveryTimersRef.current.set(remoteId, timers)
+          void attemptIceRestart(remoteId, pc)
+        }
+        return
+      }
+
+      if (state === "disconnected") {
+        if (timers.grace || timers.inFlight) return // аль хэдийн сэргээлтийн мөчлөгт байна
+        const graceTimer = setTimeout(() => {
+          if (pcsRef.current.get(remoteId) !== pc) return // stale — timer map-д хүрэхгүй
+          const current = recoveryTimersRef.current.get(remoteId)
+          if (!current) return
+          current.grace = undefined
+          if (!current.inFlight && shouldAttemptIceRestart(pc.iceConnectionState, isInitiator)) {
+            current.inFlight = true
+            recoveryTimersRef.current.set(remoteId, current)
+            void attemptIceRestart(remoteId, pc)
+          } else {
+            recoveryTimersRef.current.set(remoteId, current)
+          }
+        }, ICE_DISCONNECTED_GRACE_MS)
+        recoveryTimersRef.current.set(remoteId, { ...timers, grace: graceTimer })
+      }
+    }
+
+    // inFlight флаг нь энд эхэлж, timeoutTimer шатах мөчид арилна — grace/
+    // failed шийдвэр гараад createOffer/setLocalDescription хараахан
+    // дуусаагүй хугацаанд ижил peer-д хоёр дахь restart санамсаргүй
+    // давхцахаас (race) энэ хамгаална, timeout handle бүртгэгдэхийг
+    // хүлээх шаардлагагүйгээр шууд шалгаж болно.
+    async function attemptIceRestart(remoteId: string, pc: RTCPeerConnection) {
+      if (pcsRef.current.get(remoteId) !== pc) return
+      try {
+        const offer = await pc.createOffer({ iceRestart: true })
+        if (pcsRef.current.get(remoteId) !== pc) return
+        await pc.setLocalDescription(offer)
+        channelRef.current?.send({
+          type: "broadcast", event: "offer",
+          payload: { from: myIdRef.current, to: remoteId, sdp: pc.localDescription },
+        })
+      } catch (err) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[camera] ice-restart-offer error:", (err as DOMException)?.name)
+        }
+      }
+
+      // Restart offer амжилттай илгээгдсэн эсэхээс үл хамааран bounded
+      // хугацаа тавина — амжилтгүй болсон ч дараа нь rebuild-руу унана.
+      const timeoutTimer = setTimeout(() => {
+        if (pcsRef.current.get(remoteId) !== pc) return // stale — timer map-д хүрэхгүй
+        const current = recoveryTimersRef.current.get(remoteId)
+        if (current) {
+          current.timeout = undefined
+          current.inFlight = false
+          recoveryTimersRef.current.set(remoteId, current)
+        }
+        if (shouldRebuildAfterRecoveryTimeout(pc.iceConnectionState)) {
+          rebuildPeerConnection(remoteId)
+        }
+      }, ICE_RECOVERY_TIMEOUT_MS)
+      const current = recoveryTimersRef.current.get(remoteId) ?? {}
+      recoveryTimersRef.current.set(remoteId, { ...current, timeout: timeoutTimer })
+    }
+
+    // ICE-restart bounded хугацаанд амжилтгүй болвол дуудагдана — тухайн ГАНЦ
+    // peer connection-г бүрмөсөн хааж, шинээр босгоно. Камерын localRef-д
+    // ХЭЗЭЭ Ч хүрэхгүй (getUserMedia дахин дуудахгүй) — идэвхтэй local
+    // track-уудыг л шинэ pc рүү дахин холбоно. Нэг episode-д ганц удаа л
+    // зөвшөөрөгдөнө (canAttemptRebuild) — endless rebuild loop-оос сэргийлнэ.
+    function rebuildPeerConnection(remoteId: string) {
+      const count = rebuildCountRef.current.get(remoteId) ?? 0
+      if (!canAttemptRebuild(count)) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[camera] ice-rebuild skipped — already attempted once this episode")
+        }
+        return
+      }
+      rebuildCountRef.current.set(remoteId, count + 1)
+
+      pcsRef.current.get(remoteId)?.close()
+      pcsRef.current.delete(remoteId)
+
+      if (!localRef.current) return // камер энэ хооронд унтарсан бол сэргээх юмгүй
+
+      const pc = createPc(remoteId)
+      addLocalTracks(pc)
+      pc.createOffer()
+        .then((offer) => {
+          if (pcsRef.current.get(remoteId) !== pc) return
+          return pc.setLocalDescription(offer).then(() => {
+            channelRef.current?.send({
+              type: "broadcast", event: "offer",
+              payload: { from: myIdRef.current, to: remoteId, sdp: pc.localDescription },
+            })
+          })
+        })
+        .catch((err) => {
+          if (process.env.NODE_ENV !== "production") {
+            console.warn("[camera] ice-rebuild-offer error:", (err as DOMException)?.name)
+          }
+        })
+    }
+
     const ch = supabase.channel(`cam-${roomId}`, {
       config: { broadcast: { self: false } },
     })
@@ -283,14 +524,20 @@ export function useWebRTCCamera(supabase: SupabaseClient, roomId: string, myId: 
     ch.on("broadcast", { event: "cam-on" }, async ({ payload }) => {
       const from = payload?.from as string
       if (!from || !localRef.current) return
-      const pc = createPc(from)
-      addLocalTracks(pc)
-      const offer = await pc.createOffer()
-      await pc.setLocalDescription(offer)
-      ch.send({
-        type: "broadcast", event: "offer",
-        payload: { from: myIdRef.current, to: from, sdp: pc.localDescription },
-      })
+      try {
+        const pc = createPc(from)
+        addLocalTracks(pc)
+        const offer = await pc.createOffer()
+        await pc.setLocalDescription(offer)
+        ch.send({
+          type: "broadcast", event: "offer",
+          payload: { from: myIdRef.current, to: from, sdp: pc.localDescription },
+        })
+      } catch (err) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[camera] cam-on-offer error:", (err as DOMException)?.name)
+        }
+      }
     })
 
     // Received offer from a remote player. localRef.current шалгалт нь
@@ -301,15 +548,28 @@ export function useWebRTCCamera(supabase: SupabaseClient, roomId: string, myId: 
     ch.on("broadcast", { event: "offer" }, async ({ payload }) => {
       const { from, to, sdp } = payload as { from: string; to: string; sdp: RTCSessionDescriptionInit }
       if (to !== myIdRef.current || !localRef.current) return
-      const pc = createPc(from)
-      addLocalTracks(pc)
-      await pc.setRemoteDescription(new RTCSessionDescription(sdp))
-      const answer = await pc.createAnswer()
-      await pc.setLocalDescription(answer)
-      ch.send({
-        type: "broadcast", event: "answer",
-        payload: { from: myIdRef.current, to: from, sdp: pc.localDescription },
-      })
+      try {
+        const pc = createPc(from)
+        // Хоёр тал бараг зэрэг камераа асаавал хоёулаа offer үүсгэх "glare"
+        // тохиолдол гарч болно (createPc-г cam-on handler-т аль хэдийн дуудсан
+        // тул pc "have-local-offer" төлөвт байна) — resolveIncomingOffer нь
+        // энэ мөргөлдөөнийг id-гаар нь тодорхойлно (unit test-тэй, pure логик).
+        const action = resolveIncomingOffer(pc.signalingState, myIdRef.current, from)
+        if (action === "ignore") return
+        if (action === "rollback-then-accept") await pc.setLocalDescription({ type: "rollback" })
+        addLocalTracks(pc)
+        await pc.setRemoteDescription(new RTCSessionDescription(sdp))
+        const answer = await pc.createAnswer()
+        await pc.setLocalDescription(answer)
+        ch.send({
+          type: "broadcast", event: "answer",
+          payload: { from: myIdRef.current, to: from, sdp: pc.localDescription },
+        })
+      } catch (err) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[camera] offer-negotiation error:", (err as DOMException)?.name)
+        }
+      }
     })
 
     // Received answer to our offer
@@ -336,6 +596,7 @@ export function useWebRTCCamera(supabase: SupabaseClient, roomId: string, myId: 
       if (!from) return
       pcsRef.current.get(from)?.close()
       pcsRef.current.delete(from)
+      clearRecoveryState(from)
       setRemoteStreams((prev) => {
         const next = new Map(prev)
         next.delete(from)
@@ -354,14 +615,23 @@ export function useWebRTCCamera(supabase: SupabaseClient, roomId: string, myId: 
       supabase.removeChannel(ch)
       channelRef.current = null
     }
-  }, [roomId, supabase])
+  }, [roomId, supabase, clearRecoveryState])
 
   // Cleanup on unmount
   useEffect(() => {
+    const pcs = pcsRef.current
+    const recoveryTimers = recoveryTimersRef.current
+    const rebuildCounts = rebuildCountRef.current
     return () => {
       dualCleanupRef.current?.()
       localRef.current?.getTracks().forEach((t) => t.stop())
-      pcsRef.current.forEach((pc) => pc.close())
+      pcs.forEach((pc) => pc.close())
+      recoveryTimers.forEach((t) => {
+        if (t.grace) clearTimeout(t.grace)
+        if (t.timeout) clearTimeout(t.timeout)
+      })
+      recoveryTimers.clear()
+      rebuildCounts.clear()
     }
   }, [])
 
