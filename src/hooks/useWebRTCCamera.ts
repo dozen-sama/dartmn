@@ -617,6 +617,112 @@ export function useWebRTCCamera(supabase: SupabaseClient, roomId: string, myId: 
     }
   }, [roomId, supabase, clearRecoveryState])
 
+  // ВРЕМЕННО (evidence-gathering, 2026-09-03): "локал preview зөв, гэхдээ
+  // remote видео удаашрах/slow-motion болоод дараа нь catch-up хийдэг" гэсэн
+  // production тайланг encode → transport/TURN → jitter buffer → decode
+  // шатуудын алинд нь үүсэж байгааг тодорхойлохын тулд 3 секунд тутам
+  // getStats()-ээр хэмжилт авч консольд бичнэ. Bitrate/constraints ЭНД
+  // ХЭЗЭЭ Ч өөрчлөгдөхгүй — зөвхөн ажиглалт. Оношлогдмогц энэ блокийг хасна.
+  useEffect(() => {
+    const prev = new Map<
+      string,
+      { ts: number; bytesSent: number; bytesReceived: number; framesEncoded: number; framesDecoded: number; freezeCount: number }
+    >()
+
+    const interval = setInterval(() => {
+      pcsRef.current.forEach((pc, remoteId) => {
+        if (pc.connectionState !== "connected" && pc.iceConnectionState !== "connected" && pc.iceConnectionState !== "completed") return
+        pc.getStats().then((report) => {
+          let rtt: number | undefined
+          let availOutKbps: number | undefined
+          let bytesSent = 0
+          let bytesReceived = 0
+          let framesEncoded = 0
+          let framesDecoded = 0
+          let packetsLost = 0
+          let jitter: number | undefined
+          let jitterBufferDelay = 0
+          let jitterBufferEmittedCount = 0
+          let freezeCount = 0
+          let totalFreezesDuration = 0
+          let qualityLimitationReason: string | undefined
+          let localCandidateId: string | undefined
+          let remoteCandidateId: string | undefined
+          let localCandidateType: string | undefined
+          let remoteCandidateType: string | undefined
+          let protocol: string | undefined
+          let relayProtocol: string | undefined
+
+          report.forEach((s) => {
+            const stat = s as RTCStats & Record<string, unknown>
+            if (stat.type === "candidate-pair" && (stat.state === "succeeded") && (stat.nominated === true)) {
+              rtt = typeof stat.currentRoundTripTime === "number" ? Math.round(stat.currentRoundTripTime * 1000) : undefined
+              availOutKbps = typeof stat.availableOutgoingBitrate === "number" ? Math.round(stat.availableOutgoingBitrate / 1000) : undefined
+              localCandidateId = stat.localCandidateId as string | undefined
+              remoteCandidateId = stat.remoteCandidateId as string | undefined
+            }
+            if (stat.type === "outbound-rtp" && stat.kind === "video") {
+              bytesSent = (stat.bytesSent as number) ?? 0
+              framesEncoded = (stat.framesEncoded as number) ?? 0
+              qualityLimitationReason = stat.qualityLimitationReason as string | undefined
+            }
+            if (stat.type === "inbound-rtp" && stat.kind === "video") {
+              bytesReceived = (stat.bytesReceived as number) ?? 0
+              framesDecoded = (stat.framesDecoded as number) ?? 0
+              packetsLost = (stat.packetsLost as number) ?? 0
+              jitter = typeof stat.jitter === "number" ? Math.round(stat.jitter * 1000) : undefined
+              jitterBufferDelay = (stat.jitterBufferDelay as number) ?? 0
+              jitterBufferEmittedCount = (stat.jitterBufferEmittedCount as number) ?? 0
+              freezeCount = (stat.freezeCount as number) ?? 0
+              totalFreezesDuration = (stat.totalFreezesDuration as number) ?? 0
+            }
+          })
+
+          // Сонгогдсон candidate-ийн ТЕГШИЛСЭН (address/port/candidate string
+          // ХЭЗЭЭ Ч биш) төрлийг л уншина — зөвхөн candidateType/protocol/
+          // relayProtocol, TURN сервер рүү хэрхэн хүрч байгааг ойлгоход хангалттай.
+          if (localCandidateId || remoteCandidateId) {
+            report.forEach((s) => {
+              const stat = s as RTCStats & Record<string, unknown>
+              if (stat.type === "local-candidate" && stat.id === localCandidateId) {
+                localCandidateType = stat.candidateType as string | undefined
+                protocol = stat.protocol as string | undefined
+                relayProtocol = stat.relayProtocol as string | undefined
+              }
+              if (stat.type === "remote-candidate" && stat.id === remoteCandidateId) {
+                remoteCandidateType = stat.candidateType as string | undefined
+              }
+            })
+          }
+
+          const now = performance.now()
+          const p = prev.get(remoteId)
+          const dt = p ? (now - p.ts) / 1000 : null
+
+          const sendKbps = dt && p ? Math.round(((bytesSent - p.bytesSent) * 8) / dt / 1000) : undefined
+          const recvKbps = dt && p ? Math.round(((bytesReceived - p.bytesReceived) * 8) / dt / 1000) : undefined
+          const sendFps = dt && p ? Math.round((framesEncoded - p.framesEncoded) / dt) : undefined
+          const recvFps = dt && p ? Math.round((framesDecoded - p.framesDecoded) / dt) : undefined
+          const freezeDelta = p ? freezeCount - p.freezeCount : 0
+          const avgJbufMs = jitterBufferEmittedCount > 0 ? Math.round((jitterBufferDelay / jitterBufferEmittedCount) * 1000) : undefined
+
+          prev.set(remoteId, { ts: now, bytesSent, bytesReceived, framesEncoded, framesDecoded, freezeCount })
+
+          console.info(
+            `[camera-stats] peer=${remoteId.slice(0, 8)} rtt=${rtt ?? "?"}ms ` +
+            `out=${sendKbps ?? "?"}kbps/${sendFps ?? "?"}fps in=${recvKbps ?? "?"}kbps/${recvFps ?? "?"}fps ` +
+            `jbuf=${avgJbufMs ?? "?"}ms jitter=${jitter ?? "?"}ms loss=${packetsLost} ` +
+            `freeze=+${freezeDelta}(${Math.round(totalFreezesDuration * 1000)}ms total) ` +
+            `qLimit=${qualityLimitationReason ?? "none"} availOut=${availOutKbps ?? "?"}kbps ` +
+            `path=${localCandidateType ?? "?"}->${remoteCandidateType ?? "?"} proto=${protocol ?? "?"} relayProto=${relayProtocol ?? "-"}`,
+          )
+        }, () => {})
+      })
+    }, 3000)
+
+    return () => clearInterval(interval)
+  }, [])
+
   // Cleanup on unmount
   useEffect(() => {
     const pcs = pcsRef.current
