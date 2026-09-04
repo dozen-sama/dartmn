@@ -10,12 +10,6 @@ import {
   shouldRebuildAfterRecoveryTimeout,
   canAttemptRebuild,
 } from "@/lib/webrtc/ice-recovery"
-import {
-  computeDiagnosticDeltas,
-  findSelectedCandidatePairId,
-  type DiagnosticSample,
-  type StatLike,
-} from "@/lib/webrtc/stats-diagnostics"
 
 // "disconnected" төлөв энэ хугацаанд арилаагүй хэвээр байвал л ICE-restart
 // эхлүүлнэ (богино тасалдал өөрөө засардаг тул шууд бус, түр хүлээнэ).
@@ -622,123 +616,6 @@ export function useWebRTCCamera(supabase: SupabaseClient, roomId: string, myId: 
       channelRef.current = null
     }
   }, [roomId, supabase, clearRecoveryState])
-
-  // ВРЕМЕННО (evidence-gathering, 2026-09-03): "локал preview зөв, гэхдээ
-  // remote видео удаашрах/slow-motion болоод дараа нь catch-up хийдэг" гэсэн
-  // production тайланг encode → transport/TURN → jitter buffer → decode
-  // шатуудын алинд нь үүсэж байгааг тодорхойлохын тулд 3 секунд тутам
-  // getStats()-ээр хэмжилт авч консольд бичнэ. Bitrate/constraints ЭНД
-  // ХЭЗЭЭ Ч өөрчлөгдөхгүй — зөвхөн ажиглалт. Оношлогдмогц энэ блокийг хасна.
-  useEffect(() => {
-    // pc instance-аар key хийнэ — rebuildPeerConnection нь ижил remoteId дор
-    // ШИНЭ RTCPeerConnection тавьдаг тул (SSRC/counter бүгд 0-ээс дахин
-    // эхэлдэг), snapshot-г зөвхөн remoteId-аар хадгалбал шинэ pc-ийн анхны
-    // sample хуучин pc-ийн хуримтлагдсан тоотой diff хийгдэж сөрөг утга гардаг
-    // байсан. WeakMap<RTCPeerConnection, ...> ашигласнаар pc солигдмогц prev
-    // автоматаар undefined (шинэ baseline) болно — гар аргаар цэвэрлэх
-    // шаардлагагүй, хуучин pc GC-genд мөн чөлөөлөгдөнө.
-    const snapshots = new WeakMap<RTCPeerConnection, DiagnosticSample>()
-
-    const interval = setInterval(() => {
-      pcsRef.current.forEach((pc, remoteId) => {
-        if (pc.connectionState !== "connected" && pc.iceConnectionState !== "connected" && pc.iceConnectionState !== "completed") return
-        pc.getStats().then((report) => {
-          const stats: StatLike[] = []
-          report.forEach((s) => stats.push(s as unknown as StatLike))
-
-          let outboundRtpId: string | undefined
-          let bytesSent = 0
-          let framesEncoded = 0
-          let qualityLimitationReason: string | undefined
-
-          let inboundRtpId: string | undefined
-          let bytesReceived = 0
-          let framesDecoded = 0
-          let packetsLost = 0
-          let jitter: number | undefined
-          let jitterBufferDelay = 0
-          let jitterBufferEmittedCount = 0
-          let freezeCount = 0
-          let totalFreezesDuration = 0
-
-          for (const stat of stats) {
-            if (stat.type === "outbound-rtp" && stat.kind === "video") {
-              outboundRtpId = stat.id
-              bytesSent = (stat.bytesSent as number) ?? 0
-              framesEncoded = (stat.framesEncoded as number) ?? 0
-              qualityLimitationReason = stat.qualityLimitationReason as string | undefined
-            }
-            if (stat.type === "inbound-rtp" && stat.kind === "video") {
-              inboundRtpId = stat.id
-              bytesReceived = (stat.bytesReceived as number) ?? 0
-              framesDecoded = (stat.framesDecoded as number) ?? 0
-              packetsLost = (stat.packetsLost as number) ?? 0
-              jitter = typeof stat.jitter === "number" ? Math.round((stat.jitter as number) * 1000) : undefined
-              jitterBufferDelay = (stat.jitterBufferDelay as number) ?? 0
-              jitterBufferEmittedCount = (stat.jitterBufferEmittedCount as number) ?? 0
-              freezeCount = (stat.freezeCount as number) ?? 0
-              totalFreezesDuration = (stat.totalFreezesDuration as number) ?? 0
-            }
-          }
-
-          // Идэвхтэй candidate-pair-г transport.selectedCandidatePairId-аар
-          // нэг утгагүй тодорхойлно (байхгүй бол nominated+succeeded fallback) —
-          // "nominated+succeeded" ганцаараа олон pair-т нийцэж болзошгүй тул
-          // ICE restart-ийн үед хуучирсан (идэвхгүй болсон ч хэвээр
-          // nominated тэмдэглэгдсэн) pair-г санамсаргүй сонгож болдог байсан.
-          let rtt: number | undefined
-          let availOutKbps: number | undefined
-          let localCandidateType: string | undefined
-          let remoteCandidateType: string | undefined
-          let protocol: string | undefined
-          let relayProtocol: string | undefined
-
-          const pairId = findSelectedCandidatePairId(stats)
-          if (pairId) {
-            const pair = stats.find((s) => s.type === "candidate-pair" && s.id === pairId)
-            if (pair) {
-              rtt = typeof pair.currentRoundTripTime === "number" ? Math.round((pair.currentRoundTripTime as number) * 1000) : undefined
-              availOutKbps = typeof pair.availableOutgoingBitrate === "number" ? Math.round((pair.availableOutgoingBitrate as number) / 1000) : undefined
-
-              // Сонгогдсон candidate-ийн ТЕГШИЛСЭН (address/port/candidate
-              // string ХЭЗЭЭ Ч биш) төрлийг л уншина — зөвхөн candidateType/
-              // protocol/relayProtocol, TURN сервер рүү хэрхэн хүрч байгааг
-              // ойлгоход хангалттай.
-              const localCandidateId = pair.localCandidateId as string | undefined
-              const remoteCandidateId = pair.remoteCandidateId as string | undefined
-              const local = stats.find((s) => s.type === "local-candidate" && s.id === localCandidateId)
-              const remote = stats.find((s) => s.type === "remote-candidate" && s.id === remoteCandidateId)
-              localCandidateType = local?.candidateType as string | undefined
-              protocol = local?.protocol as string | undefined
-              relayProtocol = local?.relayProtocol as string | undefined
-              remoteCandidateType = remote?.candidateType as string | undefined
-            }
-          }
-
-          const curr: DiagnosticSample = {
-            ts: performance.now(),
-            outboundRtpId, bytesSent, framesEncoded,
-            inboundRtpId, bytesReceived, framesDecoded, freezeCount,
-          }
-          const deltas = computeDiagnosticDeltas(snapshots.get(pc), curr)
-          snapshots.set(pc, curr)
-
-          const avgJbufMs = jitterBufferEmittedCount > 0 ? Math.round((jitterBufferDelay / jitterBufferEmittedCount) * 1000) : undefined
-
-          console.info(
-            `[camera-stats] peer=${remoteId.slice(0, 8)} rtt=${rtt ?? "?"}ms ` +
-            `out=${deltas.sendKbps ?? "?"}kbps/${deltas.sendFps ?? "?"}fps in=${deltas.recvKbps ?? "?"}kbps/${deltas.recvFps ?? "?"}fps ` +
-            `jbuf=${avgJbufMs ?? "?"}ms jitter=${jitter ?? "?"}ms loss=${packetsLost} ` +
-            `freeze=+${deltas.freezeDelta ?? "?"}(${Math.round(totalFreezesDuration * 1000)}ms total) ` +
-            `qLimit=${qualityLimitationReason ?? "none"} availOut=${availOutKbps ?? "?"}kbps ` +
-            `path=${localCandidateType ?? "?"}->${remoteCandidateType ?? "?"} proto=${protocol ?? "?"} relayProto=${relayProtocol ?? "-"}`,
-          )
-        }, () => {})
-      })
-    }, 3000)
-
-    return () => clearInterval(interval)
-  }, [])
 
   // Cleanup on unmount
   useEffect(() => {
